@@ -1,0 +1,305 @@
+{
+  "name": "analytics_agent",
+  "display_name": "Аналитик-агент",
+  "description": "Анализ метрик, дашборды, прогнозирование, когортный анализ и воронка конверсии для агрегатора скидок smart-skidka.ru",
+  "version": "1.0.0",
+  "system_prompt": "Ты — Аналитик-агент (Data Analyst) агрегатора скидок smart-skidka.ru. Твоя роль — превращать сырые данные в actionable insights для роста ключевых метрик платформы.\n\n## Твоя роль\nТы работаешь с данными маркетплейса скидок: отслеживаешь поведение пользователей, анализируешь эффективность офферов, прогнозируешь тренды и выдаёшь конкретные рекомендации продуктовой и маркетинговой команде.\n\n## Ключевые метрики (отслеживай все)\n- **DAU / MAU** — ежедневные и месячные активные пользователи, коэффициент вовлечённости (DAU/MAU)\n- **Bounce Rate** — процент пользователей, покидающих сайт после просмотра одной страницы\n- **CTR на карточку** — кликабельность карточек товаров/скидок в листингах\n- **CTR на оффер** — кликабельность кнопки перехода в магазин\n- **CAC** — стоимость привлечения одного пользователя по каналам\n- **LTV** — пожизненная ценность пользователя\n- **Retention D1 / D7 / D30** — удержание пользователей на 1-й, 7-й и 30-й день\n- **Конверсия воронки** — процент перехода между каждым шагом\n\n## Твои инструменты\n- **Python**: pandas (обработка данных), matplotlib/seaborn (визуализация), numpy (расчёты), scikit-learn (прогнозирование)\n- **Поиск**: бенчмарки отрасли (средние CTR, bounce rate, retention для агрегаторов скидок и купонных сервисов)\n- **Калькуляторы**: статистические тесты (z-test, t-test) для оценки значимости изменений\n\n## Обязательные действия при каждом запуске\n\n### 1. Построение воронки конверсии\nСтрои воронку из 4 шагов:\n```\nЗаход на сайт (Session) → Просмотр карточки товара → Клик на скидку/оффер → Покупка в магазине-партнёре\n```\nДля каждого шага рассчитывай:\n- Абсолютное количество пользователей\n- Конверсию от предыдущего шага (step conversion rate)\n- Общую конверсию от первого шага (overall conversion rate)\n- Дропофф-рейт (dropoff_rate) — процент потери между шагами\n\n### 2. Выявление узкого места\nОпредели шаг с максимальным дропоффом. Это приоритетная зона для улучшений.\n\n### 3. Сегментация анализа\nРазбивай метрики по срезам:\n- **Источник трафика**: organic, paid, social, direct, referral, email\n- **Категория товара**: электроника, одежда, продукты, косметика, товары для дома и др.\n- **География**: город / регион\n- **Тип устройства**: mobile / desktop / tablet\n- **Тип пользователя**: новый / вернувшийся\n\n### 4. Прогнозирование\nСтрой прогнозы на 7, 30 и 90 дней для:\n- DAU и MAU\n- CTR карточки и оффера\n- Конверсии воронки\n- Retention по когортам\nУчитывай сезонность (праздники, распродажи: Чёрная пятница, Новый год, 8 марта и т.д.) и тренды по категориям товаров.\n\n### 5. Когортный анализ\n- Формируй когорты по дате первого визита\n- Рассчитывай Retention D1, D7, D14, D30 для каждой когорты\n- Строй когортную heatmap\n- Выявляй когорты с лучшим и худшим удержанием\n- Анализируй влияние канала привлечения на retention\n\n## Формат рекомендаций\nКаждая рекомендация должна следовать строгой структуре:\n```\nПроблема → Причина → Действие → Ожидаемый эффект\n```\nПример:\n```\nПроблема: CTR на карточку в категории 'Электроника' на 40% ниже среднего по платформе.\nПричина: Изображения карточек не адаптированы под мобильные устройства (72% трафика).\nДействие: Внедрить вертикальный формат изображений 3:4 и A/B тест с текущим форматом.\nОжидаемый эффект: Повышение CTR на 15-20%, что даст +850 кликов в день.\n```\n\n## Критерии значимости\n- Изменение метрики считай значимым, если отклонение от базовой линии > 5%\n- Рекомендации выдавай только при подтверждении данных (не по догадкам)\n- Всегда сравнивай с бенчмарками отрасли, если они доступны\n- Указывай уровень уверенности: высокий / средний / низкий\n\n## Важно\n- Все расчёты выполняй на актуальных данных (не старше 24 часов)\n- Если данные неполные — явно указывай это и даёшь предварительные выводы\n- Используй наглядные визуализации: графики воронки, heatmap когорт, линейные графики трендов\n- Язык отчётов — русский",
+  "tools": [
+    {
+      "name": "python_analytics",
+      "description": "Выполнение Python-кода для анализа данных (pandas, matplotlib, numpy, scikit-learn)",
+      "libraries": ["pandas", "matplotlib", "seaborn", "numpy", "scikit-learn"],
+      "use_cases": [
+        "Расчёт метрик DAU/MAU, CTR, CAC, LTV, Retention",
+        "Построение воронки конверсии",
+        "Когортный анализ и heatmap",
+        "Прогнозирование временных рядов",
+        "Сегментация и группировка данных"
+      ]
+    },
+    {
+      "name": "industry_benchmark_search",
+      "description": "Поиск бенчмарков отрасли для агрегаторов скидок и купонных сервисов",
+      "search_queries": [
+        "скидочный агрегатор средний CTR bounce rate retention бенчмарк",
+        "coupon aggregator industry benchmark CTR conversion rate 2024",
+        "e-commerce deals platform average retention rate D1 D7 D30",
+        "агрегатор скидок средняя конверсия воронка покупка"
+      ],
+      "use_cases": [
+        "Сравнение метрик smart-skidka.ru с отраслевыми средними",
+        "Определение зон максимального отставания",
+        "Обоснование рекомендаций бенчмарками"
+      ]
+    },
+    {
+      "name": "funnel_builder",
+      "description": "Построение и визуализация воронки конверсии",
+      "steps": [
+        {"id": "session", "name": "Заход на сайт", "description": "Уникальная сессия пользователя"},
+        {"id": "card_view", "name": "Просмотр карточки", "description": "Открытие страницы товара/скидки"},
+        {"id": "offer_click", "name": "Клик на оффер", "description": "Клик по кнопке перехода в магазин"},
+        {"id": "purchase", "name": "Покупка", "description": "Подтверждённая покупка в магазине-партнёре"}
+      ],
+      "output_metrics": ["users", "step_conversion_rate", "overall_conversion_rate", "dropoff_rate"]
+    },
+    {
+      "name": "cohort_analyzer",
+      "description": "Когортный анализ удержания пользователей",
+      "cohort_definition": "Дата первого визита на сайт",
+      "retention_periods": ["D1", "D7", "D14", "D30"],
+      "dimensions": ["traffic_source", "category", "city", "device_type"],
+      "outputs": ["cohort_table", "retention_heatmap", "trend_analysis"]
+    },
+    {
+      "name": "forecast_engine",
+      "description": "Прогнозирование метрик на основе временных рядов",
+      "models": ["linear_trend", "seasonal_decomposition", "prophet"],
+      "horizons": [7, 30, 90],
+      "factors": [
+        "Сезонность (праздники, распродажи)",
+        "Тренды категорий товаров",
+        "Маркетинговые активности",
+        "Изменения в продукте"
+      ],
+      "output": "forecast_table_with_confidence_intervals"
+    }
+  ],
+  "schedule": {
+    "frequency": "every 24 hours",
+    "trigger_time": "08:00 MSK",
+    "timezone": "Europe/Moscow",
+    "tasks_per_run": 1,
+    "task_type": "daily_report",
+    "description": "Ежедневный аналитический отчёт с построением воронки, когортного анализа, расчётом ключевых метрик и прогнозов",
+    "priority": "high",
+    "retry_policy": {
+      "max_retries": 3,
+      "retry_delay_minutes": 30
+    }
+  },
+  "validation_rules": {
+    "has_funnel": {
+      "enabled": true,
+      "description": "Отчёт должен содержать воронку конверсии минимум из 4 шагов",
+      "required_steps": ["session", "card_view", "offer_click", "purchase"],
+      "min_step_count": 4
+    },
+    "has_cohort_analysis": {
+      "enabled": true,
+      "description": "Отчёт должен содержать когортный анализ с retention D1/D7/D30",
+      "required_periods": ["D1", "D7", "D30"],
+      "min_cohorts": 3
+    },
+    "metrics_completeness": {
+      "enabled": true,
+      "description": "Все ключевые метрики должны быть рассчитаны и присутствовать в отчёте",
+      "required_metrics": [
+        "dau",
+        "mau",
+        "bounce_rate",
+        "ctr_card",
+        "ctr_offer",
+        "cac",
+        "ltv",
+        "retention_d1",
+        "retention_d7",
+        "retention_d30"
+      ],
+      "check": "all_key_metrics_present"
+    },
+    "recommendations_format": {
+      "enabled": true,
+      "description": "Каждая рекомендация должна следовать формату: Проблема → Причина → Действие → Ожидаемый эффект",
+      "required_fields": ["problem", "cause", "action", "expected_effect"],
+      "min_recommendations": 1
+    },
+    "forecast_horizon": {
+      "enabled": true,
+      "description": "Прогноз должен быть построен на 7, 30 и 90 дней",
+      "required_horizons": [7, 30, 90]
+    },
+    "data_freshness": {
+      "enabled": true,
+      "description": "Данные в отчёте не должны быть старше 24 часов",
+      "max_age_hours": 24
+    },
+    "confidence_levels": {
+      "enabled": true,
+      "description": "Каждая рекомендация должна иметь уровень уверенности",
+      "allowed_levels": ["высокий", "средний", "низкий"]
+    },
+    "segmentation_coverage": {
+      "enabled": true,
+      "description": "Анализ должен включать сегментацию минимум по 3 измерениям",
+      "required_dimensions_count": 3,
+      "available_dimensions": [
+        "traffic_source",
+        "category",
+        "geography",
+        "device_type",
+        "user_type"
+      ]
+    }
+  },
+  "output_format": {
+    "type": "json",
+    "description": "Структурированный JSON-отчёт ежедневной аналитики",
+    "schema": {
+      "report_date": {
+        "type": "string",
+        "format": "date",
+        "description": "Дата отчёта в формате YYYY-MM-DD",
+        "example": "2024-01-15"
+      },
+      "report_period": {
+        "type": "object",
+        "description": "Период анализа",
+        "properties": {
+          "start_date": {"type": "string", "format": "date"},
+          "end_date": {"type": "string", "format": "date"}
+        }
+      },
+      "metrics": {
+        "type": "object",
+        "description": "Ключевые метрики платформы",
+        "properties": {
+          "dau": {"type": "integer", "description": "Daily Active Users"},
+          "mau": {"type": "integer", "description": "Monthly Active Users"},
+          "dau_mau_ratio": {"type": "number", "description": "Коэффициент вовлечённости DAU/MAU"},
+          "bounce_rate": {"type": "number", "description": "Процент отказов (0-100)"},
+          "ctr_card": {"type": "number", "description": "CTR на карточку товара (%)"},
+          "ctr_offer": {"type": "number", "description": "CTR на оффер/кнопку перехода (%)"},
+          "cac": {"type": "number", "description": "Cost per Acquisition, руб."},
+          "ltv": {"type": "number", "description": "Lifetime Value, руб."},
+          "ltv_cac_ratio": {"type": "number", "description": "Отношение LTV к CAC"},
+          "retention_d1": {"type": "number", "description": "Retention Day 1 (%)"},
+          "retention_d7": {"type": "number", "description": "Retention Day 7 (%)"},
+          "retention_d30": {"type": "number", "description": "Retention Day 30 (%)"}
+        }
+      },
+      "funnel": {
+        "type": "array",
+        "description": "Воронка конверсии по шагам",
+        "items": {
+          "type": "object",
+          "properties": {
+            "step_id": {"type": "string"},
+            "step_name": {"type": "string"},
+            "users": {"type": "integer"},
+            "step_conversion_rate": {"type": "number", "description": "Конверсия от предыдущего шага (%)"},
+            "overall_conversion_rate": {"type": "number", "description": "Конверсия от первого шага (%)"},
+            "dropoff_rate": {"type": "number", "description": "Дропофф от предыдущего шага (%)"}
+          }
+        }
+      },
+      "bottleneck": {
+        "type": "object",
+        "description": "Узкое место воронки",
+        "properties": {
+          "step_id": {"type": "string"},
+          "step_name": {"type": "string"},
+          "dropoff_rate": {"type": "number"},
+          "lost_users": {"type": "integer"},
+          "impact": {"type": "string", "description": "Влияние на общую конверсию"}
+        }
+      },
+      "segments": {
+        "type": "array",
+        "description": "Анализ по сегментам",
+        "items": {
+          "type": "object",
+          "properties": {
+            "dimension": {"type": "string", "description": "Измерение сегментации"},
+            "segments": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {"type": "string"},
+                  "users": {"type": "integer"},
+                  "ctr_card": {"type": "number"},
+                  "ctr_offer": {"type": "number"},
+                  "conversion_rate": {"type": "number"},
+                  "retention_d7": {"type": "number"}
+                }
+              }
+            }
+          }
+        }
+      },
+      "cohorts": {
+        "type": "object",
+        "description": "Когортный анализ",
+        "properties": {
+          "cohort_size": {"type": "string", "description": "Размерность когорты (day/week)"},
+          "retention_table": {"type": "array"},
+          "best_cohort": {"type": "string"},
+          "worst_cohort": {"type": "string"},
+          "avg_retention_d7": {"type": "number"},
+          "avg_retention_d30": {"type": "number"}
+        }
+      },
+      "recommendations": {
+        "type": "array",
+        "description": "Рекомендации по улучшению метрик",
+        "items": {
+          "type": "object",
+          "properties": {
+            "priority": {"type": "integer", "description": "Приоритет 1-5 (1 — высший)"},
+            "confidence": {"type": "string", "enum": ["высокий", "средний", "низкий"]},
+            "problem": {"type": "string", "description": "Выявленная проблема"},
+            "cause": {"type": "string", "description": "Вероятная причина"},
+            "action": {"type": "string", "description": "Конкретное действие"},
+            "expected_effect": {"type": "string", "description": "Ожидаемый результат с количественной оценкой"},
+            "owner": {"type": "string", "description": "Ответственная команда: product / marketing / tech / content"}
+          }
+        }
+      },
+      "forecast": {
+        "type": "array",
+        "description": "Прогнозы метрик",
+        "items": {
+          "type": "object",
+          "properties": {
+            "date": {"type": "string", "format": "date"},
+            "metric": {"type": "string", "description": "Название метрики"},
+            "predicted_value": {"type": "number"},
+            "confidence_lower": {"type": "number"},
+            "confidence_upper": {"type": "number"},
+            "horizon_days": {"type": "integer", "enum": [7, 30, 90]}
+          }
+        }
+      },
+      "industry_benchmarks": {
+        "type": "object",
+        "description": "Сравнение с бенчмарками отрасли",
+        "properties": {
+          "source": {"type": "string"},
+          "comparisons": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "metric": {"type": "string"},
+                "our_value": {"type": "number"},
+                "benchmark_value": {"type": "number"},
+                "diff_percent": {"type": "number"},
+                "status": {"type": "string", "enum": ["above", "below", "on_par"]}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "metadata": {
+    "platform": "smart-skidka.ru",
+    "agent_type": "analytics",
+    "language": "ru",
+    "currency": "RUB",
+    "timezone": "Europe/Moscow",
+    "created_at": "2025-01-20",
+    "author": "Multi-Agent Marketing System"
+  }
+}

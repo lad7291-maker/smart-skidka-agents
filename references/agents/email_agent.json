@@ -1,0 +1,594 @@
+{
+  "name": "email_agent",
+  "display_name": "Email/CRM-агент",
+  "description": "Удержание пользователей и увеличение LTV через email-маркетинг: welcome-цепочки, триггерные письма, персонализированные дайджесты и реактивация неактивных пользователей агрегатора скидок smart-skidka.ru",
+  "version": "1.0.0",
+  "system_prompt": "Ты — Email-маркетолог и CRM-специалист агрегатора скидок smart-skidka.ru. Твоя задача — увеличить LTV (Lifetime Value) пользователей через умный email-маркетинг, который приносит реальную пользу, а не раздражает.\n\n## Твоя роль\n- Создавай email-кампании, которые помогают пользователям экономить деньги\n- Отслеживай поведение пользователей и реагируй на события в реальном времени\n- Сегментируй базу для максимальной персонализации\n- Следи за метриками: открываемость >25%, CTR >5%\n\n## Сценарии email-коммуникаций\n\n### 1. Welcome-цепочка (3 письма)\n- Письмо 1 (сразу после регистрации): \"Добро пожаловать в smart-skidka.ru! Как экономить до 30% на покупках\" — краткий гайд по платформе, топ-5 популярных скидок этой недели\n- Письмо 2 (через 2 дня): \"Лучшие скидки, которые нельзя пропустить\" — подборка товаров по популярным категориям с реальными цифрами экономии\n- Письмо 3 (через 5 дней): \"Выбирайте любимые категории — получайте персональные подборки\" — призыв подписаться на категории интересов для персонализации\n\n### 2. Триггер \"Цена упала\"\n- Условие: отслеживаемый пользователем товар снизился в цене на 10% или более\n- Действие: мгновенное email-уведомление с новой ценой, старой ценой и размером экономии\n- Шаблон: \"🔥 Цена упала на {discount}%! {product_name} теперь стоит {new_price} ₽ (было {old_price} ₽)\"\n\n### 3. Персонализированный дайджест\n- Частота: 2 раза в неделю (вторник и пятница в 10:00)\n- Содержание: топ-10 скидок по категориям интересов пользователя\n- Структура: персональное приветствие → 3 скидки по подпискам → 3 популярных скидки → 3 эксклюзивных предложения → CTA\n- Алгоритм подбора: анализ подписок пользователя + история просмотров + популярные скидки платформы\n\n### 4. Реактивация неактивных пользователей\n- Условие: пользователь не открывал письма 14+ дней и не заходил на сайт 21+ день\n- Сценарий: письмо с фиктивным бонусом \"Мы сохранили для вас 500 ₽ на первую покупку через smart-skidka.ru\"\n- Цепочка: 1 письмо с бонусом → через 5 дней напоминание → через 7 дней \"последний шанс\"\n\n### 5. Дополнительные триггеры\n- Брошенная корзина: товар добавлен в корзину, но покупка не совершена в течение 24 часов → напоминание с возможной скидкой\n- Просмотр товара без покупки: 3+ просмотра одного товара → письмо \"Ещё думаете? Скидка скоро закончится\"\n\n## Тон и стиль\n- Дружелюбный, разговорный: пиши как друг, который хочет помочь сэкономить\n- Без спама: максимум 3 письма в неделю на один email\n- Честность: реальные скидки, реальные цены, без \"fake urgency\"\n- Юзабилити: чёткая структура, крупные CTA-кнопки, мобильная адаптация\n\n## Сегментация базы\n- По категориям интересов: Электроника, Одежда, Продукты, Косметика, Для дома, Спорт, Детские товары\n- По активности: Активные (открывали за 7 дней), Умеренные (7-30 дней), Неактивные (30+ дней)\n- По поведению: Покупатели (совершали покупку), Браузеры (только просматривают), Новые (<7 дней)\n- По LTV: Высокий (>10 000 ₽), Средний (3000-10 000 ₽), Низкий (<3000 ₽)\n\n## Ключевые метрики\n- Целевая открываемость: >25%\n- Целевой CTR: >5%\n- Отписок: <0.5%\n- Конверсия из письма в покупку: >2%\n\n## Ограничения\n- Максимум 3 письма в неделю на пользователя\n- Обязательная ссылка отписки в каждом письме\n- Персонализация обязательна: имя, категории интересов, история просмотров\n- Проверка на спам-слова перед отправкой (spam score < 5)\n- Длина темы: 30-60 символов\n- Рабочие часы отправки: 10:00-20:00 по московскому времени",
+  "tools": [
+    {
+      "name": "send_email",
+      "description": "Отправка email-сообщения пользователю или сегменту",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "recipient_email": {
+            "type": "string",
+            "description": "Email получателя или сегмент (all, active, inactive, new)"
+          },
+          "subject": {
+            "type": "string",
+            "description": "Тема письма (30-60 символов)"
+          },
+          "body_html": {
+            "type": "string",
+            "description": "HTML-содержимое письма"
+          },
+          "email_type": {
+            "type": "string",
+            "enum": ["welcome", "trigger", "digest", "reactivation", "abandoned_cart"],
+            "description": "Тип email-кампании"
+          },
+          "segment": {
+            "type": "string",
+            "description": "Целевой сегмент пользователей"
+          },
+          "personalization": {
+            "type": "object",
+            "properties": {
+              "user_name": { "type": "string" },
+              "interests": { "type": "array", "items": { "type": "string" } },
+              "last_viewed_products": { "type": "array" },
+              "bonus_amount": { "type": "number" }
+            }
+          },
+          "schedule_at": {
+            "type": "string",
+            "description": "ISO 8601 datetime для отложенной отправки"
+          },
+          "has_unsubscribe": {
+            "type": "boolean",
+            "default": true,
+            "description": "Наличие ссылки отписки"
+          }
+        },
+        "required": ["recipient_email", "subject", "body_html", "email_type"]
+      }
+    },
+    {
+      "name": "check_price_drop",
+      "description": "Проверка снижения цен на отслеживаемые пользователями товары",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "min_discount_percent": {
+            "type": "number",
+            "default": 10,
+            "description": "Минимальный процент снижения для триггера"
+          },
+          "check_period_hours": {
+            "type": "number",
+            "default": 6,
+            "description": "Период проверки в часах"
+          }
+        }
+      }
+    },
+    {
+      "name": "get_user_segment",
+      "description": "Получение сегмента пользователей по критериям",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "activity_level": {
+            "type": "string",
+            "enum": ["active", "moderate", "inactive"],
+            "description": "Уровень активности"
+          },
+          "interests": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Категории интересов"
+          },
+          "ltv_range": {
+            "type": "string",
+            "enum": ["high", "medium", "low"],
+            "description": "Диапазон LTV"
+          },
+          "user_type": {
+            "type": "string",
+            "enum": ["buyer", "browser", "new"],
+            "description": "Тип пользователя"
+          },
+          "days_since_last_open": {
+            "type": "number",
+            "description": "Дней с момента последнего открытия письма"
+          }
+        }
+      }
+    },
+    {
+      "name": "generate_digest",
+      "description": "Генерация персонализированного дайджеста топ скидок",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "description": "ID пользователя"
+          },
+          "count": {
+            "type": "number",
+            "default": 10,
+            "description": "Количество скидок в дайджесте"
+          },
+          "include_categories": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Категории для включения"
+          }
+        },
+        "required": ["user_id"]
+      }
+    },
+    {
+      "name": "check_spam_score",
+      "description": "Проверка содержимого письма на спам-рейтинг",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string",
+            "description": "Тема письма"
+          },
+          "body_html": {
+            "type": "string",
+            "description": "HTML-содержимое письма"
+          },
+          "max_score": {
+            "type": "number",
+            "default": 5,
+            "description": "Максимально допустимый спам-скор"
+          }
+        },
+        "required": ["subject", "body_html"]
+      }
+    },
+    {
+      "name": "track_metrics",
+      "description": "Отслеживание email-метрик (открываемость, CTR, конверсия)",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "campaign_id": {
+            "type": "string",
+            "description": "ID кампании"
+          },
+          "metric_type": {
+            "type": "string",
+            "enum": ["open_rate", "ctr", "conversion_rate", "unsubscribe_rate"],
+            "description": "Тип метрики"
+          },
+          "time_period": {
+            "type": "string",
+            "enum": ["24h", "7d", "30d"],
+            "default": "7d"
+          }
+        },
+        "required": ["campaign_id", "metric_type"]
+      }
+    },
+    {
+      "name": "get_abandoned_carts",
+      "description": "Получение списка брошенных корзин за период",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "hours_since_abandonment": {
+            "type": "number",
+            "default": 24,
+            "description": "Часов с момента броска корзины"
+          },
+          "min_cart_value": {
+            "type": "number",
+            "default": 500,
+            "description": "Минимальная сумма корзины"
+          }
+        }
+      }
+    },
+    {
+      "name": "schedule_email",
+      "description": "Планирование отложенной отправки email",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "email_config": {
+            "type": "object",
+            "description": "Конфигурация письма (subject, body_html, email_type и т.д.)"
+          },
+          "send_at": {
+            "type": "string",
+            "description": "ISO 8601 datetime отправки"
+          },
+          "trigger_name": {
+            "type": "string",
+            "description": "Название триггера для отслеживания"
+          }
+        },
+        "required": ["email_config", "send_at"]
+      }
+    }
+  ],
+  "schedule": {
+    "frequency": "every 6 hours",
+    "tasks_per_run": 3,
+    "working_hours": {
+      "start": "10:00",
+      "end": "20:00",
+      "timezone": "Europe/Moscow"
+    },
+    "digest_days": ["tuesday", "friday"],
+    "digest_time": "10:00",
+    "check_triggers": [
+      "price_drop",
+      "abandoned_cart",
+      "user_inactivity"
+    ],
+    "task_distribution": {
+      "trigger_checks": 1,
+      "digest_preparation": 1,
+      "reactivation_check": 1
+    }
+  },
+  "validation_rules": {
+    "subject_length": {
+      "min": 30,
+      "max": 60,
+      "description": "Длина темы письма в символах"
+    },
+    "spam_score": {
+      "max": 5,
+      "description": "Максимально допустимый спам-скор (0-10)"
+    },
+    "open_rate_target": {
+      "min": 25,
+      "unit": "percent",
+      "description": "Целевая открываемость писем"
+    },
+    "ctr_target": {
+      "min": 5,
+      "unit": "percent",
+      "description": "Целевой CTR (кликабельность)"
+    },
+    "has_unsubscribe": {
+      "required": true,
+      "description": "Обязательное наличие ссылки отписки"
+    },
+    "personalization": {
+      "required": true,
+      "description": "Обязательная персонализация письма"
+    },
+    "max_emails_per_week": {
+      "limit": 3,
+      "description": "Максимальное количество писем в неделю на одного пользователя"
+    },
+    "unsubscribe_rate_max": {
+      "limit": 0.5,
+      "unit": "percent",
+      "description": "Максимально допустимый процент отписок"
+    },
+    "conversion_rate_target": {
+      "min": 2,
+      "unit": "percent",
+      "description": "Целевая конверсия из письма в покупку"
+    },
+    "working_hours_only": {
+      "enabled": true,
+      "start": "10:00",
+      "end": "20:00",
+      "timezone": "Europe/Moscow",
+      "description": "Отправка писем только в рабочие часы"
+    },
+    "content_rules": {
+      "forbidden_words": [
+        "БЕСПЛАТНО", "СРОЧНО", "ТОЛЬКО СЕГОДНЯ!!!", "100% ГАРАНТИЯ",
+        "ЗАРАБОТАЙ", "МИЛЛИОН", "$$$", "КРЕДИТ", "ЗАЙМ", "ЛОТЕРЕЯ"
+      ],
+      "max_exclamation_marks": 2,
+      "max_capitals_percent": 30,
+      "require_clear_cta": true,
+      "require_mobile_friendly": true
+    }
+  },
+  "output_format": {
+    "type": "json",
+    "schema": {
+      "email_type": {
+        "type": "string",
+        "enum": ["welcome", "trigger", "digest", "reactivation", "abandoned_cart"],
+        "description": "Тип email-кампании"
+      },
+      "subject": {
+        "type": "string",
+        "minLength": 30,
+        "maxLength": 60,
+        "description": "Тема письма"
+      },
+      "body_html": {
+        "type": "string",
+        "description": "HTML-версия письма с инлайн-стилями"
+      },
+      "body_text": {
+        "type": "string",
+        "description": "Текстовая версия письма (fallback)"
+      },
+      "segments": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "segment_name": {
+              "type": "string",
+              "description": "Название сегмента"
+            },
+            "criteria": {
+              "type": "object",
+              "properties": {
+                "activity_level": { "type": "string" },
+                "interests": { "type": "array", "items": { "type": "string" } },
+                "ltv_range": { "type": "string" },
+                "user_type": { "type": "string" },
+                "days_since_last_open": { "type": "number" }
+              }
+            },
+            "estimated_size": {
+              "type": "number",
+              "description": "Оценочный размер сегмента"
+            }
+          }
+        }
+      },
+      "triggers": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "trigger_name": {
+              "type": "string",
+              "description": "Название триггера"
+            },
+            "condition": {
+              "type": "string",
+              "description": "Условие срабатывания"
+            },
+            "delay": {
+              "type": "string",
+              "description": "Задержка перед отправкой (например, 'immediate', '2h', '24h')"
+            },
+            "priority": {
+              "type": "string",
+              "enum": ["high", "medium", "low"],
+              "description": "Приоритет триггера"
+            }
+          }
+        }
+      },
+      "personalization_fields": {
+        "type": "object",
+        "properties": {
+          "user_name": { "type": "string" },
+          "interests": { "type": "array", "items": { "type": "string" } },
+          "last_viewed_products": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "product_id": { "type": "string" },
+                "product_name": { "type": "string" },
+                "discount_percent": { "type": "number" },
+                "current_price": { "type": "number" },
+                "image_url": { "type": "string" }
+              }
+            }
+          },
+          "bonus_amount": { "type": "number" },
+          "savings_this_month": { "type": "number" },
+          "favorite_categories": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "metrics": {
+        "type": "object",
+        "properties": {
+          "expected_open_rate": { "type": "number" },
+          "expected_ctr": { "type": "number" },
+          "expected_conversion_rate": { "type": "number" },
+          "spam_score": { "type": "number" }
+        }
+      },
+      "meta": {
+        "type": "object",
+        "properties": {
+          "campaign_id": { "type": "string" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "scheduled_at": { "type": "string", "format": "date-time" },
+          "has_unsubscribe": { "type": "boolean" },
+          "is_personalized": { "type": "boolean" },
+          "language": { "type": "string", "default": "ru" }
+        }
+      }
+    }
+  },
+  "segments": [
+    {
+      "name": "Электроника",
+      "criteria": { "interests": ["electronics", "gadgets", "smartphones", "laptops"] },
+      "estimated_size_percent": 35
+    },
+    {
+      "name": "Одежда и мода",
+      "criteria": { "interests": ["clothing", "fashion", "shoes", "accessories"] },
+      "estimated_size_percent": 25
+    },
+    {
+      "name": "Продукты и еда",
+      "criteria": { "interests": ["food", "grocery", "delivery"] },
+      "estimated_size_percent": 20
+    },
+    {
+      "name": "Косметика и уход",
+      "criteria": { "interests": ["cosmetics", "beauty", "skincare", "health"] },
+      "estimated_size_percent": 15
+    },
+    {
+      "name": "Для дома",
+      "criteria": { "interests": ["home", "furniture", "decor", "cleaning"] },
+      "estimated_size_percent": 18
+    },
+    {
+      "name": "Спорт",
+      "criteria": { "interests": ["sport", "fitness", "outdoor"] },
+      "estimated_size_percent": 12
+    },
+    {
+      "name": "Детские товары",
+      "criteria": { "interests": ["kids", "toys", "baby"] },
+      "estimated_size_percent": 10
+    },
+    {
+      "name": "Активные пользователи",
+      "criteria": { "activity_level": "active", "days_since_last_open": 7 },
+      "estimated_size_percent": 40
+    },
+    {
+      "name": "Умеренно активные",
+      "criteria": { "activity_level": "moderate", "days_since_last_open": 30 },
+      "estimated_size_percent": 35
+    },
+    {
+      "name": "Неактивные пользователи",
+      "criteria": { "activity_level": "inactive", "days_since_last_open": 90 },
+      "estimated_size_percent": 25
+    },
+    {
+      "name": "Высокий LTV",
+      "criteria": { "ltv_range": "high", "total_purchases_min": 10000 },
+      "estimated_size_percent": 15
+    },
+    {
+      "name": "Средний LTV",
+      "criteria": { "ltv_range": "medium", "total_purchases_min": 3000 },
+      "estimated_size_percent": 45
+    },
+    {
+      "name": "Низкий LTV",
+      "criteria": { "ltv_range": "low" },
+      "estimated_size_percent": 40
+    }
+  ],
+  "trigger_chains": [
+    {
+      "name": "welcome_chain",
+      "description": "Welcome-цепочка для новых пользователей",
+      "emails": [
+        {
+          "step": 1,
+          "delay": "immediate",
+          "subject": "Добро пожаловать в smart-skidka.ru! Ваша экономия начинается",
+          "template": "welcome_1",
+          "description": "Приветствие + гайд по платформе + топ-5 скидок недели"
+        },
+        {
+          "step": 2,
+          "delay": "2d",
+          "subject": "Лучшие скидки недели, которые нельзя пропустить 🔥",
+          "template": "welcome_2",
+          "description": "Подборка по популярным категориям с реальными цифрами экономии"
+        },
+        {
+          "step": 3,
+          "delay": "5d",
+          "subject": "Выберите любимые категории — получайте персональные скидки",
+          "template": "welcome_3",
+          "description": "Призыв подписаться на категории для персонализации"
+        }
+      ]
+    },
+    {
+      "name": "price_drop_trigger",
+      "description": "Триггер снижения цены на отслеживаемые товары",
+      "emails": [
+        {
+          "step": 1,
+          "delay": "immediate",
+          "subject": "🔥 Цена упала на {discount}%! {product_name} — выгода {savings} ₽",
+          "template": "price_drop",
+          "description": "Мгновенное уведомление при снижении цены на 10%+"
+        }
+      ],
+      "condition": "price_drop >= 10% AND product_is_watched"
+    },
+    {
+      "name": "abandoned_cart",
+      "description": "Триггер брошенной корзины",
+      "emails": [
+        {
+          "step": 1,
+          "delay": "24h",
+          "subject": "Вы забыли кое-что важное... Скидка на {product_name} ждёт",
+          "template": "abandoned_cart_1",
+          "description": "Напоминание через 24 часа"
+        },
+        {
+          "step": 2,
+          "delay": "48h",
+          "subject": "Последний шанс: {product_name} со скидкой {discount}%",
+          "template": "abandoned_cart_2",
+          "description": "Финальное напоминание через 48 часов"
+        }
+      ],
+      "condition": "cart_abandoned > 24h AND cart_value > 500"
+    },
+    {
+      "name": "reactivation_chain",
+      "description": "Цепочка реактивации неактивных пользователей",
+      "emails": [
+        {
+          "step": 1,
+          "delay": "immediate",
+          "subject": "Мы сохранили для вас 500 ₽ — ваша персональная скидка ждёт",
+          "template": "reactivation_1",
+          "description": "Письмо с фиктивным бонусом 500 ₽"
+        },
+        {
+          "step": 2,
+          "delay": "5d",
+          "subject": "Напоминаем: ваши 500 ₽ всё ещё ждут вас",
+          "template": "reactivation_2",
+          "description": "Напоминание о бонусе через 5 дней"
+        },
+        {
+          "step": 3,
+          "delay": "7d",
+          "subject": "Последний день: используйте ваши 500 ₽ до истечения",
+          "template": "reactivation_3",
+          "description": "\"Последний шанс\" через 7 дней"
+        }
+      ],
+      "condition": "days_since_last_email_open > 14 AND days_since_last_visit > 21"
+    },
+    {
+      "name": "digest_weekly",
+      "description": "Регулярный дайджест скидок",
+      "emails": [
+        {
+          "step": 1,
+          "delay": "scheduled",
+          "subject": "Топ-10 скидок недели специально для вас, {user_name} ✨",
+          "template": "digest",
+          "description": "Персонализированный дайджест топ-10 скидок"
+        }
+      ],
+      "schedule": { "days": ["tuesday", "friday"], "time": "10:00", "timezone": "Europe/Moscow" }
+    }
+  ]
+}

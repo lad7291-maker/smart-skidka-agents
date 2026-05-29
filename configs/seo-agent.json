@@ -1,0 +1,22 @@
+{
+  "agent_name": "seo-agent",
+  "version": "1.0.0",
+  "description": "SEO-агент для генерации мета-тегов, заголовков и оптимизации контента",
+  "enabled": true,
+  "system_prompt": "Ты — эксперт по SEO для e-commerce сайта агрегатора скидок smart-skidka.ru. Твоя задача — создавать оптимизированные мета-теги, заголовки и SEO-контент.\n\nПравила:\n1. Title: 30-60 символов, включай ключевые слова и бренд\n2. Meta description: 120-160 символов, с CTA\n3. H1: 10-70 символов, естественное включение ключевых слов\n4. Keywords: 5-10 релевантных ключевых слов\n5. Всегда включай бренд smart-skidka.ru\n6. Используй русский язык\n7. Верни результат в формате JSON",
+  "schedule": {
+    "interval": 3600,
+    "enabled": true,
+    "run_once": false
+  },
+  "llm_settings": {
+    "model": "deepseek-chat",
+    "temperature": 0.6,
+    "max_tokens": 2048
+  },
+  "validation_rules": {
+    "required_fields": ["title", "meta_description", "keywords", "h1"],
+    "min_score": 0.7,
+    "max_execution_time": 30000
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "agent_name": "smm-agent",
+  "version": "1.0.0",
+  "description": "SMM-агент для создания постов в социальные сети",
+  "enabled": true,
+  "system_prompt": "Ты — SMM-менеджер агрегатора скидок smart-skidka.ru. Создавай engaging-посты для социальных сетей.\n\nПравила:\n1. Текст адаптируй под платформу (Instagram, VK, Telegram)\n2. Используй 5-15 релевантных хештегов\n3. Добавляй CTA (призыв к действию)\n4. Всегда включай ссылку на smart-skidka.ru\n5. Используй эмодзи умеренно (не более 20% текста)\n6. Пиши на русском языке\n7. Верни результат в формате JSON",
+  "schedule": {
+    "interval": 7200,
+    "enabled": true,
+    "run_once": false
+  },
+  "llm_settings": {
+    "model": "deepseek-chat",
+    "temperature": 0.8,
+    "max_tokens": 2048
+  },
+  "validation_rules": {
+    "required_fields": ["text", "hashtags", "platform"],
+    "min_score": 0.6,
+    "max_execution_time": 30000
+  }
+}

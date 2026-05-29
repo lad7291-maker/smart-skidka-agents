@@ -1,0 +1,198 @@
+{
+  "name": "content_agent",
+  "display_name": "Контент-агент",
+  "description": "Масштабная генерация контента: SEO-страницы, описания, сравнения, гайды",
+  "version": "1.0.0",
+  "system_prompt": "Ты — Контент-агент агрегатора скидок smart-skidka.ru. Твоя роль: Контент-менеджер, задача — масштабировать качественный контент на платформе скидок и промокодов.\n\n## Форматы контента\n### 1. SEO-страница категории\n- Объем: 1500+ слов\n- Структура: H1 + H2 + H3, вводный абзац, развернутые секции\n- Таблицы: сравнительные таблицы товаров/магазинов\n- FAQ: блок из 5-8 вопросов-ответов в конце\n- Целевые ключевые слова: естественно интегрированы\n\n### 2. Описание товара\n- Объем: 100-150 слов\n- Уникальное описание, не копия с сайта магазина\n- Ключевые слова: название товара, категория, бренд, 'скидка', 'купить', 'цена'\n- Структура: 1 абзац вводный + 1-2 абзаца характеристик + призыв к действию\n\n### 3. Сравнение: 'Товар A vs Товар B'\n- Таблица характеристик: цена, бренд, основные параметры, рейтинг\n- Плюсы и минусы каждого товара (списком)\n- Вердикт: рекомендация для какого сценария какой товар лучше\n- Ссылки на актуальные цены в магазинах-партнерах\n\n### 4. Гайд / пошаговая инструкция\n- Нумерованные шаги с подробным описанием\n- Места для скриншотов: отмечай маркером [СКРИНШОТ: описание что показать]\n- Советы и предупреждения в формате callout-блоков\n- Заключение с призывом к действию\n\n## Правила генерации\n\n### Уникальность > 90%\n- Перефразируй описания магазинов, не копируй один в один\n- Используй синонимы, меняй структуру предложений\n- Добавь уникальные инсайты, актуальные на текущую дату\n\n### Читаемость\n- Короткие абзацы: 2-4 предложения\n- Используй маркированные и нумерованные списки\n- Подзаголовки H2/H3 каждые 150-200 слов\n- Выделяй жирным ключевые термины\n\n### E-E-A-T (Опыт, Экспертность, Авторитет, Доверие)\n- Указывай дату обновления контента\n- Указывай источники цен: магазин, URL страницы товара\n- Добавь дисклеймер: цены актуальны на момент публикации\n- Упоминай реальные отзывы и рейтинги магазинов\n\n## Тон и стиль\n- Дружелюбный, информативный, экспертный\n- Обращение на 'вы'\n- Активные глаголы, конкретика вместо общих фраз\n- Призывы к действию: 'Сравните цены', 'Получите скидку', 'Смотрите актуальные цены'\n\n## Формат выходных данных\nВсегда возвращай результат в строгом JSON формате согласно output_format. Генерируй 5 текстов за один запуск.",
+  "tools": [
+    {
+      "name": "generate_seo_page",
+      "description": "Генерация SEO-страницы категории (1500+ слов, H2/H3, таблицы, FAQ)",
+      "parameters": {
+        "category": "string — название категории (например, 'Смартфоны')",
+        "keywords": "array[string] — целевые ключевые слова",
+        "stores": "array[string] — магазины для упоминания",
+        "target_audience": "string — целевая аудитория"
+      }
+    },
+    {
+      "name": "generate_product_description",
+      "description": "Генерация описания товара (100-150 слов, уникальное)",
+      "parameters": {
+        "product_name": "string — название товара",
+        "brand": "string — бренд",
+        "category": "string — категория",
+        "price": "number — текущая цена",
+        "old_price": "number — цена до скидки",
+        "discount_percent": "number — процент скидки",
+        "store": "string — магазин",
+        "key_features": "array[string] — ключевые характеристики"
+      }
+    },
+    {
+      "name": "generate_comparison",
+      "description": "Генерация сравнения 'Товар A vs Товар B' (таблица, вердикт)",
+      "parameters": {
+        "product_a": "object — товар A {name, brand, price, old_price, rating, features}",
+        "product_b": "object — товар B {name, brand, price, old_price, rating, features}",
+        "comparison_criteria": "array[string] — критерии сравнения"
+      }
+    },
+    {
+      "name": "generate_guide",
+      "description": "Генерация пошагового гайда со скриншотами",
+      "parameters": {
+        "topic": "string — тема гайда",
+        "steps_count": "number — количество шагов",
+        "target_audience": "string — целевая аудитория",
+        "complexity": "string — уровень сложности: beginner/intermediate/advanced"
+      }
+    },
+    {
+      "name": "check_uniqueness",
+      "description": "Проверка уникальности текста (целевое значение >90%)",
+      "parameters": {
+        "text": "string — текст для проверки",
+        "reference_texts": "array[string] — эталонные тексты для сравнения"
+      }
+    },
+    {
+      "name": "check_readability",
+      "description": "Проверка читаемости текста (короткие абзацы, списки, подзаголовки)",
+      "parameters": {
+        "text": "string — текст для проверки",
+        "min_paragraph_length": "number — минимальная длина абзаца (по умолчанию 2)",
+        "max_paragraph_length": "number — максимальная длина абзаца (по умолчанию 4)"
+      }
+    },
+    {
+      "name": "extract_keywords",
+      "description": "Извлечение и анализ ключевых слов из текста",
+      "parameters": {
+        "text": "string — текст для анализа",
+        "target_keywords": "array[string] — целевые ключевые слова для проверки"
+      }
+    },
+    {
+      "name": "validate_eeat",
+      "description": "Проверка E-E-A-T факторов (дата обновления, источники цен)",
+      "parameters": {
+        "text": "string — текст для проверки",
+        "required_elements": "array[string] — обязательные элементы"
+      }
+    }
+  ],
+  "schedule": {
+    "frequency": "every 6 hours",
+    "tasks_per_run": 5,
+    "priority_order": ["seo_page", "product_description", "comparison", "guide"],
+    "working_hours": "00:00-23:59",
+    "timezone": "Europe/Moscow",
+    "backoff_strategy": {
+      "max_retries": 3,
+      "delay_seconds": 300,
+      "exponential_multiplier": 2
+    }
+  },
+  "validation_rules": {
+    "uniqueness": {
+      "min_score": 90,
+      "measure": "percentage",
+      "check_method": "compare_with_source_descriptions",
+      "action_on_fail": "rewrite_text"
+    },
+    "word_count": {
+      "seo_page": { "min": 1500, "max": 3000 },
+      "product_description": { "min": 100, "max": 150 },
+      "comparison": { "min": 400, "max": 800 },
+      "guide": { "min": 600, "max": 2000 }
+    },
+    "has_structure": {
+      "applies_to": ["seo_page", "guide"],
+      "required_headings": ["h2", "h3"],
+      "min_h2_count": 3,
+      "min_h3_count": 2
+    },
+    "has_tables": {
+      "applies_to": ["comparison", "seo_page"],
+      "min_tables": 1,
+      "required_columns": ["Характеристика", "Значение"]
+    },
+    "has_faq": {
+      "applies_to": ["seo_page"],
+      "min_questions": 5,
+      "max_questions": 8,
+      "format": "question_answer_pairs"
+    },
+    "readability": {
+      "max_sentences_per_paragraph": 4,
+      "use_lists": true,
+      "use_subheadings": true,
+      "flesch_kincaid_target": "easy_to_read"
+    },
+    "ee_at": {
+      "required_elements": [
+        "date_updated",
+        "price_sources"
+      ],
+      "date_format": "YYYY-MM-DD",
+      "price_sources_min": 1,
+      "disclaimer_required": true
+    },
+    "keywords": {
+      "density_min": 1.0,
+      "density_max": 3.0,
+      "placement_required": ["title", "h1", "h2", "first_paragraph", "meta_description"]
+    }
+  },
+  "output_format": {
+    "type": "json",
+    "required_fields": [
+      "content_type",
+      "title",
+      "content_html",
+      "word_count",
+      "uniqueness_score",
+      "keywords_used",
+      "meta_description",
+      "last_updated",
+      "price_sources"
+    ],
+    "field_types": {
+      "content_type": "string — один из: seo_page | product_description | comparison | guide",
+      "title": "string — заголовок контента (H1)",
+      "content_html": "string — полный HTML контента с тегами h1-h3, p, ul, ol, table, etc",
+      "word_count": "integer — количество слов",
+      "uniqueness_score": "number — процент уникальности (0-100)",
+      "keywords_used": "array[string] — список использованных ключевых слов",
+      "meta_description": "string — meta description для SEO (150-160 символов)",
+      "last_updated": "string — дата обновления в формате ISO 8601",
+      "price_sources": "array[object] — [{ store: string, url: string, price_checked: string }]"
+    },
+    "content_html_structure": {
+      "seo_page": "<h1>заголовок</h1><p>ввод</p><h2>...</h2>...<table>...</table><h2>FAQ</h2>...",
+      "product_description": "<p>описание с <strong>ключевыми</strong> словами</p>",
+      "comparison": "<h1>A vs B</h1><table>...</table><h2>Плюсы и минусы</h2>...<h2>Вердикт</h2>...",
+      "guide": "<h1>тема</h1><p>ввод</p><h2>Шаг 1</h2>...[СКРИНШОТ: ...]..."
+    },
+    "batch_output": {
+      "format": "array",
+      "items_per_batch": 5,
+      "wrapper": {
+        "batch_id": "uuid",
+        "generated_at": "ISO 8601 timestamp",
+        "items": "array of content objects"
+      }
+    }
+  },
+  "dependencies": {
+    "requires": ["data_collector_agent", "price_monitor_agent"],
+    "provides_to": ["seo_agent", "smm_agent", "email_agent"],
+    "data_sources": [
+      "product_catalog",
+      "price_history",
+      "store_reviews",
+      "category_tree"
+    ]
+  }
+}

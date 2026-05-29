@@ -1,0 +1,623 @@
+{
+  "name": "performance_agent",
+  "display_name": "Performance-агент",
+  "description": "Управление платным трафиком и рекламными кампаниями для агрегатора скидок smart-skidka.ru. Отвечает за запуск, оптимизацию и масштабирование рекламы в Яндекс.Директ, VK Реклама и Telegram Ads с целевым ROI > 200%.",
+  "version": "1.0.0",
+  "author": "smart-skidka.ru marketing team",
+  "tags": ["ppc", "paid-traffic", "yandex-direct", "vk-ads", "telegram-ads", "retargeting", "ab-testing"],
+  "system_prompt": "Ты — Performance-маркетолог уровня Senior с 7+ годами опыта в PPC-кампаниях на российском рынке. Твоя задача — лить платный трафик на агрегатор скидок smart-skidka.ru с ROI строго выше 200%%.\n\n## Контекст проекта\nsmart-skidka.ru — агрегатор скидок, промокодов и выгодных предложений от 500+ магазинов-партнеров. Пользователи приходят за:\n- Промокодами на скидку (Ozon, Wildberries, Яндекс.Маркет, МВидео, Эльдорадо и др.)\n- Кэшбэком и специальными акциями\n- Подборками товаров со скидками до 90%%\n\n## Платформы рекламы\n1. **Яндекс.Директ** — поисковые кампании + РСЯ (баннеры на сайтах-партнерах)\n2. **VK Реклама** — лента, Stories, клипы, сообщества\n3. **Telegram Ads** — нативные посты в каналах\n\n## Твой рабочий процесс\n\n### Шаг 1. Анализ конкурентов\n- Выполни поиск по запросам: \"промокоды\", \"скидки\", \"кэшбэк\", \"промокод [магазин]\"\n- Изучи ТОП-10 объявлений конкурентов: выдели паттерны заголовков, УТП, CTA\n- Зафиксируй средний CPC в нише по данным Wordstat / Планировщика Я.Директ\n- Определи \"белые пятна\" — запросы с высоким спросом и низкой конкуренцией\n\n### Шаг 2. Генерация 5 вариантов объявлений\nКаждое объявление ОБЯЗАТЕЛЬНО содержит:\n- **Заголовок**: максимум 56 символов (оптимально 50-56), включая ключевое слово\n- **Текст**: максимум 81 символ (оптимально 70-81), с CTA и УТП\n- **2-3 быстрые ссылки**: ведут на релевантные подборки (по магазинам, категориям)\n- **UTM-метки**: обязательны для отслеживания каждого объявления отдельно\n- **Рекомендация ставки**: CPC на основе анализа конкурентов с учетом CTR-ожидания\n\nФормулы для заголовков:\n- [Бренд] + скидка + %% + сейчас (\"Промокод Ozon — скидка 30%% сегодня\")\n- Число + выгода + действие (\"500+ промокодов. Активируй и экономь\")\n- Вопрос + решение (\"Ищешь скидки? Все промокоды в одном месте\")\n\n### Шаг 3. UTM-разметка\nСтруктура UTM:\n- utm_source: yandex|vk|telegram (платформа)\n- utm_medium: cpc|cpm|native (тип размещения)\n- utm_campaign: {campaign_name}_{date} (кампания)\n- utm_content: ad_variant_{N} (вариант объявления для A/B)\n- utm_term: {keyword} (ключевое слово)\n\n### Шаг 4. Настройка ретаргетинга\nСегменты аудитории:\n1. **Посетители без конверсии** (посещали, не оставили email/не кликнули промокод) → показ объявления с напоминанием \"Вернись за скидкой\"\n2. **Брошенные промокоды** (копировали код, но не перешли в магазин) → push с \"Активируй промокод, пока он работает\"\n3. **Прошлые конвертеры** (30-60-90 дней) → кросс-селл по другим магазинам\n\n### Шаг 5. A/B тестирование\n- Каждый запуск = минимум 2 варианта объявления\n- Тестируй: заголовок, текст, CTA, изображение (для VK/ТГ), быстрые ссылки\n- Минимальная статзначимость: 100 показов и 5 кликов на вариант\n- Победитель определяется по: CTR > 3%%, CPC < среднего по нише, конверсия в клик по промокоду\n\n### Шаг 6. Оптимизация\n- Ежедневный мониторинг CPC/CPA\n- Отключение объявлений с CTR < 1.5%% после 200 показов\n- Повышение ставки на объявления с CTR > 5%% (скейлинг)\n- Перераспределение бюджета: 70%% на рабочие объявления, 30%% на тесты\n- При достижении дневного лимита — остановка всех активных кампаний\n\n## Правила генерации объявлений\n1. Заголовок ДОЛЖЕН содержать цифру или %% скидки — повышает CTR на 25-40%%\n2. Всегда добавляй элемент срочности: \"сегодня\", \"только сейчас\", \"последние часы\"\n3. CTA обязателен: \"Получить\", \"Активировать\", \"Найти скидку\", \"Экономить\"\n4. Не используй капслок более чем на 1 слово\n5. Запрещено: обещания нереальных скидок (>95%%), запрещенные категории (18+, ФЗ-152 нарушения)\n6. Быстрые ссылки должны вести на релевантные landing pages (не на главную)\n\n## Бюджетный контроль\n- Фиксируй и контролируй дневной лимит бюджета\n- При превышении 80%% дневного лимита — уведомляй и снижай ставки на 20%%\n- Отключай объявления с CPA выше целевого в течение 2 часов\n- ROI расчет: (Доход от конверсий - Затраты на рекламу) / Затраты * 100%%\n\n## Формат ответа\nВсегда возвращай результат в строгом JSON-формате (описан в output_format). Не добавляй пояснений вне JSON. Для каждой платформы генерируй отдельный объект кампании.",
+  "tools": [
+    {
+      "name": "analyze_competitors",
+      "description": "Анализ рекламных объявлений конкурентов по заданным ключевым словам",
+      "parameters": {
+        "keywords": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Список ключевых слов для анализа (например: ['промокоды', 'скидки', 'кэшбэк'])"
+        },
+        "platform": {
+          "type": "string",
+          "enum": ["yandex", "vk", "telegram", "all"],
+          "description": "Платформа для анализа"
+        },
+        "region": {
+          "type": "string",
+          "default": "Россия",
+          "description": "География анализа"
+        }
+      },
+      "returns": {
+        "competitors": "array of competitor ad data with titles, texts, positions",
+        "avg_cpc": "number - средний CPC в нише",
+        "search_volume": "number - объем запросов"
+      }
+    },
+    {
+      "name": "generate_ad_variants",
+      "description": "Генерация 5 вариантов рекламных объявлений с учетом ограничений платформы",
+      "parameters": {
+        "platform": {
+          "type": "string",
+          "enum": ["yandex", "vk", "telegram"],
+          "description": "Целевая рекламная платформа"
+        },
+        "keywords": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Ключевые слова для включения в объявления"
+        },
+        "usp": {
+          "type": "string",
+          "description": "Уникальное торговое предложение (УТП)"
+        },
+        "discount_range": {
+          "type": "string",
+          "description": "Диапазон скидок (например: '10-70%%')"
+        },
+        "target_audience": {
+          "type": "string",
+          "description": "Целевая аудитория"
+        }
+      },
+      "returns": {
+        "variants": "array of 5 ad objects with title, text, quick_links, utm_tags, bid_recommendation"
+      }
+    },
+    {
+      "name": "build_utm_tags",
+      "description": "Генерация UTM-меток для отслеживания эффективности объявлений",
+      "parameters": {
+        "source": {
+          "type": "string",
+          "enum": ["yandex", "vk", "telegram"],
+          "description": "Источник трафика"
+        },
+        "medium": {
+          "type": "string",
+          "enum": ["cpc", "cpm", "native", "retargeting"],
+          "description": "Тип размещения"
+        },
+        "campaign": {
+          "type": "string",
+          "description": "Название кампании"
+        },
+        "content": {
+          "type": "string",
+          "description": "Идентификатор варианта объявления"
+        },
+        "term": {
+          "type": "string",
+          "description": "Ключевое слово"
+        }
+      },
+      "returns": {
+        "utm_string": "string - полная UTM-строка",
+        "utm_object": "object - UTM-параметры в виде объекта"
+      }
+    },
+    {
+      "name": "setup_retargeting",
+      "description": "Настройка ретаргетинговых кампаний для посетителей без конверсии",
+      "parameters": {
+        "platform": {
+          "type": "string",
+          "enum": ["yandex", "vk", "telegram"],
+          "description": "Платформа для ретаргетинга"
+        },
+        "audience_segments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string"},
+              "criteria": {"type": "string"},
+              "lookback_days": {"type": "number"},
+              "ad_message": {"type": "string"}
+            }
+          },
+          "description": "Сегменты аудитории для ретаргетинга"
+        },
+        "budget_share": {
+          "type": "number",
+          "default": 0.3,
+          "description": "Доля бюджета на ретаргетинг (0-1)"
+        }
+      },
+      "returns": {
+        "retargeting_campaign": "object - настройки ретаргетинговой кампании"
+      }
+    },
+    {
+      "name": "run_ab_test",
+      "description": "Запуск A/B теста объявлений с мониторингом результатов",
+      "parameters": {
+        "campaign_id": {
+          "type": "string",
+          "description": "ID кампании"
+        },
+        "variants": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "ID вариантов объявлений для тестирования"
+        },
+        "metric": {
+          "type": "string",
+          "enum": ["ctr", "cpc", "cpa", "conversion_rate", "roi"],
+          "default": "ctr",
+          "description": "Целевая метрика для определения победителя"
+        },
+        "min_impressions": {
+          "type": "number",
+          "default": 100,
+          "description": "Минимум показов для статзначимости"
+        },
+        "min_clicks": {
+          "type": "number",
+          "default": 5,
+          "description": "Минимум кликов для статзначимости"
+        }
+      },
+      "returns": {
+        "winner": "string - ID победившего варианта",
+        "results": "object - статистика по каждому варианту",
+        "confidence": "number - уровень достоверности"
+      }
+    },
+    {
+      "name": "optimize_cpc",
+      "description": "Оптимизация ставок CPC на основе performance-метрик",
+      "parameters": {
+        "campaign_id": {
+          "type": "string",
+          "description": "ID кампании для оптимизации"
+        },
+        "target_cpa": {
+          "type": "number",
+          "description": "Целевой CPA"
+        },
+        "current_metrics": {
+          "type": "object",
+          "properties": {
+            "avg_cpc": {"type": "number"},
+            "ctr": {"type": "number"},
+            "conversion_rate": {"type": "number"},
+            "cost": {"type": "number"},
+            "conversions": {"type": "number"}
+          }
+        },
+        "adjustment_type": {
+          "type": "string",
+          "enum": ["increase", "decrease", "auto"],
+          "default": "auto"
+        }
+      },
+      "returns": {
+        "recommended_bid": "number - рекомендуемая ставка",
+        "adjustment": "string - описание изменения",
+        "expected_cpc": "number - ожидаемый CPC после оптимизации"
+      }
+    },
+    {
+      "name": "check_budget_limit",
+      "description": "Проверка дневного лимита бюджета и контроль расходов",
+      "parameters": {
+        "daily_budget": {
+          "type": "number",
+          "description": "Дневной лимит бюджета (руб.)"
+        },
+        "spent_today": {
+          "type": "number",
+          "description": "Уже потрачено сегодня (руб.)"
+        },
+        "campaign_ids": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Список ID кампаний для контроля"
+        }
+      },
+      "returns": {
+        "status": "string - under_limit / near_limit / exceeded",
+        "remaining": "number - оставшийся бюджет",
+        "actions": "array - рекомендуемые действия"
+      }
+    },
+    {
+      "name": "calculate_roi",
+      "description": "Расчет ROI рекламной кампании",
+      "parameters": {
+        "revenue": {
+          "type": "number",
+          "description": "Доход от конверсий (руб.)"
+        },
+        "ad_spend": {
+          "type": "number",
+          "description": "Расходы на рекламу (руб.)"
+        },
+        "attribution_model": {
+          "type": "string",
+          "enum": ["last_click", "first_click", "linear", "data_driven"],
+          "default": "last_click"
+        }
+      },
+      "returns": {
+        "roi_percent": "number - ROI в процентах",
+        "romi": "number - ROMI",
+        "is_profitable": "boolean - достигнут ли целевой ROI"
+      }
+    },
+    {
+      "name": "get_avg_cpc_benchmark",
+      "description": "Получение бенчмарков CPC по нише скидок и промокодов",
+      "parameters": {
+        "platform": {
+          "type": "string",
+          "enum": ["yandex_search", "yandex_rsya", "vk", "telegram"]
+        },
+        "keywords": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Ключевые слова для бенчмарка"
+        }
+      },
+      "returns": {
+        "avg_cpc": "number - средний CPC",
+        "min_cpc": "number - минимальный CPC",
+        "max_cpc": "number - максимальный CPC",
+        "competition_level": "string - low/medium/high"
+      }
+    },
+    {
+      "name": "disable_underperforming_ads",
+      "description": "Автоматическое отключение неэффективных объявлений",
+      "parameters": {
+        "campaign_id": {
+          "type": "string"
+        },
+        "threshold_ctr": {
+          "type": "number",
+          "default": 1.5,
+          "description": "Минимальный CTR для продолжения показов"
+        },
+        "min_impressions": {
+          "type": "number",
+          "default": 200,
+          "description": "Минимум показов перед оценкой"
+        }
+      },
+      "returns": {
+        "disabled_ads": "array - список отключенных объявлений",
+        "reason": "string - причина отключения"
+      }
+    }
+  ],
+  "schedule": {
+    "frequency": "every 6 hours",
+    "cron_expression": "0 */6 * * *",
+    "tasks_per_run": 5,
+    "task_sequence": [
+      "check_budget_limit",
+      "analyze_competitors",
+      "generate_ad_variants",
+      "run_ab_test",
+      "optimize_cpc"
+    ],
+    "working_hours": {
+      "start": "08:00",
+      "end": "23:00",
+      "timezone": "Europe/Moscow"
+    },
+    "priority_hours": {
+      "description": "Часы повышенного внимания (пиковый трафик)",
+      "slots": ["09:00-11:00", "13:00-15:00", "19:00-22:00"]
+    },
+    "skip_conditions": [
+      "Если ROI < 150%% за последние 24 часа — приостановить все новые кампании",
+      "Если дневной бюджет исчерпан — только мониторинг, без запуска новых объявлений",
+      "Если технические работы на платформе — пропуск цикла"
+    ]
+  },
+  "validation_rules": {
+    "title_length": {
+      "max": 56,
+      "description": "Максимальная длина заголовка в символах (требование Яндекс.Директ)",
+      "action_on_violation": "reject_and_regenerate"
+    },
+    "text_length": {
+      "max": 81,
+      "description": "Максимальная длина текста объявления в символах",
+      "action_on_violation": "truncate_and_warn"
+    },
+    "has_utm_tags": {
+      "type": "boolean",
+      "required": true,
+      "description": "Объявление должно содержать UTM-метки для отслеживания"
+    },
+    "has_quick_links": {
+      "type": "boolean",
+      "required": true,
+      "min_count": 2,
+      "max_count": 3,
+      "description": "Объявление должно содержать 2-3 быстрые ссылки"
+    },
+    "daily_budget_limit": {
+      "type": "number",
+      "min": 500,
+      "max": 100000,
+      "default": 5000,
+      "description": "Дневной лимит бюджета в рублях",
+      "currency": "RUB"
+    },
+    "roi_target": {
+      "type": "number",
+      "min": 200,
+      "description": "Целевой ROI в процентах (минимум 200%%)",
+      "warning_threshold": 180,
+      "critical_threshold": 150
+    },
+    "cpc_optimization": {
+      "type": "boolean",
+      "required": true,
+      "description": "Оптимизация CPC должна быть активна"
+    },
+    "ctr_minimum": {
+      "type": "number",
+      "value": 1.5,
+      "description": "Минимальный допустимый CTR в процентах",
+      "action_below_threshold": "pause_ad"
+    },
+    "max_cpa": {
+      "type": "number",
+      "default": 150,
+      "description": "Максимальный допустимый CPA в рублях",
+      "currency": "RUB"
+    },
+    "ad_image_requirements": {
+      "vk": {
+        "min_width": 1080,
+        "min_height": 607,
+        "aspect_ratio": "16:9"
+      },
+      "telegram": {
+        "min_width": 1000,
+        "min_height": 1000,
+        "aspect_ratio": "1:1"
+      }
+    },
+    "forbidden_content": [
+      "Скидки свыше 95%% (нереалистичные обещания)",
+      "18+ контент",
+      "Нарушение ФЗ-152 (персональные данные без согласия)",
+      "Капслок более чем на 1 слово",
+      "Вводящие в заблуждение УТП",
+      "Ссылки на сторонние агрегаторы-конкуренты"
+    ]
+  },
+  "output_format": {
+    "type": "json",
+    "required_fields": [
+      "platform",
+      "campaign_name",
+      "ads",
+      "targeting",
+      "budget",
+      "retargeting_settings"
+    ],
+    "schema": {
+      "platform": {
+        "type": "string",
+        "enum": ["yandex", "vk", "telegram"],
+        "description": "Рекламная платформа"
+      },
+      "campaign_name": {
+        "type": "string",
+        "description": "Уникальное название кампании",
+        "pattern": "sk_[platform]_[date]_[theme]"
+      },
+      "ads": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "variant_id": {
+              "type": "string",
+              "description": "ID варианта объявления (для A/B теста)"
+            },
+            "title": {
+              "type": "string",
+              "maxLength": 56,
+              "description": "Заголовок объявления"
+            },
+            "text": {
+              "type": "string",
+              "maxLength": 81,
+              "description": "Текст объявления"
+            },
+            "quick_links": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "label": {"type": "string"},
+                  "url": {"type": "string", "format": "uri"}
+                }
+              },
+              "minItems": 2,
+              "maxItems": 3,
+              "description": "Быстрые ссылки"
+            },
+            "utm_tags": {
+              "type": "object",
+              "properties": {
+                "utm_source": {"type": "string"},
+                "utm_medium": {"type": "string"},
+                "utm_campaign": {"type": "string"},
+                "utm_content": {"type": "string"},
+                "utm_term": {"type": "string"}
+              },
+              "description": "UTM-метки для отслеживания"
+            },
+            "bid_recommendation": {
+              "type": "object",
+              "properties": {
+                "cpc": {"type": "number", "description": "Рекомендуемая ставка CPC"},
+                "cpm": {"type": "number", "description": "Рекомендуемая ставка CPM (для VK/РСЯ)"},
+                "rationale": {"type": "string", "description": "Обоснование ставки"}
+              }
+            },
+            "image_prompt": {
+              "type": "string",
+              "description": "Промпт для генерации изображения (VK/ТГ)",
+              "optional": true
+            }
+          }
+        },
+        "description": "Массив из 5 вариантов объявлений"
+      },
+      "targeting": {
+        "type": "object",
+        "properties": {
+          "geo": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "География таргетинга"
+          },
+          "age": {
+            "type": "object",
+            "properties": {
+              "min": {"type": "number"},
+              "max": {"type": "number"}
+            },
+            "description": "Возрастной диапазон"
+          },
+          "gender": {
+            "type": "string",
+            "enum": ["all", "male", "female"]
+          },
+          "interests": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Интересы аудитории"
+          },
+          "devices": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Устройства (mobile/desktop/tablet)"
+          },
+          "keywords": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Ключевые слова (для поисковых кампаний)"
+          }
+        }
+      },
+      "budget": {
+        "type": "object",
+        "properties": {
+          "daily_limit": {"type": "number", "description": "Дневной лимит (руб.)"},
+          "distribution": {
+            "type": "object",
+            "properties": {
+              "search_ads": {"type": "number"},
+              "display_ads": {"type": "number"},
+              "retargeting": {"type": "number"},
+              "testing": {"type": "number"}
+            }
+          },
+          "currency": {"type": "string", "default": "RUB"}
+        }
+      },
+      "retargeting_settings": {
+        "type": "object",
+        "properties": {
+          "enabled": {"type": "boolean"},
+          "budget_share": {"type": "number", "description": "Доля бюджета на ретаргетинг (0-1)"},
+          "segments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {"type": "string"},
+                "audience_size_estimate": {"type": "number"},
+                "message": {"type": "string"},
+                "frequency_cap": {"type": "number", "description": "Макс. показов на пользователя в сутки"}
+              }
+            }
+          }
+        }
+      },
+      "ab_test_config": {
+        "type": "object",
+        "properties": {
+          "enabled": {"type": "boolean", "default": true},
+          "min_impressions": {"type": "number", "default": 100},
+          "min_clicks": {"type": "number", "default": 5},
+          "winning_metric": {"type": "string", "enum": ["ctr", "cpc", "cpa", "conversion_rate", "roi"], "default": "ctr"}
+        }
+      },
+      "optimization_settings": {
+        "type": "object",
+        "properties": {
+          "auto_bid_adjustment": {"type": "boolean", "default": true},
+          "auto_pause_underperforming": {"type": "boolean", "default": true},
+          "budget_reallocation": {"type": "boolean", "default": true},
+          "scale_winners": {"type": "boolean", "default": true}
+        }
+      }
+    }
+  },
+  "budget_config": {
+    "default_daily_budget": 5000,
+    "currency": "RUB",
+    "platform_split": {
+      "yandex": 0.45,
+      "vk": 0.35,
+      "telegram": 0.20
+    },
+    "type_split": {
+      "search_ads": 0.40,
+      "display_network": 0.20,
+      "retargeting": 0.25,
+      "testing_reserve": 0.15
+    }
+  },
+  "kpis": {
+    "roi_target": 200,
+    "target_ctr": 3.0,
+    "max_cpa": 150,
+    "target_conversion_rate": 2.5,
+    "min_ab_test_confidence": 0.95
+  },
+  "platform_specific": {
+    "yandex": {
+      "campaign_types": ["search", "display_network"],
+      "ad_formats": ["text", "text_image", "smart_banner"],
+      "max_headlines": 15,
+      "max_descriptions": 4,
+      "quick_sitelinks": {
+        "min": 2,
+        "max": 4
+      },
+      "bid_adjustment_factors": {
+        "mobile": 1.2,
+        "tablet": 0.9,
+        "desktop": 1.0
+      }
+    },
+    "vk": {
+      "campaign_types": ["feed", "stories", "clips", "community"],
+      "ad_formats": ["carousel", "single_image", "video"],
+      "min_image_width": 1080,
+      "min_image_height": 607,
+      "aspect_ratio": "16:9"
+    },
+    "telegram": {
+      "campaign_types": ["channel_post", "bot_sponsored"],
+      "ad_formats": ["text_image", "single_image"],
+      "min_image_width": 1000,
+      "min_image_height": 1000,
+      "aspect_ratio": "1:1",
+      "character_limit": 160
+    }
+  }
+}

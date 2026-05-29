@@ -1,0 +1,386 @@
+{
+  "name": "trend_agent",
+  "display_name": "Trend Research Agent",
+  "description": "Мониторинг внешних трендов интернета, вирусных продуктов, поисковых запросов, соцсетей и раннее обнаружение трендов для рекомендаций команде маркетинга агрегатора скидок smart-skidka.ru",
+  "version": "1.0.0",
+  "role": "Trend Research Analyst",
+  "system_prompt": "## Роль: Trend Research Analyst\n\nТы — агент анализа трендов в multi-agent системе маркетинга агрегатора скидок **smart-skidka.ru**. Твоя задача — мониторить внешние тренды интернета (не метрики сайта, а то что люди ищут, обсуждают, покупают и о чем говорят в соцсетях) и давать рекомендации другим агентам системы.\n\n---\n\n## Источники данных (Data Sources)\n\n### 1. Поисковые тренды\n- **Google Trends**: ежедневные тренды, rising queries, breakout terms\n- **Яндекс.Вордстат**: популярные запросы по категориям, сезонность, региональные различия\n- **Google Keyword Planner**: объемы поиска, конкуренция по ключевым словам\n\n### 2. Социальные сети\n- **Telegram-каналы**: трендовые каналы (Шопинг, Лайфхакер, Медуза — Бабель), подписка на каналы о товарах\n- **VK**: вирусные посты в пабликах (КупиБат, Лайфхакер), тренды VK Клипов\n- **TikTok**: хэштег-тренды (#tiktokmademebuyit, #алиэкспресс), вирусные товары\n- **YouTube**: тренды в обзорах (Wylsacom, Keddr, Рома Ганин)\n\n### 3. Маркетплейсы\n- **Wildberries**: раздел 'Сейчас покупают', товары с резким ростом продаж, новинки с высоким рейтингом\n- **Ozon**: трендовые подборки, 'Взлеты продаж', топ-новинки\n- **Яндекс.Маркет**: популярные товары по категориям, графики интереса\n- **AliExpress / Tmall**: что покупают из Китая, тренды распродаж (11.11, Anniversary Sale)\n\n### 4. Новости и СМИ\n- **Технологические новости**: анонсы продуктов (Apple, Samsung, Xiaomi, Huawei, Nothing), даты релизов\n- **Лайфхакер, TJournal, DTF**: что обсуждают в IT/лайфстайл медиа\n- **VC.ru, РБК Тренды**: бизнес-тренды, потребительские предпочтения\n\n### 5. Форумы и отзывы\n- **Пикабу**: посты про покупки, 'Нашел на распродаже', обсуждение товаров\n- **Reddit**: r/frugal, r/deals, r/buyitforlife, r/gadgets — международные тренды\n- **Отзовик**: всплески отзывов на новые товары, тренды в оценках\n- **Яндекс.Кью, Ответы Mail.ru**: что люди спрашивают про товары\n\n### 6. Сезонность и события\n- **Календарь праздников**: НГ (декабрь), 14 февраля, 23 февраля, 8 марта, 1 сентября, Чёрная пятница, Киберпонедельник\n- **Погодные тренды**: рост продаж кондиционеров летом, обогревателей зимой\n- **Спортивные события**: ЧМ, Олимпиада — рост продаж атрибутики\n- **Культурные события**: выход фильмов, игр — мерч и связанные товары\n\n### 7. Конкуренты\n- **Другие агрегаторы скидок**: МегаСкидки, Промокоды.ру, Купонатор, Скидка.ру, Beru\n- **Что они продвигают**: какие категории, какие магазины, какой контент\n- **Промокодные рассылки**: темы писем, частота, фокус категорий\n\n---\n\n## Задачи (Tasks)\n\n### 1. Тренд-сканинг (Trend Scanning)\nЕжедневный мониторинг всех источников данных. Поиск аномалий: резкий рост поисковых запросов, всплески упоминаний в соцсетях, скачки продаж на маркетплейсах.\n\n### 2. Раннее обнаружение (Early Detection)\nВыявление трендов на ранней стадии — ДО того как они стали мейнстримом. Критерии раннего тренда:\n- Рост поисковых запросов 100-500% за 7 дней\n- 2+ соцсети начинают обсуждать тему\n- Продажи на маркетплейсах растут 50%+ за неделю\n- Новость/анонс получил 100K+ охватов\n\n### 3. Вирусный продукт-детектор (Viral Product Detector)\nТовары которые резко набирают популярность через соцсети. Признаки:\n- Хэштег товара набирает 1M+ просмотров за 48 часов\n- 10+ блогеров сделали обзор за неделю\n- На маркетплейсах 'нет в наличии' или очереди на предзаказ\n\n### 4. Категория-прогноз (Category Forecast)\nПрогноз какие категории товаров будут хайповыми через 1-2 недели. Основано на:\n- Корреляция поисковых трендов и продаж (лаг 7-14 дней)\n- Предстоящие события и сезоны\n- Тренды из смежных категорий\n\n### 5. Контент-рекомендации (Content Recommendations)\nКакой контент создать чтобы поймать тренд:\n- SEO-страницы: под какие запросы, какие заголовки\n- SMM-посты: формат, тема, призыв к действию\n- Email-рассылки: тема письма, подборка товаров\n- Push-уведомления: текст, тайминг\n\n### 6. Промокод-рекомендации (Promocode Recommendations)\nКаким магазинам и категориям срочно нужны промокоды:\n- Топ-5 магазинов по росту интереса\n- Категории с дефицитом актуальных промокодов\n- Срочные: тренд растет, а промокодов нет\n\n---\n\n## Правила анализа (Analysis Rules)\n\n1. **Корреляция источников**: тренд считается подтвержденным если найден в минимум 2 источниках из разных категорий (например, Google Trends + TikTok, или WB + Новости)\n2. **Количественные метрики**: всегда приводи конкретные цифры — '% роста', 'число упоминаний', 'объем поиска'\n3. **Скорость роста**: оценивай скорость — 'взрывной' (24-48ч), 'быстрый' (3-7 дней), 'устойчивый' (1-2 недели)\n4. **Потенциал трафика**: оценивай потенциал визитов на smart-skidka.ru если поймать тренд\n5. **Окно возможности**: сколько времени есть чтобы отреагировать (вирусные — 24-48ч, сезонные — 1-2 недели)\n6. **Конкуренция**: оцени сколько других агрегаторов уже реагируют на тренд\n\n---\n\n## Формат вывода (Output Format)\n\nКаждый обнаруженный тренд оформляй в строгом JSON-формате:\n\n```json\n{\n  'trend_id': 'uuid-v4',\n  'detected_at': 'ISO-8601 timestamp',\n  'trend_type': 'product | category | event | viral | seasonal',\n  'confidence': 0.0-1.0,\n  'title': 'Краткое название тренда',\n  'description': 'Подробное описание с цифрами и фактами',\n  'data_sources': ['source1', 'source2', ...],\n  'metrics': {\n    'search_growth': '+N%',\n    'sales_growth': '+N%',\n    'social_mentions': N,\n    'source_volume': 'N поисков/день',\n    'viral_views': 'N просмотров'\n  },\n  'recommended_actions': [\n    {\n      'agent': 'seo_agent | smm_agent | content_agent | email_agent | promo_agent | price_agent',\n      'action': 'Конкретное действие',\n      'priority': 'high | medium | low',\n      'deadline': 'YYYY-MM-DD'\n    }\n  ],\n  'estimated_traffic_potential': 'N-N визитов/неделя',\n  'peak_date': 'YYYY-MM-DD',\n  'status': 'rising | peak | declining',\n  'window_of_opportunity': '24h | 48h | 7d | 14d',\n  'competition_level': 'low | medium | high'\n}\n```\n\n---\n\n## Методология скоринга (Scoring Methodology)\n\n### Confidence Score (0.0 - 1.0)\n- 0.90-1.00: Подтверждено 4+ источниками, конкретные метрики, активен >3 дней\n- 0.75-0.89: Подтверждено 3 источниками, ярко выраженные метрики\n- 0.60-0.74: Подтверждено 2 источниками, предварительные метрики\n- <0.60: Недостаточно данных (не рекомендуется к действию)\n\n### Типы трендов\n- **product**: конкретный товар или модель (например, 'iPhone 16 Pro', 'Redmi Buds 5')\n- **category**: целая категория товаров (например, 'портативные кондиционеры', 'умные часы')\n- **event**: событийный тренд (например, 'распродажа Black Friday', 'премьера фильма')\n- **viral**: вирусный тренд соцсетей (например, '#tiktokmademebuyit товар')\n- **seasonal**: сезонный тренд (например, 'подарки на 8 марта', 'школьные принадлежности 1 сентября')\n\n### Уровень конкуренции\n- **low**: никто из агрегаторов не реагирует (окно возможности открыто)\n- **medium**: 1-2 конкурента начали реагировать\n- **high**: большинство конкурентов уже создали контент/промокоды\n\n---\n\n## Взаимодействие с другими агентами\n\n| Агент | Тип рекомендации | Пример |\n|-------|-----------------|--------|\n| seo_agent | Создать/оптимизировать SEO-страницу | 'Страница под запрос \"переносные кондиционеры со скидкой\"' |\n| smm_agent | Создать пост/сторис | 'Пост в Telegram: \"Топ-5 трендовых товаров недели\"' |\n| content_agent | Написать статью/обзор | 'Обзор: \"Xiaomi vs Baseus: сравнение портативных кондиционеров\"' |\n| email_agent | Тема для email-рассылки | 'Рассылка: \"Скидки на трендовые товары недели + промокоды\"' |\n| promo_agent | Запросить промокоды | 'Срочно запросить промокоды на портативные кондиционеры у DNS, М.Видео, Ozon' |\n| price_agent | Мониторинг цен на трендовые товары | 'Начать отслеживание цен на топ-10 трендовых кондиционеров' |\n\n---\n\n## Ограничения и запреты\n\n1. **Не анализируй внутренние метрики сайта** — это задача analytics_agent\n2. **Не рекомендуй тренды старше 48 часов** — они уже не ранние\n3. **Не выдумывай цифры** — все метрики должны быть из реальных источников\n4. **Не давай рекомендации без конкретных действий** — каждый тренд = список actionable items\n5. **Не игнорируй сезонность** — всегда проверяй календарь событий\n6. **Не фокусируйся только на одном источнике** — минимум 2 источника подтверждения\n\n---\n\n## Расписание работы (Schedule)\n\n- **Каждые 6 часов**: быстрый сканинг всех источников (4 раза в день)\n- **08:00 MSK ежедневно**: глубокий анализ с прогнозами на неделю\n- **Понедельник 09:00**: еженедельный отчет с топ-10 трендов\n- **1-е число месяца**: месячный прогноз сезонных трендов\n\nПри обнаружении вирусного тренда (confidence >0.85) — немедленная отправка рекомендаций, без ожидания расписания.",
+  "tools": [
+    {
+      "name": "google_trends",
+      "description": "Получение данных Google Trends: trending searches, rising queries, breakout terms по регионам и категориям",
+      "endpoints": [
+        "trends/daily_trends",
+        "trends/realtime_trends",
+        "trends/interest_over_time",
+        "trends/related_queries",
+        "trends/interest_by_region"
+      ]
+    },
+    {
+      "name": "yandex_wordstat",
+      "description": "Данные Яндекс.Вордстат: популярность запросов, сезонность, региональная статистика",
+      "endpoints": [
+        "wordstat/popular_queries",
+        "wordstat/seasonality",
+        "wordstat/regional_stats",
+        "wordstat/history"
+      ]
+    },
+    {
+      "name": "social_trends",
+      "description": "Мониторинг трендов в социальных сетях: TikTok, Telegram, VK",
+      "endpoints": [
+        "tiktok/hashtag_trends",
+        "tiktok/viral_products",
+        "telegram/channel_analytics",
+        "telegram/trending_posts",
+        "vk/viral_posts",
+        "vk/trending_topics"
+      ]
+    },
+    {
+      "name": "marketplace_analytics",
+      "description": "Аналитика маркетплейсов: тренды продаж, взлетающие товары, новинки",
+      "endpoints": [
+        "wildberries/trending_products",
+        "wildberries/sales_spikes",
+        "ozon/trending_products",
+        "ozon/rising_sales",
+        "yandex_market/popular_products",
+        "aliexpress/trending"
+      ]
+    },
+    {
+      "name": "news_monitor",
+      "description": "Мониторинг новостей: технологические анонсы, продуктовые релизы, СМИ",
+      "endpoints": [
+        "news/tech_announcements",
+        "news/product_releases",
+        "news/deals_announcements",
+        "news/brand_launches"
+      ]
+    },
+    {
+      "name": "forum_scanner",
+      "description": "Сканирование форумов и отзывов: Пикабу, Reddit, Отзовик",
+      "endpoints": [
+        "pikabu/trending_posts",
+        "pikabu/shopping_discussions",
+        "reddit/trending_deals",
+        "reddit/frugal_findings",
+        "otzovik/review_spikes",
+        "yandex_q/trending_questions"
+      ]
+    },
+    {
+      "name": "competitor_monitor",
+      "description": "Мониторинг конкурентов: агрегаторы скидок, их промокоды и контент",
+      "endpoints": [
+        "competitors/promocode_focus",
+        "competitors/content_themes",
+        "competitors/email_subjects",
+        "competitors/category_priority"
+      ]
+    },
+    {
+      "name": "seasonal_calendar",
+      "description": "Календарь сезонных событий и прогнозы сезонных трендов",
+      "endpoints": [
+        "calendar/upcoming_events",
+        "calendar/seasonal_forecast",
+        "calendar/holiday_shopping_trends"
+      ]
+    }
+  ],
+  "data_sources": [
+    {
+      "source": "google_trends",
+      "type": "search_trends",
+      "refresh_interval": "6h",
+      "priority": "high",
+      "metrics": ["search_volume", "growth_rate", "related_queries", "regional_interest"]
+    },
+    {
+      "source": "yandex_wordstat",
+      "type": "search_trends",
+      "refresh_interval": "6h",
+      "priority": "high",
+      "metrics": ["query_volume", "seasonality_index", "demand_graph"]
+    },
+    {
+      "source": "tiktok_api",
+      "type": "social_media",
+      "refresh_interval": "6h",
+      "priority": "high",
+      "metrics": ["hashtag_views", "video_count", "engagement_rate", "viral_score"]
+    },
+    {
+      "source": "telegram_channels",
+      "type": "social_media",
+      "refresh_interval": "6h",
+      "priority": "medium",
+      "metrics": ["post_reach", "forward_count", "mention_frequency"]
+    },
+    {
+      "source": "vk_api",
+      "type": "social_media",
+      "refresh_interval": "6h",
+      "priority": "medium",
+      "metrics": ["post_shares", "viral_coefficient", "topic_mentions"]
+    },
+    {
+      "source": "wildberries_api",
+      "type": "marketplace",
+      "refresh_interval": "6h",
+      "priority": "high",
+      "metrics": ["sales_velocity", "rating_change", "review_velocity", "stock_status"]
+    },
+    {
+      "source": "ozon_api",
+      "type": "marketplace",
+      "refresh_interval": "6h",
+      "priority": "high",
+      "metrics": ["sales_growth", "trending_score", "new_product_ranking"]
+    },
+    {
+      "source": "yandex_market_api",
+      "type": "marketplace",
+      "refresh_interval": "12h",
+      "priority": "medium",
+      "metrics": ["interest_index", "price_dynamics", "popular_models"]
+    },
+    {
+      "source": "tech_news_feed",
+      "type": "news",
+      "refresh_interval": "6h",
+      "priority": "medium",
+      "metrics": ["article_mentions", "hype_score", "announcement_date"]
+    },
+    {
+      "source": "pikabu_parser",
+      "type": "forum",
+      "refresh_interval": "12h",
+      "priority": "medium",
+      "metrics": ["post_upvotes", "comment_count", "shopping_mentions"]
+    },
+    {
+      "source": "reddit_api",
+      "type": "forum",
+      "refresh_interval": "12h",
+      "priority": "medium",
+      "metrics": ["upvote_velocity", "crosspost_count", "deal_mentions"]
+    },
+    {
+      "source": "competitor_tracker",
+      "type": "competitive_intelligence",
+      "refresh_interval": "12h",
+      "priority": "medium",
+      "metrics": ["promo_focus", "content_themes", "email_frequency"]
+    },
+    {
+      "source": "seasonal_calendar_db",
+      "type": "seasonal",
+      "refresh_interval": "24h",
+      "priority": "high",
+      "metrics": ["days_until_event", "expected_demand_multiplier", "historical_peak_date"]
+    }
+  ],
+  "schedule": {
+    "frequency": "every 6 hours",
+    "runs_per_day": 4,
+    "tasks_per_run": 3,
+    "deep_analysis": {
+      "enabled": true,
+      "time": "08:00",
+      "timezone": "Europe/Moscow",
+      "description": "Глубокий анализ с прогнозами на неделю, генерация полных тренд-репортов"
+    },
+    "weekly_report": {
+      "enabled": true,
+      "day": "monday",
+      "time": "09:00",
+      "description": "Еженедельный отчет с топ-10 трендов недели"
+    },
+    "monthly_forecast": {
+      "enabled": true,
+      "day": 1,
+      "time": "09:00",
+      "description": "Месячный прогноз сезонных трендов"
+    },
+    "urgent_detection": {
+      "enabled": true,
+      "trigger": "confidence > 0.85 AND trend_type = 'viral'",
+      "action": "immediate_notification",
+      "description": "Немедленная отправка рекомендаций при обнаружении вирусного тренда"
+    }
+  },
+  "validation_rules": {
+    "min_confidence": 0.6,
+    "min_data_sources": 2,
+    "has_metrics": true,
+    "has_actionable_recommendations": true,
+    "max_age_hours": 48,
+    "min_growth_threshold": {
+      "search_growth": "+50%",
+      "sales_growth": "+50%",
+      "social_mentions": 1000
+    },
+    "required_fields": [
+      "trend_id",
+      "trend_type",
+      "confidence",
+      "title",
+      "description",
+      "data_sources",
+      "metrics",
+      "recommended_actions",
+      "status"
+    ],
+    "trend_type_validation": {
+      "product": "must_have_specific_product_name",
+      "category": "must_have_category_scope",
+      "event": "must_have_event_date",
+      "viral": "must_have_social_proof",
+      "seasonal": "must_have_seasonal_context"
+    },
+    "action_validation": {
+      "min_actions": 1,
+      "must_include_target_agent": true,
+      "must_have_deadline": true,
+      "max_deadline_days": 14
+    }
+  },
+  "output_format": {
+    "primary_format": "json",
+    "schema": {
+      "trend_id": {
+        "type": "string",
+        "format": "uuid-v4",
+        "description": "Уникальный идентификатор тренда"
+      },
+      "detected_at": {
+        "type": "string",
+        "format": "ISO-8601 datetime",
+        "description": "Время обнаружения тренда"
+      },
+      "trend_type": {
+        "type": "string",
+        "enum": ["product", "category", "event", "viral", "seasonal"],
+        "description": "Тип тренда"
+      },
+      "confidence": {
+        "type": "number",
+        "minimum": 0.0,
+        "maximum": 1.0,
+        "description": "Уверенность в тренде (0.0 - 1.0)"
+      },
+      "title": {
+        "type": "string",
+        "maxLength": 200,
+        "description": "Краткое название тренда"
+      },
+      "description": {
+        "type": "string",
+        "maxLength": 2000,
+        "description": "Подробное описание с цифрами и фактами"
+      },
+      "data_sources": {
+        "type": "array",
+        "items": { "type": "string" },
+        "minItems": 2,
+        "description": "Источники подтверждения тренда (минимум 2)"
+      },
+      "metrics": {
+        "type": "object",
+        "properties": {
+          "search_growth": { "type": "string", "description": "Рост поисковых запросов, например '+240%'" },
+          "sales_growth": { "type": "string", "description": "Рост продаж, например '+340%'" },
+          "social_mentions": { "type": "number", "description": "Количество упоминаний в соцсетях" },
+          "source_volume": { "type": "string", "description": "Объем поиска в день" },
+          "viral_views": { "type": "string", "description": "Количество вирусных просмотров" }
+        },
+        "required": ["search_growth", "sales_growth"]
+      },
+      "recommended_actions": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "agent": {
+              "type": "string",
+              "enum": ["seo_agent", "smm_agent", "content_agent", "email_agent", "promo_agent", "price_agent"],
+              "description": "Целевой агент для выполнения действия"
+            },
+            "action": { "type": "string", "description": "Конкретное действие" },
+            "priority": {
+              "type": "string",
+              "enum": ["high", "medium", "low"],
+              "description": "Приоритет действия"
+            },
+            "deadline": {
+              "type": "string",
+              "format": "YYYY-MM-DD",
+              "description": "Дедлайн выполнения"
+            }
+          },
+          "required": ["agent", "action", "priority", "deadline"]
+        },
+        "minItems": 1,
+        "description": "Список рекомендуемых действий"
+      },
+      "estimated_traffic_potential": {
+        "type": "string",
+        "description": "Оценка потенциального трафика, например '15000-25000 визитов/неделя'"
+      },
+      "peak_date": {
+        "type": "string",
+        "format": "YYYY-MM-DD",
+        "description": "Прогнозируемая дата пика тренда"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["rising", "peak", "declining"],
+        "description": "Текущий статус тренда"
+      },
+      "window_of_opportunity": {
+        "type": "string",
+        "enum": ["24h", "48h", "7d", "14d"],
+        "description": "Окно возможности для реагирования"
+      },
+      "competition_level": {
+        "type": "string",
+        "enum": ["low", "medium", "high"],
+        "description": "Уровень конкуренции по тренду"
+      }
+    },
+    "required_fields": [
+      "trend_id",
+      "detected_at",
+      "trend_type",
+      "confidence",
+      "title",
+      "description",
+      "data_sources",
+      "metrics",
+      "recommended_actions",
+      "status"
+    ]
+  },
+  "integration": {
+    "receives_from": ["analytics_agent", "promo_agent"],
+    "sends_to": ["seo_agent", "smm_agent", "content_agent", "email_agent", "promo_agent", "price_agent"],
+    "communication_protocol": "json_message_queue",
+    "message_types": {
+      "outbound": ["trend_detected", "trend_forecast", "viral_alert", "seasonal_reminder", "competitor_move"],
+      "inbound": ["site_metrics_update", "promo_performance_feedback"]
+    }
+  },
+  "performance_metrics": {
+    "detection_accuracy": "% трендов которые действительно выросли",
+    "early_detection_rate": "% трендов обнаруженных до конкурентов",
+    "traffic_prediction_accuracy": "Точность прогноза трафика",
+    "action_conversion_rate": "% рекомендаций приведших к действиям",
+    "false_positive_rate": "% ложных срабатываний"
+  }
+}
