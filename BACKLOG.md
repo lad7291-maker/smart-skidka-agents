@@ -68,7 +68,7 @@
 |----|--------|----------|--------|
 | ~~P3-1~~ | ~~Плагинная система для actions~~ | ✅ **ИСПРАВЛЕНО** — `@register_action` декоратор с маппингом на типы агентов. `ActionRegistry` (глобальный `_REGISTRY`) + `ActionDispatcher` (выполнение по JSON-конфигу с `input_map`, `condition`, вложенные ключи). `discover_actions()` для авто-импорта модулей. Orchestrator использует плагинную диспетчеризацию с fallback на legacy. Конфиги агентов обновлены (seo, smm, content). 19 тестов проходят. | **Готово** |
 | ~~P3-2~~ | ~~Web UI для мониторинга агентов~~ | ✅ **ИСПРАВЛЕНО** — `scripts/dashboard.py` (aiohttp.web): `/health`, `/metrics` (Prometheus), `/api/agents`, `/api/cycles`, `/api/validations`, `/api/errors`, `/api/trends`. Control: `POST /api/agents/{name}/pause|resume|run_now` (те же Redis keys что и telegram_bot). API key middleware, CORS, HTML landing page. 12 тестов проходят. | **Готово** |
-| **P3-3** | A/B тестирование промптов | Сравнивать разные system_prompt и выбирать лучший по validation_score. | 3–5 дней |
+| ~~P3-3~~ | ~~A/B тестирование промптов~~ | ✅ **ИСПРАВЛЕНО** — `PromptVariant` (dataclass) + `PromptVariantRegistry` (JSON-файлы): добавление, round-robin выбор, 80/20 exploitation/exploration. `ABTestEvaluator`: сравнение по avg validation_score, promotion победителя при достижении `AB_TEST_MIN_RUNS` (default 10) и `AB_TEST_CONFIDENCE_THRESHOLD`. `ABTestEnabledConfig`: обертка для `AgentConfig` с инжекцией варианта. 15 тестов проходят. | **Готово** |
 | **P3-4** | Автоматическая калибровка temperature | Подбирать temperature динамически на основе истории успешности. | 2–3 дня |
 | **P3-5** | Миграции БД | Сейчас схема создаётся `init_schema()`. Добавить `alembic` для версионирования. | 2 дня |
 | **P3-6** | Локализация | Система заточена под русский. Добавить i18n для мультиязычности. | 3–5 дней |
@@ -83,8 +83,8 @@
 
 | Метрика | Было | Стало | Цель |
 |---------|------|-------|------|
-| Всего строк кода (Python) | ~8,982 | ~14,000 | — |
-| Покрытие тестами | ~2.3% (57 тестов) | ~8.7% (173 теста) | > 60% |
+| Всего строк кода (Python) | ~8,982 | ~15,000 | — |
+| Покрытие тестами | ~2.3% (57 тестов) | ~9.4% (188 тестов) | > 60% |
 | Критических багов | 2 (P0-4, P0-5) | **0** | 0 |
 | Серьёзных проблем | 2 | **0** | 0 |
 | Дублирование кода | 0 | 0 | 0 |
@@ -105,7 +105,8 @@
 | `tests/test_context_cache.py` | 12 | Context cache (local + Redis, mtime invalidation) |
 | `tests/test_action_registry.py` | 19 | Plugin system for actions (registry, dispatcher) |
 | `tests/test_dashboard.py` | 12 | Web UI dashboard (aiohttp, health, metrics, control) |
-| **ИТОГО** | **173** | — |
+| `tests/test_ab_testing.py` | 15 | A/B testing for prompts (registry, evaluator) |
+| **ИТОГО** | **188** | — |
 
 ---
 
@@ -145,7 +146,7 @@
 | P2-11 — Prompt injection защита | ✅ | 1–2 дня |
 | P3-1 — Плагинная система actions | ✅ | 3–5 дней |
 | P3-2 — Web UI дашборд | ✅ | 5–7 дней |
-| P3-3 — A/B тестирование промптов | 📋 | 3–5 дней |
+| P3-3 — A/B тестирование промптов | ✅ | 3–5 дней |
 | P3-4 — Автокалибровка temperature | 📋 | 2–3 дня |
 | P3-5 — Миграции БД (alembic) | 📋 | 2 дня |
 | P3-6 — Локализация (i18n) | 📋 | 3–5 дней |
