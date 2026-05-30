@@ -8,14 +8,126 @@
 import os
 import re
 import asyncio
-from datetime import datetime
+import time
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
 
 import aiohttp
 
 from .file_utils import read_site_html, write_site_html, read_products, write_products, safe_read, safe_write
 from . import with_retry
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# P2-9: Квоты на создание файлов
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Максимум новых страниц категорий в сутки
+DAILY_CATEGORY_PAGE_LIMIT: int = int(os.getenv("DAILY_CATEGORY_PAGE_LIMIT", "10"))
+
+# Файл для отслеживания квот (в PROJECT_ROOT)
+QUOTA_TRACKER_FILE: str = ".agent_quota_tracker.json"
+
+
+def _get_quota_tracker_path() -> Path:
+    """Возвращает путь к файлу отслеживания квот."""
+    site_root = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp"))
+    return site_root / QUOTA_TRACKER_FILE
+
+
+def _load_quota_tracker() -> Dict[str, Any]:
+    """Загружает данные о квотах из файла."""
+    path = _get_quota_tracker_path()
+    if not path.exists():
+        return {"created_pages": [], "updated_meta": [], "updated_products": []}
+    try:
+        import json
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {"created_pages": [], "updated_meta": [], "updated_products": []}
+
+
+def _save_quota_tracker(data: Dict[str, Any]) -> bool:
+    """Сохраняет данные о квотах в файл."""
+    path = _get_quota_tracker_path()
+    try:
+        import json
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"[ERROR] Failed to save quota tracker: {e}")
+        return False
+
+
+def _cleanup_old_entries(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Удаляет записи старше 24 часов."""
+    now = datetime.now()
+    cutoff = now - timedelta(hours=24)
+    
+    for key in data:
+        if isinstance(data[key], list):
+            data[key] = [
+                entry for entry in data[key]
+                if isinstance(entry, dict) and _parse_time(entry.get("timestamp", "")) > cutoff
+            ]
+    return data
+
+
+def _parse_time(ts: str) -> datetime:
+    """Парсит timestamp из строки."""
+    try:
+        return datetime.fromisoformat(ts)
+    except Exception:
+        return datetime.min
+
+
+def check_category_page_quota() -> tuple[bool, str, Dict[str, Any]]:
+    """
+    Проверяет, не превышена ли дневная квота на создание страниц.
+    
+    Returns: (allowed, reason, tracker_data)
+    """
+    tracker = _load_quota_tracker()
+    tracker = _cleanup_old_entries(tracker)
+    
+    created_today = len(tracker.get("created_pages", []))
+    
+    if created_today >= DAILY_CATEGORY_PAGE_LIMIT:
+        return False, (
+            f"Daily category page limit reached: {created_today}/"
+            f"{DAILY_CATEGORY_PAGE_LIMIT}. Try again tomorrow."
+        ), tracker
+    
+    return True, "", tracker
+
+
+def record_category_page_creation(page_name: str) -> bool:
+    """Записывает факт создания страницы категории."""
+    tracker = _load_quota_tracker()
+    tracker = _cleanup_old_entries(tracker)
+    
+    tracker.setdefault("created_pages", []).append({
+        "page": page_name,
+        "timestamp": datetime.now().isoformat(),
+    })
+    
+    return _save_quota_tracker(tracker)
+
+
+def get_quota_status() -> Dict[str, Any]:
+    """Возвращает текущий статус квот для мониторинга."""
+    tracker = _load_quota_tracker()
+    tracker = _cleanup_old_entries(tracker)
+    
+    return {
+        "daily_category_page_limit": DAILY_CATEGORY_PAGE_LIMIT,
+        "created_pages_today": len(tracker.get("created_pages", [])),
+        "updated_meta_today": len(tracker.get("updated_meta", [])),
+        "updated_products_today": len(tracker.get("updated_products", [])),
+        "remaining_category_pages": max(0, DAILY_CATEGORY_PAGE_LIMIT - len(tracker.get("created_pages", []))),
+    }
 
 # ─── SEO: обновление meta-тегов в index.html ─────────────────────────────
 
@@ -60,7 +172,15 @@ def create_category_page(category_name: str, items: list) -> bool:
     """
     Создаёт страницу категории (например, category/naushniki.html).
     items — список словарей с ключами title, price, image, link.
+    
+    P2-9: Проверяет дневную квоту перед созданием.
     """
+    # Проверка квоты
+    allowed, reason, _ = check_category_page_quota()
+    if not allowed:
+        print(f"[QUOTA_BLOCKED] create_category_page: {reason}")
+        return False
+    
     site_root = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp"))
     slug = re.sub(r'[^a-z0-9\-]', '', category_name.lower().replace(' ', '-'))
     path = site_root / "category" / f"{slug}.html"
@@ -95,6 +215,9 @@ def create_category_page(category_name: str, items: list) -> bool:
 </body>
 </html>'''
 
+    # Записываем факт создания для квоты
+    record_category_page_creation(f"category/{slug}.html")
+    
     return safe_write(path, html)
 
 
