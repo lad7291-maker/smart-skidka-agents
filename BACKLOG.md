@@ -73,7 +73,7 @@
 | ~~P3-5~~ | ~~Миграции БД~~ | ✅ **ИСПРАВЛЕНО** — `alembic init` выполнен, `alembic.ini` настроен для PostgreSQL. Начальная миграция `001_initial_schema.py` создаёт все таблицы из `init-scripts/01-schema.sql` (orchestrator_cycles, agent_results, metrics, agent_errors, agent_memory, generated_content, agent_tasks, trend_detections, trend_data_sources, trend_recommendations, agent_trend_context, agent_pages, content_registry) + индексы + начальные данные. `downgrade()` удаляет все таблицы. 10 тестов проходят. | **Готово** |
 | ~~P3-6~~ | ~~Локализация~~ | ✅ **ИСПРАВЛЕНО** — Полноценная gettext-style i18n система в `scripts/i18n.py`: `_()` (gettext), `n_()` (plural forms с CLDR-правилами для ru/en), `p_()` (context-aware), `np_()` (context + plural), `lazy_()`/`lazy_n_()` (отложенные переводы). JSON-хранилище `configs/i18n/{ru,en}.json` с pipe-разделёнными plural forms. Поддержка `.mo`/`.po` (gettext binary/text). `I18nProcessor` для structlog (автоперевод `i18n:`-префиксных строк). `Extractor` для сканирования `_()`, `n_()`, `p_()`, `np_()` из Python-кода и генерации `.pot`. Зависимость: `Babel`. 30 тестов проходят. | **Готово** |
 | ~~P3-7~~ | ~~Оптимизация памяти контекста~~ | ✅ **ИСПРАВЛЕНО** — `ContextCache` (двухуровневый: local + Redis): кэш `last_results` из Redis (уже писался в `save_result`), кэш `trend_recs`/`analytics_tasks` (TTL 60s), кэш `project_context` по хэшу mtime файлов (TTL 300s). Файловый I/O перенесён в `asyncio.to_thread()`. Инвалидация при записи результата. 12 тестов проходят. | **Готово** |
-| **P3-8** | Добавить subgoal-based evaluation | Валидация сейчас бинарная (passed/failed/warning). Добавить оценку выполнения подцелей (например, для SEO: title ✓, meta ✓, h1 ✗, schema ✓ → score 0.75). | 2–3 дня |
+| ~~P3-8~~ | ~~Добавить subgoal-based evaluation~~ | ✅ **ИСПРАВЛЕНО** — `SubgoalEvaluator` с атомарными чекерами (`Checkers`): `field_exists`, `string_length`, `contains_any`, `list_size`, `no_duplicates`, `fields_differ`, `has_structure`, `word_count_range`. Subgoal-определения для 7 типов агентов (seo: 13 subgoals, smm: 7, content: 9, performance: 7, email: 6, analytics: 6, trend: 5) с весами. Бинарные и градуированные оценки (0.0–1.0). `SubgoalEvaluation`: overall_score, per-subgoal breakdown, summary. Интеграция с `ValidationResult` через `merge_with_validation()` → combined_score. Runtime добавление subgoals. 43 теста проходят. | **Готово** |
 | **P3-9** | Интеграция с secrets manager | API-ключи (`LLM_API_KEY`, `TELEGRAM_BOT_TOKEN`) хранятся в `.env` plaintext. Перейти на Vault / AWS Secrets Manager / хотя бы зашифрованный `.env`. | 1–2 дня |
 | **P3-10** | Добавить Critic Agent | Вторичный агент для аудита логов основного: проверка приверженности плану, обнаружение галлюцинаций аргументов, оценка качества эскалации. | 3–5 дней |
 
@@ -109,7 +109,8 @@
 | `tests/test_temperature_calibration.py` | 18 | Auto temperature calibration (ε-greedy bandit, EMA) |
 | `tests/test_alembic.py` | 10 | Alembic migrations (setup, syntax, tables, indexes) |
 | `tests/test_i18n.py` | 30 | i18n: gettext, plural, context, lazy, extractor, structlog |
-| **ИТОГО** | **246** | — |
+| `tests/test_subgoal_evaluator.py` | 43 | Subgoal-based evaluation (SEO/SMM/content/performance/email/analytics/trend) |
+| **ИТОГО** | **289** | — |
 
 ---
 
@@ -154,7 +155,7 @@
 | P3-5 — Миграции БД (alembic) | ✅ | 2 дня |
 | P3-6 — Локализация (i18n) | ✅ | 3–5 дней |
 | P3-7 — Оптимизация памяти контекста | ✅ | 1–2 дня |
-| P3-8 — Subgoal-based evaluation | 📋 | 2–3 дня |
+| P3-8 — Subgoal-based evaluation | ✅ | 2–3 дня |
 | P3-9 — Secrets manager | 📋 | 1–2 дня |
 | P3-10 — Critic Agent | 📋 | 3–5 дней |
 
