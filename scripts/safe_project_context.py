@@ -84,6 +84,10 @@ def is_safe_zone(rel_path: str) -> tuple[bool, str]:
     """
     rel_path = rel_path.lstrip("/")
     
+    # Проверяем path traversal
+    if ".." in rel_path:
+        return False, ""
+    
     for zone in SAFE_ZONES:
         if rel_path.startswith(zone):
             return True, zone.rstrip("/")
@@ -102,18 +106,24 @@ def validate_file_op(rel_path: str, mode: str = "overwrite") -> Dict[str, Any]:
     """
     result = {"valid": True, "error": "", "warning": "", "zone": ""}
     
-    # 1. Проверяем защищённые файлы
-    protected, reason = is_protected(rel_path)
-    if protected:
+    # 0. Проверяем path traversal
+    if ".." in rel_path:
         result["valid"] = False
-        result["error"] = f"🚫 BLOCKED: {rel_path} — {reason}"
+        result["error"] = f"🚫 BLOCKED: {rel_path} — Path traversal detected"
         return result
     
-    # 2. Проверяем безопасную зону
+    # 1. Проверяем безопасную зону (сначала — новые файлы разрешены)
     safe, zone = is_safe_zone(rel_path)
     if safe:
         result["zone"] = zone
         result["warning"] = f"✅ SAFE ZONE: {zone}"
+        return result
+    
+    # 2. Проверяем защищённые файлы
+    protected, reason = is_protected(rel_path)
+    if protected:
+        result["valid"] = False
+        result["error"] = f"🚫 BLOCKED: {rel_path} — {reason}"
         return result
     
     # 3. Если не в безопасной зоне и не защищён — разрешаем, но с предупреждением
