@@ -74,7 +74,7 @@
 | ~~P3-6~~ | ~~Локализация~~ | ✅ **ИСПРАВЛЕНО** — Полноценная gettext-style i18n система в `scripts/i18n.py`: `_()` (gettext), `n_()` (plural forms с CLDR-правилами для ru/en), `p_()` (context-aware), `np_()` (context + plural), `lazy_()`/`lazy_n_()` (отложенные переводы). JSON-хранилище `configs/i18n/{ru,en}.json` с pipe-разделёнными plural forms. Поддержка `.mo`/`.po` (gettext binary/text). `I18nProcessor` для structlog (автоперевод `i18n:`-префиксных строк). `Extractor` для сканирования `_()`, `n_()`, `p_()`, `np_()` из Python-кода и генерации `.pot`. Зависимость: `Babel`. 30 тестов проходят. | **Готово** |
 | ~~P3-7~~ | ~~Оптимизация памяти контекста~~ | ✅ **ИСПРАВЛЕНО** — `ContextCache` (двухуровневый: local + Redis): кэш `last_results` из Redis (уже писался в `save_result`), кэш `trend_recs`/`analytics_tasks` (TTL 60s), кэш `project_context` по хэшу mtime файлов (TTL 300s). Файловый I/O перенесён в `asyncio.to_thread()`. Инвалидация при записи результата. 12 тестов проходят. | **Готово** |
 | ~~P3-8~~ | ~~Добавить subgoal-based evaluation~~ | ✅ **ИСПРАВЛЕНО** — `SubgoalEvaluator` с атомарными чекерами (`Checkers`): `field_exists`, `string_length`, `contains_any`, `list_size`, `no_duplicates`, `fields_differ`, `has_structure`, `word_count_range`. Subgoal-определения для 7 типов агентов (seo: 13 subgoals, smm: 7, content: 9, performance: 7, email: 6, analytics: 6, trend: 5) с весами. Бинарные и градуированные оценки (0.0–1.0). `SubgoalEvaluation`: overall_score, per-subgoal breakdown, summary. Интеграция с `ValidationResult` через `merge_with_validation()` → combined_score. Runtime добавление subgoals. 43 теста проходят. | **Готово** |
-| **P3-9** | Интеграция с secrets manager | API-ключи (`LLM_API_KEY`, `TELEGRAM_BOT_TOKEN`) хранятся в `.env` plaintext. Перейти на Vault / AWS Secrets Manager / хотя бы зашифрованный `.env`. | 1–2 дня |
+| ~~P3-9~~ | ~~Интеграция с secrets manager~~ | ✅ **ИСПРАВЛЕНО** — `SecretsManager` с AES-256-GCM шифрованием и PBKDF2-HMAC-SHA256 (480K итераций, OWASP). Master key из env (`SECRETS_MASTER_KEY`) или файла (`configs/.master.key`, auto-generated с `chmod 600`). Ролевая модель: READ (standard secrets), WRITE (standard+sensitive), ADMIN (all + key rotation). `SecretLevel`: STANDARD / SENSITIVE / CRITICAL. Audit log с фильтрацией. Функции: `get_secret()` (drop-in замена `os.getenv()`), `set_secret()`, `delete_secret()`, `list_secrets()`, `rotate_master_key()`, `migrate_env_secrets()`. Интеграция с `.env` через fallback. Зависимость: `cryptography`. 41 тест проходит. | **Готово** |
 | **P3-10** | Добавить Critic Agent | Вторичный агент для аудита логов основного: проверка приверженности плану, обнаружение галлюцинаций аргументов, оценка качества эскалации. | 3–5 дней |
 
 ---
@@ -110,7 +110,8 @@
 | `tests/test_alembic.py` | 10 | Alembic migrations (setup, syntax, tables, indexes) |
 | `tests/test_i18n.py` | 30 | i18n: gettext, plural, context, lazy, extractor, structlog |
 | `tests/test_subgoal_evaluator.py` | 43 | Subgoal-based evaluation (SEO/SMM/content/performance/email/analytics/trend) |
-| **ИТОГО** | **289** | — |
+| `tests/test_secrets_manager.py` | 41 | Secrets manager (AES-256-GCM, RBAC, audit, rotation) |
+| **ИТОГО** | **330** | — |
 
 ---
 
@@ -156,7 +157,7 @@
 | P3-6 — Локализация (i18n) | ✅ | 3–5 дней |
 | P3-7 — Оптимизация памяти контекста | ✅ | 1–2 дня |
 | P3-8 — Subgoal-based evaluation | ✅ | 2–3 дня |
-| P3-9 — Secrets manager | 📋 | 1–2 дня |
+| P3-9 — Secrets manager | ✅ | 1–2 дня |
 | P3-10 — Critic Agent | 📋 | 3–5 дней |
 
 ---
