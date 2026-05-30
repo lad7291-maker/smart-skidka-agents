@@ -91,7 +91,8 @@ CREATE TABLE IF NOT EXISTS agent_tasks (
     is_active BOOLEAN DEFAULT TRUE,
     priority INTEGER DEFAULT 5,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(agent_name, task_name)
 );
 
 -- Индексы
@@ -178,7 +179,8 @@ CREATE TABLE IF NOT EXISTS trend_recommendations (
     status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected', 'completed')),
     result JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    resolved_at TIMESTAMP WITH TIME ZONE
+    resolved_at TIMESTAMP WITH TIME ZONE,
+    UNIQUE(trend_id, target_agent)
 );
 
 -- Таблица контекста трендов для агентов (что агент уже знает)
@@ -240,6 +242,53 @@ INSERT INTO trend_data_sources (source_name, source_type, refresh_interval_minut
     ('pikabu', 'social', 240, TRUE),
     ('news', 'social', 120, TRUE)
 ON CONFLICT DO NOTHING;
+
+-- ============================================================
+-- Таблица созданных страниц (CRIT-4: трекинг агентских файлов)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS agent_pages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    path VARCHAR(500) NOT NULL,
+    agent_name VARCHAR(50) NOT NULL,
+    page_type VARCHAR(50), -- 'guide', 'category', 'landing', 'review', etc
+    title VARCHAR(500),
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'deprecated', 'error')),
+    http_status INTEGER,
+    html_valid BOOLEAN,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    last_checked_at TIMESTAMP WITH TIME ZONE,
+    UNIQUE(path)
+);
+
+CREATE INDEX IF NOT EXISTS idx_agent_pages_agent ON agent_pages(agent_name);
+CREATE INDEX IF NOT EXISTS idx_agent_pages_status ON agent_pages(status);
+CREATE INDEX IF NOT EXISTS idx_agent_pages_type ON agent_pages(page_type);
+
+-- ============================================================
+-- Таблица content registry (IMP-6: shared content registry)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS content_registry (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    content_type VARCHAR(50) NOT NULL, -- 'guide', 'review', 'comparison', 'category'
+    title VARCHAR(500) NOT NULL,
+    slug VARCHAR(200) NOT NULL,
+    path VARCHAR(500) NOT NULL,
+    agent_name VARCHAR(50) NOT NULL,
+    keywords JSONB,
+    related_slugs JSONB, -- ['slug1', 'slug2'] для перелинковки
+    status VARCHAR(20) DEFAULT 'published' CHECK (status IN ('draft', 'published', 'archived')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(slug),
+    UNIQUE(path)
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_registry_type ON content_registry(content_type);
+CREATE INDEX IF NOT EXISTS idx_content_registry_agent ON content_registry(agent_name);
+CREATE INDEX IF NOT EXISTS idx_content_registry_status ON content_registry(status);
 
 -- ============================================================
 -- Начальные данные: задачи trend_agent

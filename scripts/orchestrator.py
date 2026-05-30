@@ -2512,6 +2512,7 @@ class Orchestrator:
             try:
                 # Проверка паузы через Telegram (/pause команда)
                 try:
+                    redis = await self.memory._get_redis()
                     pause_key = f"agent:pause:{agent_name}"
                     paused = await redis.get(pause_key)
                     if paused:
@@ -2530,6 +2531,7 @@ class Orchestrator:
 
                 # Проверка срочного запуска (/run_now команда)
                 try:
+                    redis = await self.memory._get_redis()
                     run_now_key = f"agent:run_now:{agent_name}"
                     run_now = await redis.get(run_now_key)
                     if run_now:
@@ -2542,6 +2544,20 @@ class Orchestrator:
                 context = {}
                 if self.memory:
                     context = await self.memory.get_context(agent_name)
+
+                # COS-4: Feedback loop — инжектируем анализ предыдущих запусков
+                try:
+                    feedback = await self._get_feedback_for_agent(agent_name, limit=5)
+                    if feedback:
+                        context["feedback"] = feedback
+                        self.logger.info(
+                            "feedback_injected",
+                            agent=agent_name,
+                            patterns=len(feedback.get("patterns", [])),
+                            recommendations=len(feedback.get("recommendations", [])),
+                        )
+                except Exception as e:
+                    self.logger.warning("feedback_loop_failed", agent=agent_name, error=str(e))
 
                 # Запускаем агента
                 runner = self.agent_runners.get(agent_name)
@@ -3076,6 +3092,155 @@ class Orchestrator:
             await self.reporter.close()
 
         self.logger.info("Все ресурсы оркестратора освобождены")
+
+    def get_health_status(self) -> Dict[str, Any]:
+        """P2-4: Возвращает статус здоровья оркестратора."""
+        uptime_seconds = 0
+        if self.start_time:
+            uptime_seconds = int((datetime.now() - self.start_time).total_seconds())
+        status = "unhealthy"
+        if self.running:
+            if self.total_errors > 10:
+                status = "degraded"
+            else:
+                status = "healthy"
+        return {
+            "status": status,
+            "running": self.running,
+            "cycle_count": self.cycle_count,
+            "errors_total": self.total_errors,
+            "uptime_seconds": uptime_seconds,
+            "agents_total": len(self.agents),
+            "agents_paused": len(self.paused_agents),
+        }
+
+    async def get_metrics(self) -> Dict[str, Any]:
+        """P2-7 + COS-2: Возвращает метрики в формате Prometheus + контент-метрики."""
+        content = await self._get_content_metrics()
+        return {
+            "cycles_total": self.cycle_count,
+            "errors_total": self.total_errors,
+            "agents_total": len(self.agents),
+            "agents_paused": len(self.paused_agents),
+            **content,
+        }
+
+    async def get_validation_history(self, limit: int = 20, agent_name: Optional[str] = None) -> Dict[str, Any]:
+        """P2-6: Возвращает историю валидации агентов."""
+        if not self.memory:
+            return {"total": 0, "results": [], "summary": {"passed": 0, "failed": 0, "avg_score": 0.0}}
+        pool = await self.memory._get_db_pool()
+        async with pool.acquire() as conn:
+            if agent_name:
+                rows = await conn.fetch(
+                    "SELECT * FROM agent_results WHERE agent_name = $1 ORDER BY created_at DESC LIMIT $2",
+                    agent_name, limit,
+                )
+                total = (await conn.fetchrow("SELECT COUNT(*) FROM agent_results WHERE agent_name = $1", agent_name))[0] or 0
+            else:
+                rows = await conn.fetch(
+                    "SELECT * FROM agent_results ORDER BY created_at DESC LIMIT $1", limit,
+                )
+                total = (await conn.fetchrow("SELECT COUNT(*) FROM agent_results"))[0] or 0
+        results = []
+        passed, failed = 0, 0
+        scores = []
+        for row in rows:
+            score = row["validation_score"] or 0.0
+            status = row["status"] or "unknown"
+            if status == "completed":
+                passed += 1
+            elif status == "failed":
+                failed += 1
+            if score:
+                scores.append(score)
+            results.append({
+                "cycle_id": str(row["cycle_id"]),
+                "agent_name": row["agent_name"],
+                "status": status,
+                "validation_score": score,
+                "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+            })
+        avg_score = round(sum(scores) / len(scores), 3) if scores else 0.0
+        return {
+            "total": total,
+            "results": results,
+            "summary": {"passed": passed, "failed": failed, "avg_score": avg_score},
+        }
+
+    async def _get_feedback_for_agent(self, agent_name: str, limit: int = 5) -> Optional[Dict[str, Any]]:
+        """COS-4: Feedback loop — анализ предыдущих запусков агента."""
+        if not self.memory:
+            return None
+        pool = await self.memory._get_db_pool()
+        async with pool.acquire() as conn:
+            rows = await conn.fetch(
+                """SELECT cycle_id, created_at, validation_score, validation_errors, status, result, execution_time_ms
+                    FROM agent_results WHERE agent_name = $1 ORDER BY created_at DESC LIMIT $2""",
+                agent_name, limit,
+            )
+        if not rows:
+            return None
+        runs, high_scores, low_scores, error_patterns, action_history = [], [], [], {}, []
+        for row in rows:
+            score = row["validation_score"] or 0.0
+            status = row["status"] or "unknown"
+            errors = row["validation_errors"] or []
+            result_data = row["result"]
+            if isinstance(result_data, str):
+                try:
+                    result_data = json.loads(result_data)
+                except json.JSONDecodeError:
+                    result_data = {}
+            elif not isinstance(result_data, dict):
+                result_data = {}
+            run_info = {"cycle_id": str(row["cycle_id"]), "timestamp": row["created_at"].isoformat() if row["created_at"] else None, "validation_score": score, "status": status, "execution_time_ms": row["execution_time_ms"]}
+            runs.append(run_info)
+            actions = result_data.get("actions", []) if isinstance(result_data, dict) else []
+            if actions:
+                action_history.extend(actions[:3])
+            if score >= 0.8:
+                high_scores.append(run_info)
+            elif score < 0.5 or status == "failed":
+                low_scores.append(run_info)
+            if errors:
+                for err in errors[:3]:
+                    key = str(err)[:30]
+                    error_patterns[key] = error_patterns.get(key, 0) + 1
+        patterns = []
+        if high_scores:
+            patterns.append({"type": "success_pattern", "message": f"{len(high_scores)} из {len(runs)} запусков с высоким score (≥0.8)", "count": len(high_scores)})
+        if low_scores:
+            patterns.append({"type": "failure_pattern", "message": f"{len(low_scores)} из {len(runs)} запусков с низким score (<0.5) или failed", "count": len(low_scores)})
+        if error_patterns:
+            for err_key, count in sorted(error_patterns.items(), key=lambda x: x[1], reverse=True)[:2]:
+                patterns.append({"type": "recurring_error", "message": f"Ошибка повторяется {count} раз(а): {err_key}...", "count": count})
+        recommendations = []
+        if len(low_scores) > len(high_scores):
+            recommendations.append("Последние запуски показывают снижение качества. Рассмотрите упрощение задачи.")
+        if error_patterns:
+            recommendations.append("Обнаружены повторяющиеся ошибки. Проверьте валидацию входных данных.")
+        if not action_history:
+            recommendations.append("В последних запусках не зафиксировано действий. Убедитесь, что агент генерирует executable output.")
+        return {"runs": runs, "patterns": patterns, "recommendations": recommendations, "action_history": action_history[:5], "avg_score": round(sum(r["validation_score"] for r in runs) / len(runs), 3) if runs else 0.0}
+
+    async def _get_content_metrics(self) -> Dict[str, Any]:
+        """COS-2: Собирает метрики контента из БД."""
+        if not self.memory:
+            return {"pages_total": 0, "pages_today": 0, "pages_this_week": 0, "pages_this_month": 0, "avg_validation_score": 0.0, "published_content_count": 0}
+        pool = await self.memory._get_db_pool()
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        week_start = today_start - timedelta(days=today_start.weekday())
+        month_start = today_start.replace(day=1)
+        async with pool.acquire() as conn:
+            pages_total = (await conn.fetchrow("SELECT COUNT(*) FROM agent_pages WHERE status = 'active'"))[0] or 0
+            pages_today = (await conn.fetchrow("SELECT COUNT(*) FROM agent_pages WHERE created_at >= $1", today_start))[0] or 0
+            pages_week = (await conn.fetchrow("SELECT COUNT(*) FROM agent_pages WHERE created_at >= $1", week_start))[0] or 0
+            pages_month = (await conn.fetchrow("SELECT COUNT(*) FROM agent_pages WHERE created_at >= $1", month_start))[0] or 0
+            avg_score_row = await conn.fetchrow("SELECT AVG(validation_score) FROM agent_results WHERE created_at >= $1 AND validation_score IS NOT NULL", today_start)
+            avg_score = avg_score_row[0] if avg_score_row and avg_score_row[0] else 0.0
+            published = (await conn.fetchrow("SELECT COUNT(*) FROM content_registry WHERE status = 'published'"))[0] or 0
+        return {"pages_total": pages_total, "pages_today": pages_today, "pages_this_week": pages_week, "pages_this_month": pages_month, "avg_validation_score": round(avg_score, 3), "published_content_count": published}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

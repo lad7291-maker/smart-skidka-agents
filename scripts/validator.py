@@ -51,7 +51,16 @@ from dotenv import load_dotenv
 # ═══════════════════════════════════════════════════════════════════════════════
 # Загрузка переменных окружения
 # ═══════════════════════════════════════════════════════════════════════════════
-load_dotenv()
+import os
+_env_loaded = load_dotenv()
+if not _env_loaded and not os.getenv("LLM_API_KEY"):
+    import warnings
+    warnings.warn(
+        ".env файл не найден и переменные окружения не заданы. "
+        "Система может работать некорректно.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Настройка логирования
@@ -1610,6 +1619,89 @@ def validate_content_result(result: Dict[str, Any]) -> ValidationResult:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Trend Research валидатор
+# ═══════════════════════════════════════════════════════════════════════════════
+AGENT_NAMES: List[str] = [
+    "seo_agent",
+    "smm_agent",
+    "performance_agent",
+    "email_agent",
+    "analytics_agent",
+    "content_agent",
+    "trend_agent",
+]
+
+
+def _check_trend_freshness(result: Dict[str, Any]) -> bool:
+    """Проверка что тренд не устарел (>48 часов)."""
+    detected = result.get("detected_at")
+    if not detected:
+        return True
+    try:
+        dt = datetime.fromisoformat(str(detected).replace("Z", "+00:00"))
+        return (datetime.now(dt.tzinfo) - dt).total_seconds() < 48 * 3600
+    except Exception:
+        return True
+
+
+def validate_trend_result(result: Dict[str, Any]) -> ValidationResult:
+    """
+    Валидирует результат Trend Research Agent.
+
+    Проверяет корректность типа тренда, confidence, наличие заголовка,
+    описания, метрик, источников данных, рекомендаций и свежесть тренда.
+    """
+    checks: Dict[str, bool] = {
+        "has_trend_type": result.get("trend_type") in ["product", "category", "event", "viral", "seasonal"],
+        "confidence_valid": 0.0 <= result.get("confidence", 0) <= 1.0,
+        "confidence_threshold": result.get("confidence", 0) >= 0.6,
+        "has_title": bool(result.get("title")),
+        "has_description": bool(result.get("description")),
+        "min_data_sources": len(result.get("data_sources", [])) >= 2,
+        "has_metrics": bool(result.get("metrics")),
+        "has_recommendations": len(result.get("recommended_actions", [])) > 0,
+        "actions_have_agents": all(
+            a.get("agent") in AGENT_NAMES
+            for a in result.get("recommended_actions", [])
+        ),
+        "status_valid": result.get("status") in ["rising", "peak", "declining"],
+        "not_expired": _check_trend_freshness(result),
+    }
+
+    score = result.get("confidence", 0) * (sum(checks.values()) / len(checks))
+    passed = all(checks.values())
+    errors: List[str] = []
+    warnings: List[str] = []
+
+    if not checks["has_trend_type"]:
+        errors.append(f"Некорректный тип тренда: {result.get('trend_type')}")
+    if not checks["confidence_threshold"]:
+        errors.append(f"Недостаточная уверенность: {result.get('confidence', 0):.2f} (мин. 0.6)")
+    if not checks["has_title"]:
+        errors.append("Отсутствует заголовок тренда")
+    if not checks["has_description"]:
+        errors.append("Отсутствует описание тренда")
+    if not checks["min_data_sources"]:
+        warnings.append(f"Мало источников данных ({len(result.get('data_sources', []))}, мин. 2)")
+    if not checks["actions_have_agents"]:
+        actions = result.get("recommended_actions", [])
+        unknown = [a.get("agent") for a in actions if a.get("agent") not in AGENT_NAMES]
+        errors.append(f"Неизвестные агенты в рекомендациях: {unknown}")
+    if not checks["not_expired"]:
+        warnings.append("Тренд устарел (>48 часов)")
+
+    status = ValidationStatus.PASSED if passed else ValidationStatus.FAILED
+
+    return ValidationResult(
+        status=status,
+        score=round(score, 3),
+        errors=errors,
+        warnings=warnings,
+        metadata={"checks": checks},
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Универсальный валидатор по типу агента
 # ═══════════════════════════════════════════════════════════════════════════════
 def validate_by_type(result: Dict[str, Any], agent_type: str) -> ValidationResult:
@@ -1618,7 +1710,7 @@ def validate_by_type(result: Dict[str, Any], agent_type: str) -> ValidationResul
 
     Args:
         result: Результат работы агента
-        agent_type: Тип агента (seo, smm, performance, email, analytics, content)
+        agent_type: Тип агента (seo, smm, performance, email, analytics, content, trend)
 
     Returns:
         ValidationResult с результатом проверки
@@ -1630,6 +1722,7 @@ def validate_by_type(result: Dict[str, Any], agent_type: str) -> ValidationResul
         "email": validate_email_result,
         "analytics": validate_analytics_result,
         "content": validate_content_result,
+        "trend": validate_trend_result,
     }
 
     validator_func = validators.get(agent_type.lower())

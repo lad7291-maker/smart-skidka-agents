@@ -6,7 +6,7 @@ import logging
 
 logger = logging.getLogger("project_context")
 
-PROJECT_ROOT = "/var/www/dealshub-miniapp"
+PROJECT_ROOT = os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp")
 
 # ═══════════════════════════════════════════════════════
 # PROTECTED FILES — НЕЛЬЗЯ ТРОГАТЬ

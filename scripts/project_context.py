@@ -1,12 +1,16 @@
 import os
 import json
+import shutil
+import subprocess
+import tempfile
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 import logging
 
 logger = logging.getLogger("project_context")
 
-PROJECT_ROOT = "/var/www/dealshub-miniapp"
+PROJECT_ROOT = os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp")
 
 
 class ProjectContext:
@@ -110,39 +114,119 @@ class ProjectContext:
 
     def write_file(self, rel_path: str, content: str, append: bool = False) -> Dict[str, Any]:
         """
-        Записывает файл в проект.
+        Записывает файл в проект с атомарной записью и валидацией HTML.
         
         Args:
             rel_path: Относительный путь
             content: Содержимое для записи
             append: True — добавить в конец, False — перезаписать
+            
+        Returns:
+            {"success": bool, "path": str, "backup": str|None, "html_valid": bool, 
+             "http_status": int|None, "error": str}
         """
+        import shutil
+        import tempfile
+        import subprocess
+        
+        full_path = self.root / rel_path
+        real_path = full_path.resolve()
+        real_root = self.root.resolve()
+        
+        # Защита от path traversal
+        if not str(real_path).startswith(str(real_root)):
+            return {"success": False, "error": f"Path traversal blocked: {rel_path}"}
+        
         try:
-            full_path = self.root / rel_path
-            real_path = full_path.resolve()
-            real_root = self.root.resolve()
-            
-            # Защита от path traversal
-            if not str(real_path).startswith(str(real_root)):
-                return {"success": False, "error": f"Path traversal blocked: {rel_path}"}
-            
             # Создаем директории если нужно
             real_path.parent.mkdir(parents=True, exist_ok=True)
             
-            mode = "a" if append else "w"
-            with open(real_path, mode, encoding="utf-8") as f:
-                f.write(content)
+            backup_path = None
             
-            logger.info("file_written", path=rel_path, size=len(content))
-            return {
+            if not append and real_path.exists():
+                # CRIT-1: Создаём бэкап перед перезаписью
+                ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                backup_path = str(real_path) + f".bak.{ts}"
+                shutil.copy2(real_path, backup_path)
+            
+            if append:
+                # Append — просто дописываем
+                with open(real_path, "a", encoding="utf-8") as f:
+                    f.write(content)
+            else:
+                # CRIT-2: Атомарная запись через временный файл
+                tmp_fd, tmp_path = tempfile.mkstemp(
+                    dir=real_path.parent,
+                    prefix=f".{real_path.name}.",
+                    suffix=".tmp"
+                )
+                try:
+                    with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    # Атомарный rename
+                    os.replace(tmp_path, real_path)
+                except Exception:
+                    # При ошибке — удаляем временный файл
+                    try:
+                        os.unlink(tmp_path)
+                    except FileNotFoundError:
+                        pass
+                    raise
+            
+            result = {
                 "success": True,
                 "path": rel_path,
                 "size": len(content),
                 "mode": "append" if append else "overwrite",
+                "backup": backup_path,
             }
+            
+            # CRIT-3: Валидация HTML после записи
+            if rel_path.endswith(".html"):
+                html_valid = self._validate_html(content)
+                result["html_valid"] = html_valid
+                if not html_valid:
+                    result["warning"] = "HTML may be malformed: missing </html>, </body>, or <title>"
+            
+            # CRIT-5: Проверка HTTP 200 (если nginx/localhost доступен)
+            http_status = self._check_http_status(rel_path)
+            if http_status:
+                result["http_status"] = http_status
+            
+            logger.info("file_written: %s size=%d backup=%s", rel_path, len(content), backup_path)
+            return result
+            
         except Exception as e:
-            logger.error("write_file_failed", path=rel_path, error=str(e))
+            logger.error("write_file_failed: %s - %s", rel_path, str(e))
             return {"success": False, "error": str(e)}
+    
+    def _validate_html(self, content: str) -> bool:
+        """CRIT-3: Проверяет базовую валидность HTML."""
+        checks = [
+            "</html>" in content.lower() or "</html>" in content,
+            "</body>" in content.lower() or "</body>" in content,
+            "<title>" in content.lower() or "<title>" in content,
+        ]
+        return all(checks)
+    
+    def _check_http_status(self, rel_path: str) -> Optional[int]:
+        """CRIT-5: Проверяет HTTP статус страницы через curl."""
+        try:
+            # Пытаемся сделать HEAD запрос к localhost
+            url_path = rel_path.lstrip("/")
+            result = subprocess.run(
+                ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", 
+                 f"http://localhost/{url_path}"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if result.returncode == 0:
+                status = int(result.stdout.strip())
+                return status
+        except Exception:
+            pass
+        return None
 
     def list_dir(self, rel_path: str = ".") -> List[Dict[str, Any]]:
         """Список файлов в директории."""

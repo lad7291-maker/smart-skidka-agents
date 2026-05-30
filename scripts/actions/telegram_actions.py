@@ -9,6 +9,8 @@ import asyncio
 import aiohttp
 from typing import Optional
 
+from . import with_retry
+
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID", "-100")  # если канал
 
@@ -17,6 +19,7 @@ CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "1718706291")
 
 API_BASE = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
+@with_retry(max_retries=3, delay=1.0, backoff=2.0, exceptions=(Exception,))
 async def post_to_channel(text: str, photo_url: Optional[str] = None) -> bool:
     """Публикует пост (текст + опционально фото) в Telegram."""
     if not BOT_TOKEN:
@@ -56,6 +59,7 @@ async def post_to_channel(text: str, photo_url: Optional[str] = None) -> bool:
             print(f"[ERROR] post_to_channel: {e}")
             return False
 
+@with_retry(max_retries=3, delay=1.0, backoff=2.0, exceptions=(Exception,))
 async def post_discount(product: dict) -> bool:
     """Форматирует и публикует пост о скидке."""
     title = product.get("title", "Товар")

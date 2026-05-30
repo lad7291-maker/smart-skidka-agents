@@ -108,24 +108,40 @@ def agents_menu_keyboard() -> dict:
     return {"inline_keyboard": keyboard}
 
 
-# ═══ Redis helpers ════════════════════════════════════════════════════
+# ═══ Redis helpers (singleton connection) ═════════════════════════════
+
+_redis_client: aioredis.Redis | None = None
+
+
+async def _get_redis() -> aioredis.Redis:
+    """Возвращает singleton подключение к Redis."""
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = aioredis.from_url(REDIS_URL, decode_responses=True)
+    return _redis_client
+
+
+async def redis_close() -> None:
+    """Закрывает singleton подключение к Redis."""
+    global _redis_client
+    if _redis_client is not None:
+        await _redis_client.aclose()
+        _redis_client = None
+
 
 async def redis_pause(agent: str, hours: int = 12):
-    redis = aioredis.from_url(REDIS_URL)
+    redis = await _get_redis()
     await redis.set(f"agent:pause:{agent}", "1", ex=hours * 3600)
-    await redis.aclose()
 
 
 async def redis_resume(agent: str):
-    redis = aioredis.from_url(REDIS_URL)
+    redis = await _get_redis()
     await redis.delete(f"agent:pause:{agent}")
-    await redis.aclose()
 
 
 async def redis_run_now(agent: str):
-    redis = aioredis.from_url(REDIS_URL)
+    redis = await _get_redis()
     await redis.set(f"agent:run_now:{agent}", "1", ex=3600)
-    await redis.aclose()
 
 
 # ═══ Handlers ═════════════════════════════════════════════════════════

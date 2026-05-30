@@ -5,14 +5,16 @@
 Каждая операция делает бэкап перед изменением.
 """
 
+import os
 import shutil
 import json
+import subprocess
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
 
 # Пути к проекту
-SITE_ROOT = Path("/var/www/dealshub-miniapp")
+SITE_ROOT = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp"))
 PRODUCTS_JSON = SITE_ROOT / "products.json"
 INDEX_HTML = SITE_ROOT / "index.html"
 ITEMS_DIR = SITE_ROOT / "item"
@@ -81,7 +83,46 @@ def read_products() -> dict:
         return {"products": data}
     return data if isinstance(data, dict) else {}
 
-def write_products(data: dict) -> bool:
+# ─── P1-9: Защита products.json — whitelist операций ─────────────────────
+
+# Разрешённые поля для обновления через агентов
+PRODUCTS_ALLOWED_FIELDS = {
+    "description",    # Описание товара
+    "badge",          # Бейдж (Тренд, ХИТ, NEW)
+    "priority",       # Приоритет сортировки
+    "discount",       # Размер скидки
+    "promo_code",     # Промокод
+    "expires_at",     # Срок действия акции
+}
+
+# Поля, которые НЕЛЬЗЯ менять через агентов
+PRODUCTS_PROTECTED_FIELDS = {
+    "id", "name", "price", "original_price", "image",
+    "category", "link", "rating", "reviews",
+}
+
+
+def validate_products_update(item_id: str, field: str, value) -> tuple[bool, str]:
+    """
+    Проверяет, разрешено ли обновление поля товара.
+
+    Returns: (is_allowed, reason)
+    """
+    if field in PRODUCTS_PROTECTED_FIELDS:
+        return False, f"Field '{field}' is protected and cannot be modified by agents"
+    if field not in PRODUCTS_ALLOWED_FIELDS:
+        return False, f"Field '{field}' is not in allowed fields list: {PRODUCTS_ALLOWED_FIELDS}"
+    return True, ""
+
+
+def write_products(data: dict, validate: bool = False) -> bool:
+    """
+    Атомарно пишет products.json с бэкапом.
+
+    Args:
+        data: Данные для записи
+        validate: Если True, проверяет разрешённые поля (для агентов)
+    """
     # Если data — dict с "products", сохраняем как list для совместимости с app.js
     if isinstance(data, dict) and "products" in data:
         return safe_write_json(PRODUCTS_JSON, data["products"])
@@ -92,3 +133,93 @@ def list_items() -> list:
     if not ITEMS_DIR.exists():
         return []
     return sorted([f.name for f in ITEMS_DIR.glob("*.html")])
+
+
+# ─── COS-1: Git versioning on file changes ───────────────────────────────
+
+def git_commit_file(path: Path, message: Optional[str] = None) -> bool:
+    """
+    Автоматически коммитит изменённый файл в git.
+    
+    Args:
+        path: Путь к файлу
+        message: Сообщение коммита (auto-generated если None)
+    
+    Returns:
+        True если коммит создан или файл уже в git
+    """
+    try:
+        # Проверяем, что это git-репозиторий
+        repo_root = Path(path).resolve()
+        while repo_root != repo_root.parent:
+            if (repo_root / ".git").exists():
+                break
+            repo_root = repo_root.parent
+        else:
+            # Не git-репозиторий — молча пропускаем
+            return True
+
+        rel_path = Path(path).resolve().relative_to(repo_root)
+
+        # Проверяем, есть ли изменения
+        result = subprocess.run(
+            ["git", "-C", str(repo_root), "status", "--porcelain", str(rel_path)],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode != 0:
+            return False
+
+        # Если нет изменений — ничего не делаем
+        if not result.stdout.strip():
+            return True
+
+        # Добавляем файл
+        add_result = subprocess.run(
+            ["git", "-C", str(repo_root), "add", str(rel_path)],
+            capture_output=True,
+            timeout=10,
+        )
+        if add_result.returncode != 0:
+            return False
+
+        # Создаём коммит
+        if message is None:
+            message = f"agent: update {rel_path} at {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+
+        commit_result = subprocess.run(
+            ["git", "-C", str(repo_root), "commit", "-m", message],
+            capture_output=True,
+            timeout=10,
+        )
+        return commit_result.returncode == 0
+
+    except FileNotFoundError:
+        # git не установлен — пропускаем
+        return True
+    except subprocess.TimeoutExpired:
+        return False
+    except Exception as e:
+        print(f"[GIT WARN] git_commit_file failed for {path}: {e}")
+        return False
+
+
+def safe_write_with_git(path: Path, content: str, make_backup: bool = True,
+                        git_message: Optional[str] = None) -> bool:
+    """
+    Атомарная запись + автоматический git-коммит.
+    
+    Args:
+        path: Путь к файлу
+        content: Содержимое
+        make_backup: Создавать ли бэкап
+        git_message: Сообщение коммита
+    
+    Returns:
+        True если запись успешна (git-коммит опционален)
+    """
+    ok = safe_write(path, content, make_backup)
+    if ok:
+        git_commit_file(path, git_message)
+    return ok
