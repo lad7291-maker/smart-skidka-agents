@@ -83,8 +83,8 @@
 
 | Метрика | Было | Стало | Цель |
 |---------|------|-------|------|
-| Всего строк кода (Python) | ~8,982 | ~11,500 | — |
-| Покрытие тестами | ~2.3% (57 тестов) | ~6.5% (130 тестов) | > 60% |
+| Всего строк кода (Python) | ~8,982 | ~12,000 | — |
+| Покрытие тестами | ~2.3% (57 тестов) | ~7.1% (142 теста) | > 60% |
 | Критических багов | 2 (P0-4, P0-5) | **0** | 0 |
 | Серьёзных проблем | 2 | **0** | 0 |
 | Дублирование кода | 0 | 0 | 0 |
@@ -102,7 +102,8 @@
 | `tests/test_file_quotas.py` | 7 | File creation quotas (daily limits) |
 | `tests/test_smart_retry.py` | 19 | Smart retry + prompt injection protection |
 | `tests/test_browser_actions.py` | 10 | Browser-based agent (Playwright) |
-| **ИТОГО** | **130** | — |
+| `tests/test_context_cache.py` | 12 | Context cache (local + Redis, mtime invalidation) |
+| **ИТОГО** | **142** | — |
 
 ---
 
@@ -146,7 +147,7 @@
 | P3-4 — Автокалибровка temperature | 📋 | 2–3 дня |
 | P3-5 — Миграции БД (alembic) | 📋 | 2 дня |
 | P3-6 — Локализация (i18n) | 📋 | 3–5 дней |
-| P3-7 — Оптимизация памяти контекста | 📋 | 1–2 дня |
+| P3-7 — Оптимизация памяти контекста | ✅ | 1–2 дня |
 | P3-8 — Subgoal-based evaluation | 📋 | 2–3 дня |
 | P3-9 — Secrets manager | 📋 | 1–2 дня |
 | P3-10 — Critic Agent | 📋 | 3–5 дней |
