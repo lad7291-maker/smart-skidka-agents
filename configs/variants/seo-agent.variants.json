@@ -1,0 +1,26 @@
+{
+  "agent_name": "seo-agent",
+  "updated_at": "2026-05-30T17:55:32.381640",
+  "variants": [
+    {
+      "agent_name": "seo-agent",
+      "variant_name": "v1",
+      "system_prompt": "You are SEO expert. Be concise.",
+      "is_active": true,
+      "experiment_count": 10,
+      "total_score": 8.950000000000001,
+      "avg_score": 0.8950000000000001,
+      "created_at": "2026-05-30T17:55:17.275204"
+    },
+    {
+      "agent_name": "seo-agent",
+      "variant_name": "v2",
+      "system_prompt": "You are SEO expert. Be detailed.",
+      "is_active": false,
+      "experiment_count": 10,
+      "total_score": 7.150000000000001,
+      "avg_score": 0.7150000000000001,
+      "created_at": "2026-05-30T17:55:17.276063"
+    }
+  ]
+}
