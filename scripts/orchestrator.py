@@ -1181,6 +1181,10 @@ class AgentRunner:
                                 for mk, mv in metrics.items():
                                     parts.append(f"  - {mk}: {mv}")
                     parts.append("\n⚠️ Важно: выполни хотя бы одну задачу из списка.")
+
+                # Особое форматирование project_context
+                elif key == "project_context":
+                    parts.append(f"\n{value}")
                 elif key == "fresh_start" and value:
                     parts.append("- Это первый запуск агента, нет предыдущих результатов.")
                 elif key == "recent_summaries":
@@ -1671,6 +1675,21 @@ class MemoryStore:
                 agent=agent_name,
                 count=len(analytics_tasks),
             )
+
+        # ═══ PROJECT CONTEXT: Файлы проекта для этого агента ═══
+        try:
+            from scripts.project_context import get_project_context_for_agent
+            atype = agent_name.split("-")[0] if "-" in agent_name else agent_name
+            project_ctx = get_project_context_for_agent(atype)
+            if project_ctx:
+                context["project_context"] = project_ctx
+                self.logger.info(
+                    "project_context_injected",
+                    agent=agent_name,
+                    chars=len(project_ctx),
+                )
+        except Exception as e:
+            self.logger.warning("project_context_failed", agent=agent_name, error=str(e))
 
         return context
 
@@ -2579,10 +2598,42 @@ class Orchestrator:
                     try:
                         action_log = []
                         agent_type = agent_name.split("-")[0] if "-" in agent_name else agent_name
+                        data = result.get("data", {})
+
+                        # File operations — для всех агентов (руки, защищённые)
+                        file_ops = data.get("file_ops", data.get("files", []))
+                        if file_ops:
+                            from scripts.safe_project_context import safe_write_file, validate_write
+                            if isinstance(file_ops, list):
+                                for op in file_ops[:5]:  # макс 5 операций за раз
+                                    if isinstance(op, dict):
+                                        path = op.get("path", op.get("file", ""))
+                                        content = op.get("content", "")
+                                        mode = op.get("mode", "overwrite")
+                                        if path and content:
+                                            # Валидация перед записью
+                                            val = validate_write(path, mode)
+                                            if not val["valid"]:
+                                                action_log.append(f"file:{path}:BLOCKED")
+                                                self.logger.warning("file_op_blocked", agent=agent_name, path=path, reason=val["error"])
+                                                continue
+                                            res = safe_write_file(path, content, append=(mode=="append"))
+                                            action_log.append(f"file:{path}:{res.get('success', False)}")
+                            elif isinstance(file_ops, dict):
+                                path = file_ops.get("path", file_ops.get("file", ""))
+                                content = file_ops.get("content", "")
+                                mode = file_ops.get("mode", "overwrite")
+                                if path and content:
+                                    val = validate_write(path, mode)
+                                    if not val["valid"]:
+                                        action_log.append(f"file:{path}:BLOCKED")
+                                        self.logger.warning("file_op_blocked", agent=agent_name, path=path, reason=val["error"])
+                                    else:
+                                        res = safe_write_file(path, content, append=(mode=="append"))
+                                        action_log.append(f"file:{path}:{res.get('success', False)}")
 
                         if agent_type == "smm":
                             # SMM — публикуем посты в Telegram
-                            data = result.get("data", {})
                             posts = data.get("posts", data.get("content", []))
                             if isinstance(posts, list):
                                 for post in posts[:3]:  # макс 3 за раз
