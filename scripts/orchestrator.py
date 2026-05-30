@@ -1585,6 +1585,10 @@ class MemoryStore:
         self._db_pool: Optional[asyncpg.Pool] = None
         self._redis: Optional[aioredis.Redis] = None
 
+        # P3-7: ContextCache для оптимизации загрузки контекста
+        from actions.context_cache import ContextCache
+        self.context_cache = ContextCache(memory_store=self)
+
     async def _get_db_pool(self) -> asyncpg.Pool:
         """Получает или создаёт пул подключений к PostgreSQL."""
         if self._db_pool is None or self._db_pool._closed:
@@ -1792,15 +1796,26 @@ class MemoryStore:
         """
         Формирует контекст для следующего запуска агента.
 
-        Собирает информацию из последних результатов, метрик
-        и активных trend-рекомендаций для передачи агенту.
+        P3-7: Оптимизированная версия с кэшированием через ContextCache.
+        Сокращает DB-запросы и файловое I/O при повторных вызовах.
         """
-        last_results = await self.get_last_results(agent_name, limit=3)
+        context: Dict[str, Any] = {}
+
+        # ═══ LAST RESULTS: сначала пробуем кэш, потом БД ═══
+        last_results = None
+        if hasattr(self, 'context_cache') and self.context_cache:
+            cached = await self.context_cache.get_last_results(agent_name, limit=3)
+            if cached:
+                last_results = cached
+                self.logger.debug("last_results_cache_hit", agent=agent_name)
+
+        if last_results is None:
+            last_results = await self.get_last_results(agent_name, limit=3)
 
         if not last_results:
             context = {"fresh_start": True}
         else:
-            context: Dict[str, Any] = {
+            context = {
                 "previous_runs_count": len(last_results),
                 "last_run": {
                     "timestamp": last_results[0].get("timestamp"),
@@ -1809,7 +1824,6 @@ class MemoryStore:
                 },
             }
 
-            # Добавляем краткую сводку последних результатов
             recent_summaries = []
             for r in last_results[:3]:
                 data = r.get("data", {})
@@ -1818,10 +1832,9 @@ class MemoryStore:
                     "keys": list(data.keys())[:10],
                 }
                 recent_summaries.append(summary)
-
             context["recent_summaries"] = recent_summaries
 
-            # Получаем метрики
+            # Метрики (редко меняются, но пока без кэша — один запрос)
             pool = await self._get_db_pool()
             async with pool.acquire() as conn:
                 metrics_row = await conn.fetchrow(
@@ -1833,42 +1846,61 @@ class MemoryStore:
                     """,
                     agent_name,
                 )
-
             if metrics_row:
                 context["latest_metrics"] = metrics_row["metrics"]
 
-        # ═══ PUSH-МОДЕЛЬ: Trend рекомендации для этого агента ═══
-        trend_recs = await self.get_trend_recommendations(agent_name, limit=3)
+        # ═══ TREND RECOMMENDATIONS: кэш + fallback на БД ═══
+        trend_recs = None
+        if hasattr(self, 'context_cache') and self.context_cache:
+            trend_recs = await self.context_cache.get_trend_recommendations(agent_name, limit=3)
+            if trend_recs is not None:
+                self.logger.debug("trend_recs_cache_hit", agent=agent_name)
+
+        if trend_recs is None:
+            trend_recs = await self.get_trend_recommendations(agent_name, limit=3)
+            if trend_recs and hasattr(self, 'context_cache') and self.context_cache:
+                await self.context_cache.set_trend_recommendations(agent_name, trend_recs)
+
         if trend_recs:
             context["trend_recommendations"] = trend_recs
-            self.logger.info(
-                "trend_context_injected",
-                agent=agent_name,
-                count=len(trend_recs),
-            )
+            self.logger.info("trend_context_injected", agent=agent_name, count=len(trend_recs))
 
-        # ═══ PUSH-МОДЕЛЬ: Analytics задачи для этого агента ═══
-        analytics_tasks = await self.get_analytics_tasks(agent_name, limit=3)
+        # ═══ ANALYTICS TASKS: кэш + fallback на БД ═══
+        analytics_tasks = None
+        if hasattr(self, 'context_cache') and self.context_cache:
+            analytics_tasks = await self.context_cache.get_analytics_tasks(agent_name, limit=3)
+            if analytics_tasks is not None:
+                self.logger.debug("analytics_tasks_cache_hit", agent=agent_name)
+
+        if analytics_tasks is None:
+            analytics_tasks = await self.get_analytics_tasks(agent_name, limit=3)
+            if analytics_tasks and hasattr(self, 'context_cache') and self.context_cache:
+                await self.context_cache.set_analytics_tasks(agent_name, analytics_tasks)
+
         if analytics_tasks:
             context["analytics_tasks"] = analytics_tasks
-            self.logger.info(
-                "analytics_tasks_injected",
-                agent=agent_name,
-                count=len(analytics_tasks),
-            )
+            self.logger.info("analytics_tasks_injected", agent=agent_name, count=len(analytics_tasks))
 
-        # ═══ PROJECT CONTEXT: Файлы проекта для этого агента ═══
+        # ═══ PROJECT CONTEXT: кэш по mtime + fallback на файловое I/O ═══
         try:
-            from scripts.project_context import get_project_context_for_agent
+            from scripts.project_context import get_project_context_for_agent, PROJECT_ROOT
             atype = agent_name.split("-")[0] if "-" in agent_name else agent_name
-            project_ctx = get_project_context_for_agent(atype)
+
+            project_ctx = None
+            if hasattr(self, 'context_cache') and self.context_cache:
+                project_ctx = await self.context_cache.get_project_context(atype, PROJECT_ROOT)
+                if project_ctx is not None:
+                    self.logger.debug("project_context_cache_hit", agent=agent_name)
+
+            if project_ctx is None:
+                # P3-7: Запускаем sync I/O в отдельном thread
+                project_ctx = await asyncio.to_thread(get_project_context_for_agent, atype)
+                if project_ctx and hasattr(self, 'context_cache') and self.context_cache:
+                    await self.context_cache.set_project_context(atype, PROJECT_ROOT, project_ctx)
+
             if project_ctx:
                 context["project_context"] = project_ctx
-                self.logger.info(
-                    "project_context_injected",
-                    agent=agent_name,
-                    chars=len(project_ctx),
-                )
+                self.logger.info("project_context_injected", agent=agent_name, chars=len(project_ctx))
         except Exception as e:
             self.logger.warning("project_context_failed", agent=agent_name, error=str(e))
 
