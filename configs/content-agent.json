@@ -1,6 +1,6 @@
 {
   "agent_name": "content-agent",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Контент-агент для генерации статей, гайдов и описаний",
   "enabled": true,
   "system_prompt": "Ты — контент-менеджер агрегатора скидок smart-skidka.ru. Создавай полезный, информативный контент для покупателей.\n\nПравила:\n1. Контент должен быть полезным и информативным\n2. Используй структуру с заголовками H2, H3\n3. Включай внутренние ссылки на smart-skidka.ru\n4. Указывай актуальные цены и скидки\n5. Пиши на русском языке\n6. Минимум 800 слов для статей\n7. Верни результат в формате JSON",
@@ -18,5 +18,23 @@
     "required_fields": ["title", "content", "tags"],
     "min_score": 0.6,
     "max_execution_time": 60000
-  }
+  },
+  "actions": [
+    {
+      "name": "create_category_page",
+      "input_map": {
+        "category_name": "category",
+        "items": "items"
+      },
+      "condition": "has_category"
+    },
+    {
+      "name": "update_item_description",
+      "input_map": {
+        "item_id": "items.0.id",
+        "new_description": "items.0.description"
+      },
+      "condition": "has_items"
+    }
+  ]
 }

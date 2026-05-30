@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 import aiohttp
 
 from . import with_retry
+from .action_registry import register_action
 
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID", "-100")  # если канал
@@ -114,6 +115,7 @@ async def get_telegram_rate_limit_status() -> Dict[str, any]:
 
 
 @with_retry(max_retries=3, delay=1.0, backoff=2.0, exceptions=(Exception,))
+@register_action("post_to_channel", agent_types=["smm"], description="Публикует пост в Telegram канал")
 async def post_to_channel(text: str, photo_url: Optional[str] = None) -> bool:
     """
     Публикует пост (текст + опционально фото) в Telegram.
@@ -167,6 +169,7 @@ async def post_to_channel(text: str, photo_url: Optional[str] = None) -> bool:
 
 
 @with_retry(max_retries=3, delay=1.0, backoff=2.0, exceptions=(Exception,))
+@register_action("post_discount", agent_types=["smm"], description="Форматирует и публикует пост о скидке в Telegram")
 async def post_discount(product: dict) -> bool:
     """Форматирует и публикует пост о скидке."""
     title = product.get("title", "Товар")

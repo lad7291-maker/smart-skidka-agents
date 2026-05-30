@@ -53,6 +53,8 @@ from dotenv import load_dotenv
 # ═══════════════════════════════════════════════════════════════════════════════
 # Actions — реальные операции агентов с файлами проекта
 # ═══════════════════════════════════════════════════════════════════════════════
+# P3-1: Плагинная система — actions регистрируются динамически через @register_action
+# Старые импорты оставлены для _execute_legacy_actions fallback
 from actions.telegram_actions import post_discount, post_to_channel
 from actions.site_actions import (
     add_badge,
@@ -2823,6 +2825,7 @@ class Orchestrator:
                         )
 
                 # ═══ РЕАЛЬНЫЕ ДЕЙСТВИЯ АГЕНТОВ ═══
+                # P3-1: Плагинная система — actions загружаются из конфига агента
                 if result["success"]:
                     try:
                         action_log = []
@@ -2861,69 +2864,23 @@ class Orchestrator:
                                         res = safe_write_file(path, content, append=(mode=="append"))
                                         action_log.append(f"file:{path}:{res.get('success', False)}")
 
-                        if agent_type == "smm":
-                            # SMM — публикуем посты в Telegram
-                            posts = data.get("posts", data.get("content", []))
-                            if isinstance(posts, list):
-                                for post in posts[:3]:  # макс 3 за раз
-                                    if isinstance(post, dict):
-                                        ok = await post_discount(post)
-                                    else:
-                                        ok = await post_to_channel(str(post))
-                                    action_log.append(f"tg_post:{ok}")
-                            elif isinstance(posts, str):
-                                ok = await post_to_channel(posts)
-                                action_log.append(f"tg_post:{ok}")
-
-                        elif agent_type == "seo":
-                            # SEO — обновляем meta-теги
-                            data = result.get("data", {})
-                            title = data.get("title", data.get("meta_title", ""))
-                            desc = data.get("description", data.get("meta_description", ""))
-                            keywords = data.get("keywords", "")
-                            if title and desc:
-                                ok = update_meta_tags(title, desc, keywords)
-                                action_log.append(f"meta_updated:{ok}")
-
-                        elif agent_type == "performance":
-                            # Performance — обновляем приоритеты товаров
-                            data = result.get("data", {})
-                            top_ids = data.get("top_products", data.get("prioritize", []))
-                            if top_ids:
-                                ok = prioritize_products(top_ids)
-                                action_log.append(f"prioritized:{ok}")
-                            # Добавляем бейджи на карточки (HTML + JSON)
-                            featured = data.get("featured_products", [])
-                            for fid in featured[:5]:
-                                ok = add_badge(str(fid), "ХИТ")
-                                action_log.append(f"badge:{fid}:{ok}")
-                            # Дополнительные бейджи (NEW, ТОП)
-                            new_items = data.get("new_products", [])
-                            for nid in new_items[:3]:
-                                ok = add_badge(str(nid), "NEW")
-                                action_log.append(f"badge:new:{nid}:{ok}")
-                            top_items = data.get("top_rated", [])
-                            for tid in top_items[:3]:
-                                ok = add_badge(str(tid), "ТОП")
-                                action_log.append(f"badge:top:{tid}:{ok}")
-
-                        elif agent_type == "content":
-                            # Content — создаём/обновляем страницы
-                            data = result.get("data", {})
-                            cat = data.get("category", data.get("page_category", ""))
-                            html = data.get("html", data.get("content", ""))
-                            if cat and html:
-                                ok = create_category_page(cat, html)
-                                action_log.append(f"category_page:{cat}:{ok}")
-                            # Обновляем описания товаров
-                            items = data.get("items", data.get("product_descriptions", []))
-                            for item in items[:3]:
-                                if isinstance(item, dict):
-                                    iid = item.get("id", item.get("itemId", ""))
-                                    desc = item.get("description", "")
-                                    if iid and desc:
-                                        ok = update_item_description(str(iid), desc)
-                                        action_log.append(f"item_desc:{iid}:{ok}")
+                        # P3-1: Динамическая диспетчеризация actions через registry
+                        agent_config_obj = next((a for a in self.agents if a.agent_name == agent_name), None)
+                        if agent_config_obj and hasattr(agent_config_obj, '_config'):
+                            config_actions = agent_config_obj._config.get("actions", [])
+                            if config_actions:
+                                from actions.action_registry import ActionDispatcher, discover_actions
+                                discover_actions()  # Убедимся, что actions зарегистрированы
+                                dispatcher = ActionDispatcher()
+                                plugin_log = await dispatcher.execute_agent_actions(
+                                    agent_config_obj._config, data
+                                )
+                                action_log.extend(plugin_log)
+                            else:
+                                # Fallback: старая hardcoded логика для агентов без actions в конфиге
+                                action_log.extend(await self._execute_legacy_actions(agent_type, data))
+                        else:
+                            action_log.extend(await self._execute_legacy_actions(agent_type, data))
 
                         # Сохраняем лог действий в результат
                         if action_log:
@@ -3081,6 +3038,75 @@ class Orchestrator:
         )
 
         return validation
+
+    async def _execute_legacy_actions(
+        self,
+        agent_type: str,
+        data: Dict[str, Any],
+    ) -> List[str]:
+        """
+        P3-1: Fallback hardcoded actions для агентов без конфигурации actions.
+
+        Сохранена для обратной совместимости. Новые агенты должны
+        использовать "actions" в JSON-конфиге.
+        """
+        action_log: List[str] = []
+
+        if agent_type == "smm":
+            posts = data.get("posts", data.get("content", []))
+            if isinstance(posts, list):
+                for post in posts[:3]:
+                    if isinstance(post, dict):
+                        ok = await post_discount(post)
+                    else:
+                        ok = await post_to_channel(str(post))
+                    action_log.append(f"tg_post:{ok}")
+            elif isinstance(posts, str):
+                ok = await post_to_channel(posts)
+                action_log.append(f"tg_post:{ok}")
+
+        elif agent_type == "seo":
+            title = data.get("title", data.get("meta_title", ""))
+            desc = data.get("description", data.get("meta_description", ""))
+            keywords = data.get("keywords", "")
+            if title and desc:
+                ok = update_meta_tags(title, desc, keywords)
+                action_log.append(f"meta_updated:{ok}")
+
+        elif agent_type == "performance":
+            top_ids = data.get("top_products", data.get("prioritize", []))
+            if top_ids:
+                ok = prioritize_products(top_ids)
+                action_log.append(f"prioritized:{ok}")
+            featured = data.get("featured_products", [])
+            for fid in featured[:5]:
+                ok = add_badge(str(fid), "ХИТ")
+                action_log.append(f"badge:{fid}:{ok}")
+            new_items = data.get("new_products", [])
+            for nid in new_items[:3]:
+                ok = add_badge(str(nid), "NEW")
+                action_log.append(f"badge:new:{nid}:{ok}")
+            top_items = data.get("top_rated", [])
+            for tid in top_items[:3]:
+                ok = add_badge(str(tid), "ТОП")
+                action_log.append(f"badge:top:{tid}:{ok}")
+
+        elif agent_type == "content":
+            cat = data.get("category", data.get("page_category", ""))
+            html = data.get("html", data.get("content", ""))
+            if cat and html:
+                ok = create_category_page(cat, html)
+                action_log.append(f"category_page:{cat}:{ok}")
+            items = data.get("items", data.get("product_descriptions", []))
+            for item in items[:3]:
+                if isinstance(item, dict):
+                    iid = item.get("id", item.get("itemId", ""))
+                    desc = item.get("description", "")
+                    if iid and desc:
+                        ok = update_item_description(str(iid), desc)
+                        action_log.append(f"item_desc:{iid}:{ok}")
+
+        return action_log
 
     async def handle_failure(
         self,

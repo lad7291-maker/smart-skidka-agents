@@ -17,6 +17,7 @@ import aiohttp
 
 from .file_utils import read_site_html, write_site_html, read_products, write_products, safe_read, safe_write
 from . import with_retry
+from .action_registry import register_action
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # P2-9: Квоты на создание файлов
@@ -132,6 +133,7 @@ def get_quota_status() -> Dict[str, Any]:
 # ─── SEO: обновление meta-тегов в index.html ─────────────────────────────
 
 @with_retry(max_retries=3, delay=0.5, backoff=2.0, exceptions=(Exception,))
+@register_action("update_meta_tags", agent_types=["seo"], description="Обновляет meta-теги сайта")
 def update_meta_tags(title: str, description: str, keywords: str = "") -> bool:
     """
     Обновляет <title> и <meta name="description"> в index.html.
@@ -168,6 +170,7 @@ def update_meta_tags(title: str, description: str, keywords: str = "") -> bool:
 # ─── Контент: создание категории ─────────────────────────────────────────
 
 @with_retry(max_retries=3, delay=0.5, backoff=2.0, exceptions=(Exception,))
+@register_action("create_category_page", agent_types=["content"], description="Создаёт страницу категории")
 def create_category_page(category_name: str, items: list) -> bool:
     """
     Создаёт страницу категории (например, category/naushniki.html).
@@ -224,6 +227,7 @@ def create_category_page(category_name: str, items: list) -> bool:
 # ─── Контент: обновление описания товара ─────────────────────────────────
 
 @with_retry(max_retries=3, delay=0.5, backoff=2.0, exceptions=(Exception,))
+@register_action("update_item_description", agent_types=["content"], description="Обновляет описание товара")
 def update_item_description(item_id: str, new_description: str) -> bool:
     """
     Обновляет description товара в products.json.
@@ -248,6 +252,7 @@ def update_item_description(item_id: str, new_description: str) -> bool:
 # ─── SMM: добавление бейджа "Тренд" к товару ─────────────────────────────
 
 @with_retry(max_retries=3, delay=0.5, backoff=2.0, exceptions=(Exception,))
+@register_action("add_badge", agent_types=["performance"], description="Добавляет бейдж к товару")
 def add_badge(item_id: str, badge_text: str = "🔥 Тренд") -> bool:
     """
     Добавляет бейдж к товару в products.json.
@@ -264,6 +269,7 @@ def add_badge(item_id: str, badge_text: str = "🔥 Тренд") -> bool:
 # ─── Performance: приоритизация товаров ──────────────────────────────────
 
 @with_retry(max_retries=3, delay=0.5, backoff=2.0, exceptions=(Exception,))
+@register_action("prioritize_products", agent_types=["performance"], description="Устанавливает приоритет товаров")
 def prioritize_products(product_ids: list) -> bool:
     """
     Перемещает указанные товары в начало products.json.
@@ -283,6 +289,7 @@ def prioritize_products(product_ids: list) -> bool:
 # ─── Email: обновление поля товара ───────────────────────────────────────
 
 @with_retry(max_retries=3, delay=0.5, backoff=2.0, exceptions=(Exception,))
+@register_action("update_product_field", agent_types=["performance", "seo"], description="Обновляет поле товара")
 def update_product_field(item_id: str, field: str, value) -> bool:
     """
     Обновляет разрешённое поле товара.
