@@ -39,7 +39,7 @@
 | ~~P1-5~~ | ~~Добавить retry для действий агентов~~ | `scripts/actions/*.py` | ✅ **ИСПРАВЛЕНО** — создан универсальный декоратор `with_retry()` в `actions/__init__.py` (поддерживает sync/async, exponential backoff, настраиваемые exceptions). Применён ко всем действиям: `post_to_channel`, `post_discount`, `update_meta_tags`, `prioritize_products`, `update_product_field`, `create_category_page`, `update_item_description`, `add_badge`. | Готово |
 | ~~P1-6~~ | ~~Исправить утечку соединений Redis в Telegram Bot~~ | `scripts/telegram_bot.py` | ✅ **ИСПРАВЛЕНО** — Redis-подключение теперь singleton (`_get_redis()`). Создаётся один раз при первом вызове, закрывается через `redis_close()`. Убраны `aioredis.from_url()` + `aclose()` из каждой функции. | Готово |
 | ~~P1-7~~ | ~~Внедрить LLM-as-a-Judge для валидации контента~~ | `scripts/llm_judge.py` (новый) | ✅ **ИСПРАВЛЕНО** — создан `scripts/llm_judge.py` (500+ строк) с `LLMJudge` (через LLM API) и `HeuristicJudge` (fallback без LLM). Критерии: relevance, readability, structure, usefulness, no_hallucinations. Есть `combined_validate()` для объединения rule-based + judge. 8 тестов проходят. | Готово |
-| **P1-8** | **Добавить browser-based агент для веб-навигации** | `scripts/actions/` (новый файл) | Система не может проверять реальные страницы, собирать данные с конкурентов, тестировать формы. Интегрировать Playwright для SEO-агента (проверка рендера страниц, Core Web Vitals) и Trend-агента (скриншоты трендовых товаров). | Высокий |
+| ~~P1-8~~ | ~~Добавить browser-based агент для веб-навигации~~ | `scripts/actions/browser_actions.py` (новый) | ✅ **ИСПРАВЛЕНО** — создан `scripts/actions/browser_actions.py` (563 строки) с `BrowserManager` (singleton Playwright), `check_page_render()` (meta, headings, structured data), `measure_core_vitals()` (LCP/CLS/load ratings + recommendations), `screenshot_product()`, `check_competitor()` (auto-detect selectors), batch-операции с semaphore. 10 тестов проходят. | **Готово** |
 | ~~P1-9~~ | ~~Защитить `products.json` от перезаписи~~ | `scripts/actions/file_utils.py`, `scripts/actions/site_actions.py` | ✅ **ИСПРАВЛЕНО** — добавлен whitelist полей: `PRODUCTS_ALLOWED_FIELDS = {description, badge, priority, discount, promo_code, expires_at}` и `PRODUCTS_PROTECTED_FIELDS = {id, name, price, original_price, image, category, link, rating, reviews}`. Все actions (`update_item_description`, `add_badge`, `update_product_field`) проверяют поля перед записью. 10 тестов проходят. | Готово |
 
 ---
@@ -55,10 +55,10 @@
 | ~~P2-5~~ | ~~Добавить circuit breaker для LLM API~~ | ✅ **ИСПРАВЛЕНО** — добавлен встроенный circuit breaker в `LLMClient` (3 состояния: closed/open/half_open). Порог: `LLM_CB_FAILURE_THRESHOLD` (default 5 ошибок), таймаут восстановления: `LLM_CB_RECOVERY_TIMEOUT` (default 30 сек). При открытом circuit breaker запросы мгновенно отклоняются с понятной ошибкой, предотвращая каскадные сбои. | Готово |
 | ~~P2-6~~ | ~~Улучшить логирование ошибок валидации~~ | ✅ **ИСПРАВЛЕНО** — добавлен метод `Orchestrator.get_validation_history(agent_name, limit, min_score)` возвращающий историю валидации из БД с фильтрами и сводкой (avg_score, failed/warning/passed_count). | Готово |
 | ~~P2-7~~ | ~~Добавить мониторинг метрик~~ | ✅ **ИСПРАВЛЕНО** — добавлен метод `Orchestrator.get_metrics()` возвращающий метрики в Prometheus-формате: cycles_total, errors_total, uptime_seconds, agents_total/paused/running, llm_circuit_breaker_state, orchestrator_running, memory_connected, llm_client_ready, reporter_enabled. | Готово |
-| **P2-8** | **Добавить rate limiting для Telegram-постинга** | `scripts/actions/telegram_actions.py` | Сейчас нет ограничений на частоту постинга в Telegram. Агент может спамить канал при каждом цикле. Добавить debounce: не чаще 1 поста в N минут на агента. | 1 день |
-| **P2-9** | **Добавить квоты на создание файлов** | `scripts/actions/site_actions.py` | Нет лимита на количество создаваемых страниц через `create_category_page()`. Агент может исчерпать диск. Добавить дневную квоту (например, max 10 страниц/день). | 1 день |
-| **P2-10** | **Улучшить self-correction (не blind retry)** | `scripts/orchestrator.py` — `AgentRunner.retry()` | Сейчас retry — это просто повторный запрос с тем же промптом. Добавить анализ причины ошибки (JSON parse → попросить без markdown; validation failed → передать правила валидации в контекст; timeout → уменьшить max_tokens). | 2–3 дня |
-| **P2-11** | **Добавить prompt injection защиту** | `scripts/orchestrator.py` — `AgentRunner._build_prompt()` | Контекст от Trend Agent и Analytics Agent инжектируется в prompt без санитизации. Вредоносные данные в БД могут манипулировать LLM. Добавить фильтрацию спец-символов, ограничение длины, разделители. | 1–2 дня |
+| ~~P2-8~~ | ~~Добавить rate limiting для Telegram-постинга~~ | `scripts/actions/telegram_actions.py` | ✅ **ИСПРАВЛЕНО** — `TelegramRateLimiter` (singleton): debounce 5 мин между постами, дневной лимит 20 постов, per-agent cooldown. `post_to_channel()` проверяет лимиты перед отправкой. 7 тестов проходят. | **Готово** |
+| ~~P2-9~~ | ~~Добавить квоты на создание файлов~~ | `scripts/actions/site_actions.py` | ✅ **ИСПРАВЛЕНО** — `check_category_page_quota()` (дневной лимит 10 страниц, auto-cleanup >24ч), `record_category_page_creation()` (JSON tracker), `get_quota_status()` (remaining info). 7 тестов проходят. | **Готово** |
+| ~~P2-10~~ | ~~Улучшить self-correction (не blind retry)~~ | `scripts/orchestrator.py` — `AgentRunner.retry()` | ✅ **ИСПРАВЛЕНО** — `_analyze_error()` детектирует 5 типов ошибок (JSON/timeout/validation/empty/API) и возвращает targeted corrections. `retry()` адаптирует стратегию: при timeout уменьшает max_tokens вдвое, при JSON error инжектирует правила чистого JSON. 8 тестов проходят. | **Готово** |
+| ~~P2-11~~ | ~~Добавить prompt injection защиту~~ | `scripts/orchestrator.py` — `AgentRunner._build_prompt()` | ✅ **ИСПРАВЛЕНО** — `_sanitize_context_value()`: 12 regex-паттернов для блокировки injection, ограничение длины (2000 символов), экранирование ```, рекурсивная санитизация list/dict. `_build_prompt()`: разделители контекста (BEGIN/END), предупреждение о нелегитимных инструкциях. 11 тестов проходят. | **Готово** |
 
 ---
 
@@ -83,8 +83,8 @@
 
 | Метрика | Было | Стало | Цель |
 |---------|------|-------|------|
-| Всего строк кода (Python) | ~8,982 | ~10,200 | — |
-| Покрытие тестами | ~2.3% (57 тестов) | ~4.1% (87 тестов) | > 60% |
+| Всего строк кода (Python) | ~8,982 | ~11,500 | — |
+| Покрытие тестами | ~2.3% (57 тестов) | ~6.5% (130 тестов) | > 60% |
 | Критических багов | 2 (P0-4, P0-5) | **0** | 0 |
 | Серьёзных проблем | 2 | **0** | 0 |
 | Дублирование кода | 0 | 0 | 0 |
@@ -98,7 +98,11 @@
 | `tests/test_data_tools.py` | 12 | Реальные инструменты сбора данных |
 | `tests/test_llm_judge.py` | 8 | HeuristicJudge, критерии оценки |
 | `tests/test_products_protection.py` | 10 | Whitelist/blacklist полей products.json |
-| **ИТОГО** | **87** | — |
+| `tests/test_telegram_rate_limit.py` | 7 | Telegram rate limiting (debounce, daily limit) |
+| `tests/test_file_quotas.py` | 7 | File creation quotas (daily limits) |
+| `tests/test_smart_retry.py` | 19 | Smart retry + prompt injection protection |
+| `tests/test_browser_actions.py` | 10 | Browser-based agent (Playwright) |
+| **ИТОГО** | **130** | — |
 
 ---
 
@@ -131,11 +135,11 @@
 ### 📋 В бэклоге (P1 + P2 + P3)
 | Задача | Статус | Оценка |
 |--------|--------|--------|
-| P1-8 — Browser-based агент (Playwright) | 📋 | 3–5 дней |
-| P2-8 — Rate limiting Telegram | 📋 | 1 день |
-| P2-9 — Квоты на создание файлов | 📋 | 1 день |
-| P2-10 — Умный retry (не blind) | 📋 | 2–3 дня |
-| P2-11 — Prompt injection защита | 📋 | 1–2 дня |
+| P1-8 — Browser-based агент (Playwright) | ✅ | 3–5 дней |
+| P2-8 — Rate limiting Telegram | ✅ | 1 день |
+| P2-9 — Квоты на создание файлов | ✅ | 1 день |
+| P2-10 — Умный retry (не blind) | ✅ | 2–3 дня |
+| P2-11 — Prompt injection защита | ✅ | 1–2 дня |
 | P3-1 — Плагинная система actions | 📋 | 3–5 дней |
 | P3-2 — Web UI дашборд | 📋 | 5–7 дней |
 | P3-3 — A/B тестирование промптов | 📋 | 3–5 дней |
