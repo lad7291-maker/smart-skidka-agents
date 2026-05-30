@@ -33,6 +33,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import signal
 import sys
 import time
@@ -1200,7 +1201,7 @@ class AgentRunner:
             sanitized_lines = []
             for line in lines:
                 if len(line) > self._MAX_CONTEXT_LINE_LENGTH:
-                    line = line[:self._MAX_CONTEXT_LINE_LENGTH] + "..."
+                    line = line[:self._MAX_CONTEXT_LINE_LENGTH] + "... [line truncated]"
                 sanitized_lines.append(line)
             value = "\n".join(sanitized_lines)
             
@@ -1465,7 +1466,9 @@ class AgentRunner:
             )
         
         # 6. Если ошибка не распознана — общая рекомендация
-        if not corrections:
+        # Но completeness_fix уже сработал если data пустая — не затираем его
+        has_specific_fix = any(k != "completeness_fix" for k in corrections.keys())
+        if not has_specific_fix and not corrections:
             corrections["general_fix"] = (
                 "Предыдущая попытка завершилась ошибкой. "
                 "Внимательно проверь результат перед отправкой."
