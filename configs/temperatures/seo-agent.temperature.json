@@ -1,0 +1,41 @@
+{
+  "agent_name": "seo-agent",
+  "enabled": true,
+  "epsilon": 0.15,
+  "ema_alpha": 0.3,
+  "min_runs_per_arm": 5,
+  "default_temperature": 0.7,
+  "arms": [
+    {
+      "temperature": 0.5,
+      "ema_score": 0.0,
+      "run_count": 0,
+      "last_used": null
+    },
+    {
+      "temperature": 0.6,
+      "ema_score": 0.0,
+      "run_count": 0,
+      "last_used": null
+    },
+    {
+      "temperature": 0.7,
+      "ema_score": 0.0,
+      "run_count": 0,
+      "last_used": null
+    },
+    {
+      "temperature": 0.8,
+      "ema_score": 0.0,
+      "run_count": 0,
+      "last_used": null
+    },
+    {
+      "temperature": 0.9,
+      "ema_score": 0.0,
+      "run_count": 0,
+      "last_used": null
+    }
+  ],
+  "updated_at": "2026-05-30T18:07:51.535447"
+}
