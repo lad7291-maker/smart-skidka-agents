@@ -75,6 +75,7 @@ class TestQuotaTracker(unittest.TestCase):
         """Создаём временную директорию и чистим tracker перед каждым тестом."""
         import tempfile
         import shutil
+
         self._orig_project_root = os.environ.get("PROJECT_ROOT")
         self.test_root = Path(tempfile.mkdtemp(prefix="test_site_"))
         os.environ["PROJECT_ROOT"] = str(self.test_root)
@@ -85,6 +86,7 @@ class TestQuotaTracker(unittest.TestCase):
     def tearDown(self):
         """Чистим после теста."""
         import shutil
+
         if self.test_root.exists():
             shutil.rmtree(self.test_root)
         if self._orig_project_root is not None:
@@ -148,6 +150,7 @@ class TestUpdateMetaTags(unittest.TestCase):
 
     def setUp(self):
         import tempfile
+
         self._orig_project_root = os.environ.get("PROJECT_ROOT")
         self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
         os.environ["PROJECT_ROOT"] = str(self.site_root)
@@ -217,6 +220,7 @@ class TestCreateCategoryPage(unittest.TestCase):
 
     def setUp(self):
         import tempfile
+
         self._orig_project_root = os.environ.get("PROJECT_ROOT")
         self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
         os.environ["PROJECT_ROOT"] = str(self.site_root)
@@ -226,6 +230,7 @@ class TestCreateCategoryPage(unittest.TestCase):
 
     def tearDown(self):
         import shutil
+
         category_dir = self.site_root / "category"
         if category_dir.exists():
             for f in category_dir.glob("*.html"):
@@ -286,6 +291,7 @@ class TestUpdateItemDescription(unittest.TestCase):
 
     def setUp(self):
         import tempfile
+
         self._orig_project_root = os.environ.get("PROJECT_ROOT")
         self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
         os.environ["PROJECT_ROOT"] = str(self.site_root)
@@ -337,6 +343,7 @@ class TestAddBadge(unittest.TestCase):
 
     def setUp(self):
         import tempfile
+
         self._orig_project_root = os.environ.get("PROJECT_ROOT")
         self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
         os.environ["PROJECT_ROOT"] = str(self.site_root)
@@ -378,6 +385,7 @@ class TestPrioritizeProducts(unittest.TestCase):
 
     def setUp(self):
         import tempfile
+
         self._orig_project_root = os.environ.get("PROJECT_ROOT")
         self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
         os.environ["PROJECT_ROOT"] = str(self.site_root)
@@ -424,6 +432,7 @@ class TestUpdateProductField(unittest.TestCase):
 
     def setUp(self):
         import tempfile
+
         self._orig_project_root = os.environ.get("PROJECT_ROOT")
         self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
         os.environ["PROJECT_ROOT"] = str(self.site_root)
@@ -473,12 +482,14 @@ class TestSitemap(unittest.TestCase):
 
     def setUp(self):
         import tempfile
+
         self._orig_project_root = os.environ.get("PROJECT_ROOT")
         self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
         os.environ["PROJECT_ROOT"] = str(self.site_root)
 
     def tearDown(self):
         import shutil
+
         sitemap = self.site_root / "sitemap.xml"
         sitemap.unlink(missing_ok=True)
         if self.site_root.exists():
@@ -526,6 +537,7 @@ class TestCrossLinks(unittest.TestCase):
 
     def setUp(self):
         import tempfile
+
         self._orig_project_root = os.environ.get("PROJECT_ROOT")
         self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
         os.environ["PROJECT_ROOT"] = str(self.site_root)
@@ -534,6 +546,7 @@ class TestCrossLinks(unittest.TestCase):
 
     def tearDown(self):
         import shutil
+
         self.page.unlink(missing_ok=True)
         if self.site_root.exists():
             shutil.rmtree(self.site_root)
@@ -642,12 +655,14 @@ class TestHttpCheck(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
         import tempfile
+
         self._orig_project_root = os.environ.get("PROJECT_ROOT")
         self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
         os.environ["PROJECT_ROOT"] = str(self.site_root)
 
     def tearDown(self):
         import shutil
+
         if self.site_root.exists():
             shutil.rmtree(self.site_root)
         if self._orig_project_root is not None:
@@ -707,12 +722,14 @@ class TestVerifyAndTrackPage(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
         import tempfile
+
         self._orig_project_root = os.environ.get("PROJECT_ROOT")
         self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
         os.environ["PROJECT_ROOT"] = str(self.site_root)
 
     def tearDown(self):
         import shutil
+
         if self.site_root.exists():
             shutil.rmtree(self.site_root)
         if self._orig_project_root is not None:
@@ -789,6 +806,7 @@ class TestCreateBlogPost(unittest.TestCase):
         """Создаём временную директорию перед каждым тестом."""
         import tempfile
         import shutil
+
         self._orig_project_root = os.environ.get("PROJECT_ROOT")
         self.test_root = Path(tempfile.mkdtemp(prefix="test_site_"))
         os.environ["PROJECT_ROOT"] = str(self.test_root)
@@ -797,6 +815,7 @@ class TestCreateBlogPost(unittest.TestCase):
         """Чистим после теста."""
         import shutil
         import os
+
         if self.test_root.exists():
             shutil.rmtree(self.test_root)
         if self._orig_project_root is not None:

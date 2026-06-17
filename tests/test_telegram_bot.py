@@ -20,7 +20,6 @@ from scripts.telegram_bot import (
     is_allowed,
 )
 
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # Sync функции
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -52,12 +51,14 @@ class TestAgentsList:
 class TestKeyboards:
     def test_main_menu_keyboard(self):
         from scripts.telegram_bot import main_menu_keyboard
+
         kb = main_menu_keyboard()
         assert "inline_keyboard" in kb
         assert len(kb["inline_keyboard"]) > 0
 
     def test_agents_menu_keyboard(self):
         from scripts.telegram_bot import agents_menu_keyboard
+
         kb = agents_menu_keyboard()
         assert "inline_keyboard" in kb
         assert len(kb["inline_keyboard"]) > 0
@@ -73,6 +74,7 @@ class TestSendMessage:
     async def test_success(self):
         with patch("scripts.telegram_bot.api_post", new_callable=AsyncMock, return_value={"ok": True}):
             from scripts.telegram_bot import send_message
+
             result = await send_message("123", "Hello")
             assert result is True
 
@@ -80,6 +82,7 @@ class TestSendMessage:
     async def test_failure(self):
         with patch("scripts.telegram_bot.api_post", new_callable=AsyncMock, return_value={"ok": False}):
             from scripts.telegram_bot import send_message
+
             result = await send_message("123", "Hello")
             assert result is False
 
@@ -87,6 +90,7 @@ class TestSendMessage:
     async def test_long_text_truncated(self):
         with patch("scripts.telegram_bot.api_post", new_callable=AsyncMock, return_value={"ok": True}) as mock:
             from scripts.telegram_bot import send_message
+
             long_text = "A" * 5000
             await send_message("123", long_text)
             call_text = mock.call_args[0][1]["text"]
@@ -96,6 +100,7 @@ class TestSendMessage:
     async def test_with_reply_markup(self):
         with patch("scripts.telegram_bot.api_post", new_callable=AsyncMock, return_value={"ok": True}) as mock:
             from scripts.telegram_bot import send_message
+
             kb = {"inline_keyboard": []}
             await send_message("123", "Hello", reply_markup=kb)
             assert mock.call_args[0][1]["reply_markup"] == kb
@@ -106,6 +111,7 @@ class TestEditMessageText:
     async def test_success(self):
         with patch("scripts.telegram_bot.api_post", new_callable=AsyncMock, return_value={"ok": True}):
             from scripts.telegram_bot import edit_message_text
+
             result = await edit_message_text("123", 1, "Updated")
             assert result is True
 
@@ -113,6 +119,7 @@ class TestEditMessageText:
     async def test_with_reply_markup(self):
         with patch("scripts.telegram_bot.api_post", new_callable=AsyncMock, return_value={"ok": True}) as mock:
             from scripts.telegram_bot import edit_message_text
+
             kb = {"inline_keyboard": []}
             await edit_message_text("123", 1, "Updated", reply_markup=kb)
             assert mock.call_args[0][1]["reply_markup"] == kb
@@ -123,6 +130,7 @@ class TestSendTyping:
     async def test_success(self):
         with patch("scripts.telegram_bot.api_post", new_callable=AsyncMock, return_value={"ok": True}) as mock:
             from scripts.telegram_bot import send_typing
+
             await send_typing("123")
             mock.assert_called_once()
 
@@ -142,6 +150,7 @@ class TestApiPost:
 
         with patch("aiohttp.ClientSession", return_value=mock_session):
             from scripts.telegram_bot import api_post
+
             result = await api_post("sendMessage", {"chat_id": "123"})
             assert result == {"ok": True}
 
@@ -160,6 +169,7 @@ class TestHandleStatus:
                     mock_conn.return_value.fetch = AsyncMock(return_value=[])
                     mock_conn.return_value.close = AsyncMock()
                     from scripts.telegram_bot import handle_status
+
                     result = await handle_status("123")
                     # handle_status не возвращает значение
                     assert result is None
@@ -172,6 +182,7 @@ class TestHandleStatus:
                     mock_conn.return_value.fetch = AsyncMock(return_value=[])
                     mock_conn.return_value.close = AsyncMock()
                     from scripts.telegram_bot import handle_status
+
                     result = await handle_status("123", edit_msg_id=42)
                     assert result is None
                     mock_edit.assert_called_once()
@@ -183,6 +194,7 @@ class TestHandleHelp:
         with patch("scripts.telegram_bot.edit_message_text", new_callable=AsyncMock, return_value=True):
             with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock, return_value=True):
                 from scripts.telegram_bot import handle_help
+
                 result = await handle_help("123")
                 assert result is None
 
@@ -191,6 +203,7 @@ class TestHandleHelp:
         with patch("scripts.telegram_bot.edit_message_text", new_callable=AsyncMock, return_value=True) as mock_edit:
             with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock, return_value=True):
                 from scripts.telegram_bot import handle_help
+
                 result = await handle_help("123", edit_msg_id=42)
                 assert result is None
                 mock_edit.assert_called_once()
@@ -201,6 +214,7 @@ class TestHandleMainMenu:
     async def test_format(self):
         with patch("scripts.telegram_bot.edit_message_text", new_callable=AsyncMock, return_value=True) as mock_edit:
             from scripts.telegram_bot import handle_main_menu
+
             result = await handle_main_menu("123", 1)
             assert result is None
             mock_edit.assert_called_once()
@@ -212,6 +226,7 @@ class TestHandleMenuAgents:
         with patch("scripts.telegram_bot.edit_message_text", new_callable=AsyncMock, return_value=True):
             with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock, return_value=True):
                 from scripts.telegram_bot import handle_menu_agents
+
                 result = await handle_menu_agents("123")
                 assert result is None
 
@@ -220,6 +235,7 @@ class TestHandleMenuAgents:
         with patch("scripts.telegram_bot.edit_message_text", new_callable=AsyncMock, return_value=True) as mock_edit:
             with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock, return_value=True):
                 from scripts.telegram_bot import handle_menu_agents
+
                 result = await handle_menu_agents("123", edit_msg_id=42)
                 assert result is None
                 mock_edit.assert_called_once()
@@ -232,6 +248,7 @@ class TestHandlePause:
             with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock, return_value=True):
                 with patch("scripts.telegram_bot.redis_pause", new_callable=AsyncMock) as mock_redis:
                     from scripts.telegram_bot import handle_pause
+
                     result = await handle_pause("123", "seo-agent")
                     mock_redis.assert_called_once_with("seo-agent")
 
@@ -241,6 +258,7 @@ class TestHandlePause:
             with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock, return_value=True):
                 with patch("scripts.telegram_bot.redis_pause", new_callable=AsyncMock):
                     from scripts.telegram_bot import handle_pause
+
                     await handle_pause("123", "seo-agent", edit_msg_id=42)
                     mock_edit.assert_called_once()
 
@@ -252,6 +270,7 @@ class TestHandleResume:
             with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock, return_value=True):
                 with patch("scripts.telegram_bot.redis_resume", new_callable=AsyncMock) as mock_redis:
                     from scripts.telegram_bot import handle_resume
+
                     result = await handle_resume("123", "seo-agent")
                     mock_redis.assert_called_once_with("seo-agent")
 
@@ -263,6 +282,7 @@ class TestHandleRunNow:
             with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock, return_value=True):
                 with patch("scripts.telegram_bot.redis_run_now", new_callable=AsyncMock) as mock_redis:
                     from scripts.telegram_bot import handle_run_now
+
                     result = await handle_run_now("123", "seo-agent")
                     mock_redis.assert_called_once_with("seo-agent")
 
@@ -275,6 +295,7 @@ class TestHandleLogs:
                 with patch("scripts.telegram_bot.asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_proc:
                     mock_proc.return_value.communicate = AsyncMock(return_value=(b"log line 1\nlog line 2", b""))
                     from scripts.telegram_bot import handle_logs
+
                     result = await handle_logs("123", 10)
                     assert result is None
 
@@ -285,6 +306,7 @@ class TestHandleLogs:
                 with patch("scripts.telegram_bot.asyncio.create_subprocess_exec", new_callable=AsyncMock) as mock_proc:
                     mock_proc.return_value.communicate = AsyncMock(return_value=(b"log line 1\nlog line 2", b""))
                     from scripts.telegram_bot import handle_logs
+
                     await handle_logs("123", 10, edit_msg_id=42)
                     mock_edit.assert_called_once()
 
@@ -296,6 +318,7 @@ class TestHandlePauseAll:
             with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock, return_value=True):
                 with patch("scripts.telegram_bot.redis_pause", new_callable=AsyncMock) as mock_redis:
                     from scripts.telegram_bot import handle_pause_all
+
                     result = await handle_pause_all("123")
                     assert mock_redis.call_count == len(AGENTS)
 
@@ -308,6 +331,7 @@ class TestHandleRunAll:
                 with patch("scripts.telegram_bot.redis_resume", new_callable=AsyncMock) as mock_resume:
                     with patch("scripts.telegram_bot.redis_run_now", new_callable=AsyncMock) as mock_run:
                         from scripts.telegram_bot import handle_run_all
+
                         result = await handle_run_all("123")
                         assert mock_resume.call_count == len(AGENTS)
                         assert mock_run.call_count == len(AGENTS)
@@ -323,8 +347,10 @@ class TestRedisHelpers:
     async def test_get_redis_singleton(self):
         with patch("redis.asyncio.from_url", new_callable=AsyncMock) as mock:
             import scripts.telegram_bot as tb
+
             tb._redis_client = None
             from scripts.telegram_bot import _get_redis
+
             r1 = await _get_redis()
             r2 = await _get_redis()
             mock.assert_called_once()
@@ -334,6 +360,7 @@ class TestRedisHelpers:
         mock_redis = AsyncMock()
         with patch("scripts.telegram_bot._get_redis", new_callable=AsyncMock, return_value=mock_redis):
             from scripts.telegram_bot import redis_pause
+
             await redis_pause("seo-agent", hours=12)
             mock_redis.set.assert_called_once()
             args = mock_redis.set.call_args[0]
@@ -347,6 +374,7 @@ class TestRedisHelpers:
         mock_redis = AsyncMock()
         with patch("scripts.telegram_bot._get_redis", new_callable=AsyncMock, return_value=mock_redis):
             from scripts.telegram_bot import redis_resume
+
             await redis_resume("seo-agent")
             mock_redis.delete.assert_called_once_with("agent:pause:seo-agent")
 
@@ -355,6 +383,7 @@ class TestRedisHelpers:
         mock_redis = AsyncMock()
         with patch("scripts.telegram_bot._get_redis", new_callable=AsyncMock, return_value=mock_redis):
             from scripts.telegram_bot import redis_run_now
+
             await redis_run_now("seo-agent")
             mock_redis.set.assert_called_once()
             args = mock_redis.set.call_args[0]
@@ -368,8 +397,10 @@ class TestRedisHelpers:
         mock_redis.aclose = AsyncMock()
         with patch("scripts.telegram_bot._get_redis", new_callable=AsyncMock, return_value=mock_redis):
             import scripts.telegram_bot as tb
+
             tb._redis_client = mock_redis
             from scripts.telegram_bot import redis_close
+
             await redis_close()
             mock_redis.aclose.assert_called_once()
 
@@ -384,9 +415,8 @@ class TestProcessUpdate:
     async def test_unauthorized_user(self):
         with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock, return_value=True) as mock:
             from scripts.telegram_bot import process_update
-            update = {
-                "message": {"chat": {"id": "999999"}, "from": {"id": "999999"}, "text": "/status"}
-            }
+
+            update = {"message": {"chat": {"id": "999999"}, "from": {"id": "999999"}, "text": "/status"}}
             await process_update(update)
             mock.assert_called_once()
             assert "доступ" in mock.call_args[0][1].lower()
@@ -396,9 +426,8 @@ class TestProcessUpdate:
         with patch("scripts.telegram_bot.handle_status", new_callable=AsyncMock, return_value=True) as mock:
             with patch("scripts.telegram_bot.send_typing", new_callable=AsyncMock):
                 from scripts.telegram_bot import process_update
-                update = {
-                    "message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}, "text": "/status"}
-                }
+
+                update = {"message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}, "text": "/status"}}
                 await process_update(update)
                 mock.assert_called_once()
 
@@ -407,9 +436,8 @@ class TestProcessUpdate:
         with patch("scripts.telegram_bot.handle_help", new_callable=AsyncMock, return_value=True) as mock:
             with patch("scripts.telegram_bot.send_typing", new_callable=AsyncMock):
                 from scripts.telegram_bot import process_update
-                update = {
-                    "message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}, "text": "/help"}
-                }
+
+                update = {"message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}, "text": "/help"}}
                 await process_update(update)
                 mock.assert_called_once()
 
@@ -418,9 +446,8 @@ class TestProcessUpdate:
         with patch("scripts.telegram_bot.handle_help", new_callable=AsyncMock, return_value=True) as mock:
             with patch("scripts.telegram_bot.send_typing", new_callable=AsyncMock):
                 from scripts.telegram_bot import process_update
-                update = {
-                    "message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}, "text": "/start"}
-                }
+
+                update = {"message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}, "text": "/start"}}
                 await process_update(update)
                 mock.assert_called_once()
 
@@ -429,9 +456,8 @@ class TestProcessUpdate:
         with patch("scripts.telegram_bot.handle_logs", new_callable=AsyncMock, return_value=True) as mock:
             with patch("scripts.telegram_bot.send_typing", new_callable=AsyncMock):
                 from scripts.telegram_bot import process_update
-                update = {
-                    "message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}, "text": "/logs 50"}
-                }
+
+                update = {"message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}, "text": "/logs 50"}}
                 await process_update(update)
                 mock.assert_called_once()
                 assert mock.call_args[0][1] == 50
@@ -441,9 +467,8 @@ class TestProcessUpdate:
         with patch("scripts.telegram_bot.handle_logs", new_callable=AsyncMock, return_value=True) as mock:
             with patch("scripts.telegram_bot.send_typing", new_callable=AsyncMock):
                 from scripts.telegram_bot import process_update
-                update = {
-                    "message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}, "text": "/logs"}
-                }
+
+                update = {"message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}, "text": "/logs"}}
                 await process_update(update)
                 mock.assert_called_once()
                 assert mock.call_args[0][1] == 20
@@ -453,9 +478,8 @@ class TestProcessUpdate:
         with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock, return_value=True) as mock:
             with patch("scripts.telegram_bot.send_typing", new_callable=AsyncMock):
                 from scripts.telegram_bot import process_update
-                update = {
-                    "message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}, "text": "/pause"}
-                }
+
+                update = {"message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}, "text": "/pause"}}
                 await process_update(update)
                 mock.assert_called_once()
                 assert "кнопки" in mock.call_args[0][1].lower()
@@ -465,9 +489,8 @@ class TestProcessUpdate:
         with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock, return_value=True) as mock:
             with patch("scripts.telegram_bot.send_typing", new_callable=AsyncMock):
                 from scripts.telegram_bot import process_update
-                update = {
-                    "message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}, "text": "/resume"}
-                }
+
+                update = {"message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}, "text": "/resume"}}
                 await process_update(update)
                 mock.assert_called_once()
 
@@ -476,9 +499,8 @@ class TestProcessUpdate:
         with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock, return_value=True) as mock:
             with patch("scripts.telegram_bot.send_typing", new_callable=AsyncMock):
                 from scripts.telegram_bot import process_update
-                update = {
-                    "message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}, "text": "/run_now"}
-                }
+
+                update = {"message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}, "text": "/run_now"}}
                 await process_update(update)
                 mock.assert_called_once()
 
@@ -487,9 +509,8 @@ class TestProcessUpdate:
         with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock, return_value=True) as mock:
             with patch("scripts.telegram_bot.send_typing", new_callable=AsyncMock):
                 from scripts.telegram_bot import process_update
-                update = {
-                    "message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}, "text": "hello"}
-                }
+
+                update = {"message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}, "text": "hello"}}
                 await process_update(update)
                 mock.assert_called_once()
                 assert "/start" in mock.call_args[0][1]
@@ -500,6 +521,7 @@ class TestProcessUpdate:
             with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock):
                 with patch("scripts.telegram_bot.api_post", new_callable=AsyncMock):
                     from scripts.telegram_bot import process_update
+
                     update = {
                         "callback_query": {
                             "id": "cq1",
@@ -518,6 +540,7 @@ class TestProcessUpdate:
             with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock):
                 with patch("scripts.telegram_bot.api_post", new_callable=AsyncMock):
                     from scripts.telegram_bot import process_update
+
                     update = {
                         "callback_query": {
                             "id": "cq1",
@@ -536,6 +559,7 @@ class TestProcessUpdate:
             with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock):
                 with patch("scripts.telegram_bot.api_post", new_callable=AsyncMock):
                     from scripts.telegram_bot import process_update
+
                     update = {
                         "callback_query": {
                             "id": "cq1",
@@ -553,6 +577,7 @@ class TestProcessUpdate:
             with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock):
                 with patch("scripts.telegram_bot.api_post", new_callable=AsyncMock):
                     from scripts.telegram_bot import process_update
+
                     update = {
                         "callback_query": {
                             "id": "cq1",
@@ -571,6 +596,7 @@ class TestProcessUpdate:
             with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock):
                 with patch("scripts.telegram_bot.api_post", new_callable=AsyncMock):
                     from scripts.telegram_bot import process_update
+
                     update = {
                         "callback_query": {
                             "id": "cq1",
@@ -588,6 +614,7 @@ class TestProcessUpdate:
             with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock):
                 with patch("scripts.telegram_bot.api_post", new_callable=AsyncMock):
                     from scripts.telegram_bot import process_update
+
                     update = {
                         "callback_query": {
                             "id": "cq1",
@@ -605,6 +632,7 @@ class TestProcessUpdate:
             with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock):
                 with patch("scripts.telegram_bot.api_post", new_callable=AsyncMock):
                     from scripts.telegram_bot import process_update
+
                     update = {
                         "callback_query": {
                             "id": "cq1",
@@ -622,6 +650,7 @@ class TestProcessUpdate:
             with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock):
                 with patch("scripts.telegram_bot.api_post", new_callable=AsyncMock):
                     from scripts.telegram_bot import process_update
+
                     update = {
                         "callback_query": {
                             "id": "cq1",
@@ -639,6 +668,7 @@ class TestProcessUpdate:
             with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock):
                 with patch("scripts.telegram_bot.api_post", new_callable=AsyncMock):
                     from scripts.telegram_bot import process_update
+
                     update = {
                         "callback_query": {
                             "id": "cq1",
@@ -655,6 +685,7 @@ class TestProcessUpdate:
         with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock, return_value=True) as mock:
             with patch("scripts.telegram_bot.api_post", new_callable=AsyncMock):
                 from scripts.telegram_bot import process_update
+
                 update = {
                     "callback_query": {
                         "id": "cq1",
@@ -672,6 +703,7 @@ class TestProcessUpdate:
         with patch("scripts.telegram_bot.send_message", new_callable=AsyncMock) as mock:
             with patch("scripts.telegram_bot.send_typing", new_callable=AsyncMock):
                 from scripts.telegram_bot import process_update
+
                 update = {"message": {"chat": {"id": OWNER_ID}, "from": {"id": OWNER_ID}}}
                 await process_update(update)
                 mock.assert_not_called()
@@ -685,11 +717,13 @@ class TestProcessUpdate:
 class TestMain:
     def test_bot_token_check(self):
         import scripts.telegram_bot as tb
+
         # BOT_TOKEN may be set from env; just verify the module loaded
         assert hasattr(tb, "BOT_TOKEN")
         assert hasattr(tb, "main")
 
     def test_main_is_callable(self):
         import scripts.telegram_bot as tb
+
         assert callable(tb.main)
         assert callable(tb.polling_loop)

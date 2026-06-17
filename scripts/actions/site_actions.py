@@ -347,16 +347,16 @@ def create_blog_post(
     # Теги
     tags_html = ""
     if tags:
-        tags_html = '<div class="tags">' + "".join(
-            f'<span class="tag">{_h(tag)}</span>' for tag in tags
-        ) + "</div>"
+        tags_html = '<div class="tags">' + "".join(f'<span class="tag">{_h(tag)}</span>' for tag in tags) + "</div>"
 
     # Упоминания товаров
     mentions_html = ""
     if product_mentions:
-        mentions_html = '<div class="product-mentions"><h3>Товары в статье:</h3><ul>' + "".join(
-            f'<li>{_h(m)}</li>' for m in product_mentions
-        ) + "</ul></div>"
+        mentions_html = (
+            '<div class="product-mentions"><h3>Товары в статье:</h3><ul>'
+            + "".join(f"<li>{_h(m)}</li>" for m in product_mentions)
+            + "</ul></div>"
+        )
 
     # CTA
     cta_html = ""
@@ -477,21 +477,25 @@ def _update_blog_index(
             pass
 
     # Добавляем новый пост в начало
-    index["posts"].insert(0, {
-        "slug": slug,
-        "title": title,
-        "subtitle": subtitle,
-        "tags": tags,
-        "date": date,
-        "reading_time": reading_time,
-        "url": f"/blog/{slug}.html",
-    })
+    index["posts"].insert(
+        0,
+        {
+            "slug": slug,
+            "title": title,
+            "subtitle": subtitle,
+            "tags": tags,
+            "date": date,
+            "reading_time": reading_time,
+            "url": f"/blog/{slug}.html",
+        },
+    )
 
     # Ограничиваем историю
     index["posts"] = index["posts"][:100]
 
     try:
         import json
+
         with open(index_path, "w", encoding="utf-8") as f:
             json.dump(index, f, ensure_ascii=False, indent=2)
         return True

@@ -893,9 +893,7 @@ class ContentGenerator:
             return self._fallback_blog_article(product, angle)
 
         # Расчёт времени чтения
-        content_text = " ".join(
-            s.get("body", "") for s in parsed.get("sections", [])
-        )
+        content_text = " ".join(s.get("body", "") for s in parsed.get("sections", []))
         word_count = len(content_text.split())
         parsed["reading_time_min"] = max(1, round(word_count / 200))
 

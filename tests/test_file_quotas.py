@@ -30,6 +30,7 @@ class TestFileQuotas(unittest.TestCase):
         """Создаём временную директорию и чистим tracker перед каждым тестом."""
         import os
         import tempfile
+
         self._orig_project_root = os.environ.get("PROJECT_ROOT")
         self.test_root = Path(tempfile.mkdtemp(prefix="test_site_"))
         os.environ["PROJECT_ROOT"] = str(self.test_root)
@@ -40,6 +41,7 @@ class TestFileQuotas(unittest.TestCase):
         """Чистим после теста."""
         import os
         import shutil
+
         if self.test_root.exists():
             shutil.rmtree(self.test_root)
         if self._orig_project_root is not None:

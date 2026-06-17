@@ -22,7 +22,6 @@ from scripts.content_generator import (
     SEOPage,
 )
 
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # Data-классы
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -103,12 +102,12 @@ class TestParseJsonResponse:
 
     def test_json_with_markdown(self):
         gen = ContentGenerator(api_key="test")
-        result = gen._parse_json_response("```json\n{\"key\": \"value\"}\n```")
+        result = gen._parse_json_response('```json\n{"key": "value"}\n```')
         assert result == {"key": "value"}
 
     def test_json_embedded_in_text(self):
         gen = ContentGenerator(api_key="test")
-        result = gen._parse_json_response("Some text before {\"key\": \"value\"} and after")
+        result = gen._parse_json_response('Some text before {"key": "value"} and after')
         assert result == {"key": "value"}
 
     def test_invalid_json(self):
@@ -193,15 +192,17 @@ class TestGenerateSEOPage:
     async def test_success(self):
         gen = ContentGenerator(api_key="test")
         mock_response = {
-            "content": json.dumps({
-                "title": "Best Phones",
-                "meta_description": "Great phones",
-                "h1": "Phones",
-                "content": "Buy phones",
-                "keywords": ["phones"],
-                "canonical_url": "https://example.com/phones",
-                "og_tags": {"og:title": "Phones"},
-            })
+            "content": json.dumps(
+                {
+                    "title": "Best Phones",
+                    "meta_description": "Great phones",
+                    "h1": "Phones",
+                    "content": "Buy phones",
+                    "keywords": ["phones"],
+                    "canonical_url": "https://example.com/phones",
+                    "og_tags": {"og:title": "Phones"},
+                }
+            )
         }
         with patch.object(gen, "_call_llm", new_callable=AsyncMock, return_value=mock_response):
             result = await gen.generate_seo_page("Phones", ["phones"])
@@ -230,13 +231,15 @@ class TestGenerateProductDescription:
     async def test_success(self):
         gen = ContentGenerator(api_key="test")
         mock_response = {
-            "content": json.dumps({
-                "title": "Phone X",
-                "description": "Great phone",
-                "features": ["Fast"],
-                "pros": ["Good"],
-                "cons": ["Expensive"],
-            })
+            "content": json.dumps(
+                {
+                    "title": "Phone X",
+                    "description": "Great phone",
+                    "features": ["Fast"],
+                    "pros": ["Good"],
+                    "cons": ["Expensive"],
+                }
+            )
         }
         product = {"name": "Phone X", "brand": "X", "category": "phones"}
         with patch.object(gen, "_call_llm", new_callable=AsyncMock, return_value=mock_response):
@@ -256,13 +259,15 @@ class TestGenerateComparison:
     async def test_success(self):
         gen = ContentGenerator(api_key="test")
         mock_response = {
-            "content": json.dumps({
-                "title": "A vs B",
-                "product_a_name": "A",
-                "product_b_name": "B",
-                "verdict": "A wins",
-                "comparison_table": {"price": {"A": "100", "B": "200"}},
-            })
+            "content": json.dumps(
+                {
+                    "title": "A vs B",
+                    "product_a_name": "A",
+                    "product_b_name": "B",
+                    "verdict": "A wins",
+                    "comparison_table": {"price": {"A": "100", "B": "200"}},
+                }
+            )
         }
         product_a = {"name": "A"}
         product_b = {"name": "B"}
@@ -283,14 +288,16 @@ class TestGenerateGuide:
     async def test_success(self):
         gen = ContentGenerator(api_key="test")
         mock_response = {
-            "content": json.dumps({
-                "title": "Guide",
-                "introduction": "Intro",
-                "steps": [{"title": "Step 1", "content": "Do this"}],
-                "conclusion": "Done",
-                "tags": ["tag"],
-                "reading_time_min": 5,
-            })
+            "content": json.dumps(
+                {
+                    "title": "Guide",
+                    "introduction": "Intro",
+                    "steps": [{"title": "Step 1", "content": "Do this"}],
+                    "conclusion": "Done",
+                    "tags": ["tag"],
+                    "reading_time_min": 5,
+                }
+            )
         }
         with patch.object(gen, "_call_llm", new_callable=AsyncMock, return_value=mock_response):
             result = await gen.generate_guide("How to", "phones")
@@ -310,17 +317,19 @@ class TestGenerateBlogArticle:
     async def test_success(self):
         gen = ContentGenerator(api_key="test")
         mock_response = {
-            "content": json.dumps({
-                "title": "Как я купил наушники",
-                "subtitle": "И не пожалел",
-                "introduction": "Всем привет!",
-                "sections": [{"heading": "Шаг 1", "body": "Выбрал"}],
-                "conclusion": "Рекомендую",
-                "tags": ["наушники"],
-                "product_mentions": ["Наушники XY"],
-                "cta_text": "Купи!",
-                "featured_image_prompt": "Фото наушников",
-            })
+            "content": json.dumps(
+                {
+                    "title": "Как я купил наушники",
+                    "subtitle": "И не пожалел",
+                    "introduction": "Всем привет!",
+                    "sections": [{"heading": "Шаг 1", "body": "Выбрал"}],
+                    "conclusion": "Рекомендую",
+                    "tags": ["наушники"],
+                    "product_mentions": ["Наушники XY"],
+                    "cta_text": "Купи!",
+                    "featured_image_prompt": "Фото наушников",
+                }
+            )
         }
         with patch.object(gen, "_call_llm", new_callable=AsyncMock, return_value=mock_response):
             product = {"title": "Наушники XY", "category": "электроника", "price": 1000}
@@ -349,13 +358,19 @@ class TestGenerateBlogArticle:
     async def test_different_angles(self):
         gen = ContentGenerator(api_key="test")
         mock_response = {
-            "content": json.dumps({
-                "title": "T", "subtitle": "S", "introduction": "I",
-                "sections": [{"heading": "H", "body": "B"}],
-                "conclusion": "C", "tags": ["t"],
-                "product_mentions": ["P"], "cta_text": "CTA",
-                "featured_image_prompt": "IMG",
-            })
+            "content": json.dumps(
+                {
+                    "title": "T",
+                    "subtitle": "S",
+                    "introduction": "I",
+                    "sections": [{"heading": "H", "body": "B"}],
+                    "conclusion": "C",
+                    "tags": ["t"],
+                    "product_mentions": ["P"],
+                    "cta_text": "CTA",
+                    "featured_image_prompt": "IMG",
+                }
+            )
         }
         with patch.object(gen, "_call_llm", new_callable=AsyncMock, return_value=mock_response):
             product = {"title": "P", "category": "c"}
@@ -367,13 +382,19 @@ class TestGenerateBlogArticle:
     async def test_different_tones(self):
         gen = ContentGenerator(api_key="test")
         mock_response = {
-            "content": json.dumps({
-                "title": "T", "subtitle": "S", "introduction": "I",
-                "sections": [{"heading": "H", "body": "B"}],
-                "conclusion": "C", "tags": ["t"],
-                "product_mentions": ["P"], "cta_text": "CTA",
-                "featured_image_prompt": "IMG",
-            })
+            "content": json.dumps(
+                {
+                    "title": "T",
+                    "subtitle": "S",
+                    "introduction": "I",
+                    "sections": [{"heading": "H", "body": "B"}],
+                    "conclusion": "C",
+                    "tags": ["t"],
+                    "product_mentions": ["P"],
+                    "cta_text": "CTA",
+                    "featured_image_prompt": "IMG",
+                }
+            )
         }
         with patch.object(gen, "_call_llm", new_callable=AsyncMock, return_value=mock_response):
             product = {"title": "P", "category": "c"}
@@ -387,13 +408,15 @@ class TestBatchGenerate:
     async def test_batch_generate(self):
         gen = ContentGenerator(api_key="test")
         mock_response = {
-            "content": json.dumps({
-                "title": "Phone",
-                "description": "Desc",
-                "features": ["F"],
-                "pros": ["P"],
-                "cons": ["C"],
-            })
+            "content": json.dumps(
+                {
+                    "title": "Phone",
+                    "description": "Desc",
+                    "features": ["F"],
+                    "pros": ["P"],
+                    "cons": ["C"],
+                }
+            )
         }
         with patch.object(gen, "_call_llm", new_callable=AsyncMock, return_value=mock_response):
             results = await gen.batch_generate(

@@ -207,12 +207,14 @@ class TestReadProducts(unittest.TestCase):
 
     def setUp(self):
         import tempfile
+
         self._orig_project_root = os.environ.get("PROJECT_ROOT")
         self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
         os.environ["PROJECT_ROOT"] = str(self.site_root)
 
     def tearDown(self):
         import shutil
+
         if self.site_root.exists():
             shutil.rmtree(self.site_root)
         if self._orig_project_root is not None:

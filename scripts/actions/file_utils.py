@@ -13,6 +13,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+
 # Пути к проекту
 def _get_site_root() -> Path:
     """Возвращает SITE_ROOT из env var (динамически, для тестов)."""

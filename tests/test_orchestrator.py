@@ -33,7 +33,6 @@ from scripts.orchestrator import (
     AGENT_NAMES,
 )
 
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # Helper functions & data classes
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -434,7 +433,7 @@ class TestAgentRunnerParseResult:
         runner = MagicMock()
         runner.logger = MagicMock()
         runner._parse_result = AgentRunner._parse_result.__get__(runner, MagicMock)
-        result = runner._parse_result("```json\n{\"title\": \"Test\"}\n```")
+        result = runner._parse_result('```json\n{"title": "Test"}\n```')
         assert result == {"title": "Test"}
 
     def test_invalid_json_fallback(self):
@@ -449,7 +448,7 @@ class TestAgentRunnerParseResult:
         runner = MagicMock()
         runner.logger = MagicMock()
         runner._parse_result = AgentRunner._parse_result.__get__(runner, MagicMock)
-        result = runner._parse_result("Some text before {\"key\": \"val\"} and after")
+        result = runner._parse_result('Some text before {"key": "val"} and after')
         assert result == {"key": "val"}
 
 
@@ -534,11 +533,7 @@ class TestAgentRunnerBuildPrompt:
         runner._sanitize_context_value = AgentRunner._sanitize_context_value.__get__(runner, MagicMock)
         runner._build_prompt = AgentRunner._build_prompt.__get__(runner, MagicMock)
         prompt = runner._build_prompt(
-            {
-                "trend_recommendations": [
-                    {"priority": "high", "trend_title": "AI", "action": "write"}
-                ]
-            }
+            {"trend_recommendations": [{"priority": "high", "trend_title": "AI", "action": "write"}]}
         )
         assert "Рекомендация" in prompt
         assert "AI" in prompt
@@ -554,9 +549,7 @@ class TestAgentRunnerBuildPrompt:
         runner._PROMPT_INJECTION_PATTERNS = AgentRunner._PROMPT_INJECTION_PATTERNS
         runner._sanitize_context_value = AgentRunner._sanitize_context_value.__get__(runner, MagicMock)
         runner._build_prompt = AgentRunner._build_prompt.__get__(runner, MagicMock)
-        prompt = runner._build_prompt(
-            {"analytics_tasks": [{"title": "Fix meta", "priority": "high"}]}
-        )
+        prompt = runner._build_prompt({"analytics_tasks": [{"title": "Fix meta", "priority": "high"}]})
         assert "Задача" in prompt
         assert "Fix meta" in prompt
 
@@ -583,6 +576,7 @@ class TestTokenBucketRateLimiter:
 
     def test_replenish(self):
         import time
+
         limiter = TokenBucketRateLimiter(rpm=10, tpm=1000)
         limiter._tokens = 5
         limiter._last_update = time.monotonic() - 10
@@ -615,8 +609,10 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_closed_allows_calls(self):
         cb = CircuitBreaker(failure_threshold=3)
+
         async def success():
             return "ok"
+
         result = await cb.call(success())
         assert result == "ok"
         assert cb.state == CircuitState.CLOSED
@@ -624,8 +620,10 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_opens_after_failures(self):
         cb = CircuitBreaker(failure_threshold=2)
+
         async def fail():
             raise ValueError("boom")
+
         for _ in range(2):
             with pytest.raises(ValueError):
                 await cb.call(fail())
@@ -636,14 +634,18 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_half_open_recovery(self):
         cb = CircuitBreaker(failure_threshold=1, recovery_timeout=0.1)
+
         async def fail():
             raise ValueError("boom")
+
         with pytest.raises(ValueError):
             await cb.call(fail())
         assert cb.state == CircuitState.OPEN
         await asyncio.sleep(0.15)
+
         async def success():
             return "ok"
+
         result = await cb.call(success())
         assert result == "ok"
         assert cb.state == CircuitState.CLOSED
@@ -651,8 +653,10 @@ class TestCircuitBreaker:
     @pytest.mark.asyncio
     async def test_half_open_fails_again(self):
         cb = CircuitBreaker(failure_threshold=1, recovery_timeout=0.1)
+
         async def fail():
             raise ValueError("boom")
+
         with pytest.raises(ValueError):
             await cb.call(fail())
         await asyncio.sleep(0.15)
@@ -972,9 +976,7 @@ class TestLLMClient:
         mock_session.__aexit__ = AsyncMock(return_value=False)
 
         with patch("aiohttp.ClientSession", return_value=mock_session):
-            result = await client.generate(
-                system_prompt="sys", user_prompt="user", temperature=0.7, max_tokens=100
-            )
+            result = await client.generate(system_prompt="sys", user_prompt="user", temperature=0.7, max_tokens=100)
         assert result["content"] == '{"title": "T"}'
         assert result["usage"]["prompt_tokens"] == 5
 
