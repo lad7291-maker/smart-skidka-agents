@@ -77,8 +77,10 @@ jobs:
           echo '<!DOCTYPE html><html><head><title>SmartSkidka</title></head><body></body></html>' > /tmp/test-site/index.html
           echo '[{"id":1,"itemId":"item1","title":"Test"}]' > /tmp/test-site/products.json
           echo '{"site_name":"Test"}' > /tmp/test-site/site.json
+          echo 'console.log("app")' > /tmp/test-site/app.js
           mkdir -p /tmp/test-site/guides
           echo '# Guide' > /tmp/test-site/guides/test.md
+          ln -s /tmp/test-site /tmp/test_site
           sudo mkdir -p /var/www
           sudo ln -s /tmp/test-site /var/www/dealshub-miniapp
           sudo ln -s $PWD /opt/smart-skidka-agents
