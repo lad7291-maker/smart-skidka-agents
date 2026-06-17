@@ -93,7 +93,7 @@ jobs:
           TELEGRAM_CHAT_ID: test-chat
           DASHBOARD_API_KEY: test-dashboard-key
           SECRETS_MASTER_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-          PROJECT_ROOT: /tmp/test-site
+          PROJECT_ROOT: /tmp/test_site
         run: |
           python -m pytest tests/ -v --tb=short --cov=scripts --cov-report=xml --cov-report=term
 
