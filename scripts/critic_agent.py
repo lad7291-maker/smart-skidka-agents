@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from dataclasses import dataclass, field
@@ -427,24 +428,32 @@ class EscalationQualityAssessor:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Critic Agent
+# Critic Agent — thread-safe singleton
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class CriticAgent:
     """
     Агент-критик для аудита результатов первичных агентов.
 
-    Example:
-        >>> critic = CriticAgent()
-        >>> report = critic.audit_cycle("cycle-001", cycle_results)
-        >>> print(report.overall_score)
+    P2-5: Thread-safe singleton через asyncio.Lock.
     """
 
+    _instance: Optional[CriticAgent] = None
+    _lock = asyncio.Lock()
+
+    def __new__(cls) -> CriticAgent:
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
     def __init__(self) -> None:
-        self.plan_checker = PlanAdherenceChecker()
-        self.hallucination_detector = HallucinationDetector()
-        self.escalation_assessor = EscalationQualityAssessor()
-        self.logger = structlog.get_logger("critic_agent")
+        # P2-5: Инициализируем только один раз
+        if not hasattr(self, "_initialized"):
+            self.plan_checker = PlanAdherenceChecker()
+            self.hallucination_detector = HallucinationDetector()
+            self.escalation_assessor = EscalationQualityAssessor()
+            self.logger = structlog.get_logger("critic_agent")
+            self._initialized = True
 
     def audit_cycle(
         self,
@@ -605,12 +614,24 @@ class CriticAgent:
 _critic_singleton: Optional[CriticAgent] = None
 
 
+async def get_critic_async() -> CriticAgent:
+    """Возвращает thread-safe singleton CriticAgent."""
+    async with CriticAgent._lock:
+        if CriticAgent._instance is None:
+            CriticAgent._instance = CriticAgent()
+        return CriticAgent._instance
+
+
 def get_critic() -> CriticAgent:
-    """Возвращает синглтон CriticAgent."""
-    global _critic_singleton
-    if _critic_singleton is None:
-        _critic_singleton = CriticAgent()
-    return _critic_singleton
+    """Возвращает синглтон CriticAgent (sync wrapper)."""
+    if CriticAgent._instance is None:
+        CriticAgent._instance = CriticAgent()
+    return CriticAgent._instance
+
+
+def reset_critic() -> None:
+    """Сбрасывает синглтон (для тестов)."""
+    CriticAgent._instance = None
 
 
 def audit_cycle(

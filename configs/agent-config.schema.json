@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AgentConfig",
+  "description": "JSON Schema для валидации конфигурации агентов smart-skidka-agents",
+  "type": "object",
+  "required": ["agent_name", "version", "system_prompt"],
+  "properties": {
+    "agent_name": {
+      "type": "string",
+      "pattern": "^[a-z0-9_-]+$",
+      "description": "Имя агента (используется как имя файла конфигурации)"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Версия конфигурации в semver формате"
+    },
+    "description": {
+      "type": "string",
+      "description": "Описание назначения агента"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Включён ли агент"
+    },
+    "system_prompt": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Системный промпт для LLM"
+    },
+    "schedule": {
+      "type": "object",
+      "properties": {
+        "interval": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Интервал запуска в секундах"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "run_once": {
+          "type": "boolean",
+          "default": false,
+          "description": "Запустить один раз и остановить"
+        }
+      },
+      "additionalProperties": false
+    },
+    "llm_settings": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "description": "Название модели LLM"
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Температура генерации (0.0–2.0)"
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Максимальное количество токенов"
+        }
+      },
+      "additionalProperties": false
+    },
+    "validation_rules": {
+      "type": "object",
+      "properties": {
+        "required_fields": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Обязательные поля в результате агента"
+        },
+        "min_score": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Минимальный score для прохождения валидации"
+        },
+        "max_execution_time": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Максимальное время выполнения в мс"
+        }
+      },
+      "additionalProperties": false
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Имя action"
+          },
+          "input_map": {
+            "type": "object",
+            "additionalProperties": { "type": "string" },
+            "description": "Маппинг полей результата на входы action"
+          },
+          "condition": {
+            "type": "string",
+            "description": "Условие выполнения action"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

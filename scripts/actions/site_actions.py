@@ -5,6 +5,7 @@
 Все операции через file_utils (с бэкапом).
 """
 
+import html as html_module
 import os
 import re
 import asyncio
@@ -18,6 +19,11 @@ import aiohttp
 from .file_utils import read_site_html, write_site_html, read_products, write_products, safe_read, safe_write
 from . import with_retry
 from .action_registry import register_action
+
+
+def _h(value: str) -> str:
+    """HTML/XML-escape строки для безопасной вставки в разметку."""
+    return html_module.escape(str(value) if value is not None else "")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # P2-9: Квоты на создание файлов
@@ -144,11 +150,11 @@ def update_meta_tags(title: str, description: str, keywords: str = "") -> bool:
         return False
 
     # title
-    html = re.sub(r'<title>.*?</title>', f'<title>{title}</title>', html, flags=re.DOTALL)
+    html = re.sub(r'<title>.*?</title>', f'<title>{_h(title)}</title>', html, flags=re.DOTALL)
 
     # meta description
     pattern = r'<meta\s+name="description"\s+content=".*?">'
-    replacement = f'<meta name="description" content="{description}">'
+    replacement = f'<meta name="description" content="{_h(description)}">'
     if re.search(pattern, html):
         html = re.sub(pattern, replacement, html, flags=re.DOTALL)
     else:
@@ -158,7 +164,7 @@ def update_meta_tags(title: str, description: str, keywords: str = "") -> bool:
     # meta keywords (опционально)
     if keywords:
         kw_pattern = r'<meta\s+name="keywords"\s+content=".*?">'
-        kw_replacement = f'<meta name="keywords" content="{keywords}">'
+        kw_replacement = f'<meta name="keywords" content="{_h(keywords)}">'
         if re.search(kw_pattern, html):
             html = re.sub(kw_pattern, kw_replacement, html, flags=re.DOTALL)
         else:
@@ -193,10 +199,10 @@ def create_category_page(category_name: str, items: list) -> bool:
     for item in items:
         cards += f'''
         <div class="product-card">
-            <img src="{item.get('image', '')}" alt="{item.get('title', '')}" loading="lazy">
-            <h3>{item.get('title', '')}</h3>
-            <p class="price">{item.get('price', '')}</p>
-            <a href="{item.get('link', '#')}" class="btn" target="_blank">Купить со скидкой</a>
+            <img src="{_h(item.get('image', ''))}" alt="{_h(item.get('title', ''))}" loading="lazy">
+            <h3>{_h(item.get('title', ''))}</h3>
+            <p class="price">{_h(item.get('price', ''))}</p>
+            <a href="{_h(item.get('link', '#'))}" class="btn" target="_blank">Купить со скидкой</a>
         </div>'''
 
     html = f'''<!DOCTYPE html>
@@ -204,14 +210,14 @@ def create_category_page(category_name: str, items: list) -> bool:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{category_name} — лучшие предложения | Smart Skidka</title>
-    <meta name="description" content="Топовые скидки на {category_name}. Ежедневное обновление.">
+    <title>{_h(category_name)} — лучшие предложения | Smart Skidka</title>
+    <meta name="description" content="Топовые скидки на {_h(category_name)}. Ежедневное обновление.">
     <link rel="stylesheet" href="../style.css">
 </head>
 <body>
     <header><h1>Smart Skidka</h1><nav><a href="../index.html">Главная</a></nav></header>
     <main>
-        <h2>{category_name}</h2>
+        <h2>{_h(category_name)}</h2>
         <div class="grid">{cards}</div>
     </main>
     <footer>Smart Skidka © 2025</footer>
@@ -351,10 +357,10 @@ def update_sitemap(pages: list) -> bool:
         url = f"https://smart-skidka.ru/{path.lstrip('/')}"
         
         urls.append(f"""  <url>
-    <loc>{url}</loc>
-    <lastmod>{lastmod}</lastmod>
-    <changefreq>{changefreq}</changefreq>
-    <priority>{priority}</priority>
+    <loc>{_h(url)}</loc>
+    <lastmod>{_h(lastmod)}</lastmod>
+    <changefreq>{_h(changefreq)}</changefreq>
+    <priority>{_h(priority)}</priority>
   </url>""")
     
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -452,7 +458,7 @@ def add_cross_links(page_path: str, related_pages: list) -> bool:
         title = page.get("title", "")
         path = page.get("path", "")
         url = f"/{path.lstrip('/')}" 
-        links_html += f'  <li><a href="{url}">{title}</a></li>\n'
+        links_html += f'  <li><a href="{_h(url)}">{_h(title)}</a></li>\n'
     links_html += '</ul></div>'
     
     # Вставляем перед </body>

@@ -18,6 +18,53 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# Seed data
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _seed_agent_tasks():
+    """Начальные задачи агентов."""
+    return [
+        ('seo_agent', 'Генерация SEO-страниц', '0 */6 * * *', 3),
+        ('seo_agent', 'Кластеризация ключевых слов', '0 3 * * 1', 4),
+        ('seo_agent', 'Технический аудит', '0 4 * * 0', 5),
+        ('smm_agent', 'Генерация постов', '0 */12 * * *', 2),
+        ('smm_agent', 'Контент-план на неделю', '0 10 * * 1', 3),
+        ('performance_agent', 'Генерация объявлений', '0 */6 * * *', 3),
+        ('performance_agent', 'Оптимизация CPC', '0 */12 * * *', 4),
+        ('performance_agent', 'A/B тесты', '0 9 * * *', 5),
+        ('email_agent', 'Проверка триггеров', '0 */6 * * *', 2),
+        ('email_agent', 'Дайджест', '0 10 * * 1', 3),
+        ('email_agent', 'Реактивация', '0 12 * * 3', 4),
+        ('analytics_agent', 'Ежедневный отчёт', '0 8 * * *', 1),
+        ('analytics_agent', 'Когортный анализ', '0 6 * * 0', 4),
+        ('content_agent', 'Генерация SEO-контента', '0 */6 * * *', 3),
+        ('content_agent', 'Описания товаров', '0 */8 * * *', 4),
+        ('content_agent', 'Сравнения и гайды', '0 14 * * 2,4,6', 5),
+        ('trend_agent', 'Сканирование трендов (все источники)', '0 */3 * * *', 1),
+        ('trend_agent', 'Анализ вирусного контента', '0 */6 * * *', 2),
+        ('trend_agent', 'Оценка сезонности', '0 6 * * *', 3),
+        ('trend_agent', 'Формирование рекомендаций агентам', '0 */6 * * *', 2),
+        ('trend_agent', 'Валидация обнаруженных трендов', '0 9 * * *', 2),
+        ('trend_agent', 'Прогноз пика тренда', '0 12 * * *', 3),
+    ]
+
+
+def _seed_trend_data_sources():
+    """Начальные источники данных трендов."""
+    return [
+        ('google_trends', 'search', 360, True),
+        ('yandex_wordstat', 'search', 360, True),
+        ('wildberries', 'marketplace', 180, True),
+        ('ozon', 'marketplace', 180, True),
+        ('vk', 'social', 120, True),
+        ('telegram', 'social', 120, True),
+        ('tiktok', 'social', 60, True),
+        ('pikabu', 'social', 240, True),
+        ('news', 'social', 120, True),
+    ]
+
+
 def upgrade() -> None:
     # ═══════════════════════════════════════════════════════════════════════
     # Core tables
@@ -48,7 +95,8 @@ def upgrade() -> None:
         sa.Column('status', sa.String(20), server_default='pending', nullable=True),
         sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('NOW()'), nullable=True),
         sa.Column('updated_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('NOW()'), nullable=True),
-        sa.PrimaryKeyConstraint('id')
+        sa.PrimaryKeyConstraint('id'),
+        sa.ForeignKeyConstraint(['cycle_id'], ['orchestrator_cycles.id'], ondelete='SET NULL')
     )
 
     op.create_table(
@@ -74,7 +122,8 @@ def upgrade() -> None:
         sa.Column('retry_count', sa.Integer, server_default='0', nullable=True),
         sa.Column('resolved', sa.Boolean, server_default='FALSE', nullable=True),
         sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('NOW()'), nullable=True),
-        sa.PrimaryKeyConstraint('id')
+        sa.PrimaryKeyConstraint('id'),
+        sa.ForeignKeyConstraint(['cycle_id'], ['orchestrator_cycles.id'], ondelete='SET NULL')
     )
 
     op.create_table(
@@ -145,7 +194,12 @@ def upgrade() -> None:
         sa.Column('validated', sa.Boolean, server_default='FALSE', nullable=True),
         sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('NOW()'), nullable=True),
         sa.Column('updated_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('NOW()'), nullable=True),
-        sa.PrimaryKeyConstraint('id')
+        sa.PrimaryKeyConstraint('id'),
+        sa.ForeignKeyConstraint(['cycle_id'], ['orchestrator_cycles.id'], ondelete='SET NULL'),
+        sa.CheckConstraint("trend_type IN ('product', 'category', 'event', 'viral', 'seasonal')", name='ck_trend_type'),
+        sa.CheckConstraint('confidence >= 0 AND confidence <= 1', name='ck_confidence'),
+        sa.CheckConstraint("status IN ('rising', 'peak', 'declining')", name='ck_trend_status'),
+        sa.CheckConstraint("competition_level IN ('low', 'medium', 'high')", name='ck_competition_level'),
     )
 
     op.create_table(
@@ -176,7 +230,10 @@ def upgrade() -> None:
         sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('NOW()'), nullable=True),
         sa.Column('resolved_at', sa.TIMESTAMP(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('trend_id', 'target_agent')
+        sa.ForeignKeyConstraint(['trend_id'], ['trend_detections.id'], ondelete='CASCADE'),
+        sa.UniqueConstraint('trend_id', 'target_agent'),
+        sa.CheckConstraint("priority IN ('low', 'medium', 'high', 'critical')", name='ck_priority'),
+        sa.CheckConstraint("status IN ('pending', 'accepted', 'rejected', 'completed')", name='ck_rec_status'),
     )
 
     op.create_table(
@@ -189,6 +246,7 @@ def upgrade() -> None:
         sa.Column('result_score', sa.Float, nullable=True),
         sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('NOW()'), nullable=True),
         sa.PrimaryKeyConstraint('id'),
+        sa.ForeignKeyConstraint(['trend_id'], ['trend_detections.id'], ondelete='CASCADE'),
         sa.UniqueConstraint('agent_name', 'trend_id')
     )
 
@@ -209,7 +267,8 @@ def upgrade() -> None:
         sa.Column('updated_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('NOW()'), nullable=True),
         sa.Column('last_checked_at', sa.TIMESTAMP(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('path')
+        sa.UniqueConstraint('path'),
+        sa.CheckConstraint("status IN ('active', 'deprecated', 'error')", name='ck_page_status'),
     )
 
     op.create_table(
@@ -227,7 +286,8 @@ def upgrade() -> None:
         sa.Column('updated_at', sa.TIMESTAMP(timezone=True), server_default=sa.text('NOW()'), nullable=True),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('slug'),
-        sa.UniqueConstraint('path')
+        sa.UniqueConstraint('path'),
+        sa.CheckConstraint("status IN ('draft', 'published', 'archived')", name='ck_content_status'),
     )
 
     # ═══════════════════════════════════════════════════════════════════════
@@ -249,13 +309,55 @@ def upgrade() -> None:
     op.create_index('idx_trend_detections_status', 'trend_detections', ['status'])
     op.create_index('idx_trend_detections_confidence', 'trend_detections', ['confidence'])
     op.create_index('idx_trend_detections_created', 'trend_detections', ['created_at'])
+    op.create_index('idx_trend_detections_competition', 'trend_detections', ['competition_level'])
+    op.create_index('idx_trend_detections_peak_date', 'trend_detections', ['peak_date'])
+    op.create_index('idx_trend_detections_validated', 'trend_detections', ['validated'])
     op.create_index('idx_trend_data_sources_name', 'trend_data_sources', ['source_name'])
+    op.create_index('idx_trend_data_sources_type', 'trend_data_sources', ['source_type'])
+    op.create_index('idx_trend_data_sources_active', 'trend_data_sources', ['is_active'])
+    op.create_index('idx_trend_data_sources_fetch_status', 'trend_data_sources', ['fetch_status'])
     op.create_index('idx_trend_recommendations_trend', 'trend_recommendations', ['trend_id'])
     op.create_index('idx_trend_recommendations_agent', 'trend_recommendations', ['target_agent'])
+    op.create_index('idx_trend_recommendations_priority', 'trend_recommendations', ['priority'])
+    op.create_index('idx_trend_recommendations_status', 'trend_recommendations', ['status'])
+    op.create_index('idx_trend_recommendations_created', 'trend_recommendations', ['created_at'])
     op.create_index('idx_agent_pages_agent', 'agent_pages', ['agent_name'])
     op.create_index('idx_agent_pages_status', 'agent_pages', ['status'])
+    op.create_index('idx_agent_pages_type', 'agent_pages', ['page_type'])
     op.create_index('idx_content_registry_type', 'content_registry', ['content_type'])
     op.create_index('idx_content_registry_agent', 'content_registry', ['agent_name'])
+    op.create_index('idx_content_registry_status', 'content_registry', ['status'])
+
+    # ═══════════════════════════════════════════════════════════════════════════════
+    # Seed data via bulk_insert
+    # ═══════════════════════════════════════════════════════════════════════════════
+    op.bulk_insert(
+        sa.table(
+            'agent_tasks',
+            sa.column('agent_name', sa.String(50)),
+            sa.column('task_name', sa.String(200)),
+            sa.column('schedule_cron', sa.String(100)),
+            sa.column('priority', sa.Integer),
+        ),
+        [
+            {'agent_name': r[0], 'task_name': r[1], 'schedule_cron': r[2], 'priority': r[3]}
+            for r in _seed_agent_tasks()
+        ],
+    )
+
+    op.bulk_insert(
+        sa.table(
+            'trend_data_sources',
+            sa.column('source_name', sa.String(50)),
+            sa.column('source_type', sa.String(20)),
+            sa.column('refresh_interval_minutes', sa.Integer),
+            sa.column('is_active', sa.Boolean),
+        ),
+        [
+            {'source_name': r[0], 'source_type': r[1], 'refresh_interval_minutes': r[2], 'is_active': r[3]}
+            for r in _seed_trend_data_sources()
+        ],
+    )
 
 
 def downgrade() -> None:

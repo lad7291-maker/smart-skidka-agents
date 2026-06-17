@@ -56,6 +56,9 @@ logger = structlog.get_logger("dashboard")
 DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8080"))
 DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "0.0.0.0")
 DASHBOARD_API_KEY = os.getenv("DASHBOARD_API_KEY", "")
+# P1-4: CORS whitelist — comma-separated list of allowed origins
+CORS_WHITELIST = os.getenv("CORS_WHITELIST", "")
+_CORS_ALLOWED_ORIGINS = {origin.strip() for origin in CORS_WHITELIST.split(",") if origin.strip()}
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:pass@localhost/agents")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 
@@ -87,23 +90,35 @@ async def _get_redis() -> aioredis.Redis:
 
 @web.middleware
 async def api_key_middleware(request: web.Request, handler) -> web.Response:
-    """Проверка API ключа для POST/DELETE запросов."""
-    if request.method in ("POST", "DELETE", "PUT", "PATCH"):
-        if DASHBOARD_API_KEY:
-            header_key = request.headers.get("X-API-Key", "")
-            query_key = request.query.get("api_key", "")
-            if header_key != DASHBOARD_API_KEY and query_key != DASHBOARD_API_KEY:
-                return web.json_response({"error": "Unauthorized"}, status=401)
+    """Проверка API ключа для POST/DELETE запросов и /metrics.
+    
+    P1-5: API key только из заголовка X-API-Key (query params удалены).
+    P1-6: /metrics требует авторизации.
+    """
+    requires_auth = (
+        request.method in ("POST", "DELETE", "PUT", "PATCH")
+        or request.path == "/metrics"
+    )
+    if requires_auth and DASHBOARD_API_KEY:
+        header_key = request.headers.get("X-API-Key", "")
+        if header_key != DASHBOARD_API_KEY:
+            return web.json_response({"error": "Unauthorized"}, status=401)
     return await handler(request)
 
 
 @web.middleware
 async def cors_middleware(request: web.Request, handler) -> web.Response:
-    """CORS headers для всех ответов."""
+    """CORS headers с whitelist.
+    
+    P1-4: Access-Control-Allow-Origin выставляется только для разрешённых origin.
+    Если CORS_WHITELIST не задан — CORS заголовки не добавляются.
+    """
     response = await handler(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-API-Key"
+    origin = request.headers.get("Origin", "")
+    if _CORS_ALLOWED_ORIGINS and origin in _CORS_ALLOWED_ORIGINS:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-API-Key"
     return response
 
 

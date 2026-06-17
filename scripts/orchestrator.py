@@ -50,6 +50,44 @@ import asyncpg
 import structlog
 from dotenv import load_dotenv
 
+# P1-18: A/B testing integration
+try:
+    from scripts.ab_testing import ABTestEnabledConfig, PromptVariantRegistry
+    _AB_TESTING_AVAILABLE = True
+except Exception:
+    _AB_TESTING_AVAILABLE = False
+
+# P1-19: Temperature calibration
+try:
+    from scripts.temperature_calibration import TemperatureCalibrator
+    _TEMP_CALIBRATION_AVAILABLE = True
+except Exception:
+    _TEMP_CALIBRATION_AVAILABLE = False
+# P1-10: Импорт внешнего валидатора для унификации
+try:
+    from scripts.validator import (
+        validate_seo_result,
+        validate_smm_result,
+        validate_performance_result,
+        validate_email_result,
+        validate_analytics_result,
+        validate_content_result,
+        validate_trend_result,
+        ValidationResult as ExtValidationResult,
+        ValidationStatus as ExtValidationStatus,
+    )
+    _EXT_VALIDATOR_AVAILABLE = True
+except Exception:
+    _EXT_VALIDATOR_AVAILABLE = False
+
+# P1-1: Сервисный слой
+from scripts.services import (
+    CycleManager,
+    TaskDispatcher,
+    ReportGenerator,
+    ActionExecutor,
+)
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Actions — реальные операции агентов с файлами проекта
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -108,6 +146,11 @@ class AgentType(str, Enum):
     TREND = "trend"
 
 
+def _get_agent_type(agent_name: str) -> str:
+    """P2-4: Возвращает тип агента из имени (префикс до '-')."""
+    return agent_name.split("-")[0] if "-" in agent_name else agent_name
+
+
 class ValidationStatus(str, Enum):
     """Статусы валидации результата."""
     PASSED = "passed"
@@ -116,13 +159,93 @@ class ValidationStatus(str, Enum):
     SKIPPED = "skipped"
 
 
-# Значения по умолчанию для retry-логики
-DEFAULT_MAX_RETRIES: int = 3
-DEFAULT_RETRY_DELAY: float = 2.0  # секунды
-RETRY_BACKOFF_MULTIPLIER: float = 2.0
+# ═══════════════════════════════════════════════════════════════════════════════
+# P2-1: Константы вместо магических чисел
+# ═══════════════════════════════════════════════════════════════════════════════
 
-# Значения по умолчанию для цикла оркестратора
-DEFAULT_CYCLE_INTERVAL: int = 300  # 5 минут между циклами
+# Retry-логика
+DEFAULT_MAX_RETRIES: int = int(os.getenv("MAX_RETRIES", "3"))
+DEFAULT_RETRY_DELAY: float = float(os.getenv("RETRY_DELAY", "2.0"))
+RETRY_BACKOFF_MULTIPLIER: float = float(os.getenv("RETRY_BACKOFF", "2.0"))
+MAX_RETRY_DELAY: float = float(os.getenv("MAX_RETRY_DELAY", "60.0"))
+
+# Неретраибельные ошибки
+NON_RETRYABLE_ERRORS: Tuple[str, ...] = (
+    "permission", "unauthorized", "authentication", "invalid api key",
+    "bad request", "not found", "invalid_request_error",
+    "content_policy_violation", "model_not_found",
+)
+
+# Цикл оркестратора
+DEFAULT_CYCLE_INTERVAL: int = int(os.getenv("CYCLE_INTERVAL", "300"))
+
+# LLM настройки
+DEFAULT_LLM_MODEL: str = os.getenv("DEFAULT_LLM_MODEL", "deepseek/deepseek-chat-v3.1")
+DEFAULT_TEMPERATURE: float = float(os.getenv("DEFAULT_TEMPERATURE", "0.7"))
+DEFAULT_MAX_TOKENS: int = int(os.getenv("DEFAULT_MAX_TOKENS", "4096"))
+LLM_TIMEOUT: float = float(os.getenv("LLM_TIMEOUT", "120.0"))
+
+# P1-3: Token-bucket rate limiter для LLM API
+DEFAULT_LLM_RPM: int = int(os.getenv("LLM_RPM", "60"))          # requests per minute
+DEFAULT_LLM_TPM: int = int(os.getenv("LLM_TPM", "40000"))       # tokens per minute
+DEFAULT_LLM_RATE_LIMIT_WINDOW: float = float(os.getenv("LLM_RATE_LIMIT_WINDOW", "60.0"))  # seconds
+
+# Валидация — SEO
+SEO_TITLE_MIN: int = int(os.getenv("SEO_TITLE_MIN", "30"))
+SEO_TITLE_MAX: int = int(os.getenv("SEO_TITLE_MAX", "60"))
+SEO_META_MIN: int = int(os.getenv("SEO_META_MIN", "120"))
+SEO_META_MAX: int = int(os.getenv("SEO_META_MAX", "160"))
+SEO_KEYWORDS_MIN: int = int(os.getenv("SEO_KEYWORDS_MIN", "5"))
+SEO_KEYWORDS_MAX: int = int(os.getenv("SEO_KEYWORDS_MAX", "10"))
+SEO_H1_MIN: int = int(os.getenv("SEO_H1_MIN", "10"))
+
+# Валидация — SMM
+SMM_TWITTER_MAX: int = int(os.getenv("SMM_TWITTER_MAX", "280"))
+SMM_INSTAGRAM_MAX: int = int(os.getenv("SMM_INSTAGRAM_MAX", "2200"))
+SMM_HASHTAGS_MAX: int = int(os.getenv("SMM_HASHTAGS_MAX", "30"))
+
+# Валидация — Email
+EMAIL_SUBJECT_MIN: int = int(os.getenv("EMAIL_SUBJECT_MIN", "20"))
+EMAIL_SUBJECT_MAX: int = int(os.getenv("EMAIL_SUBJECT_MAX", "80"))
+EMAIL_SUBJECT_OPT_MIN: int = int(os.getenv("EMAIL_SUBJECT_OPT_MIN", "40"))
+EMAIL_SUBJECT_OPT_MAX: int = int(os.getenv("EMAIL_SUBJECT_OPT_MAX", "60"))
+
+# Валидация — Content
+CONTENT_MIN_LENGTHS: Dict[str, int] = {
+    "article": int(os.getenv("CONTENT_ARTICLE_MIN", "800")),
+    "guide": int(os.getenv("CONTENT_GUIDE_MIN", "1500")),
+    "review": int(os.getenv("CONTENT_REVIEW_MIN", "500")),
+    "news": int(os.getenv("CONTENT_NEWS_MIN", "300")),
+}
+
+# Валидация — Trend
+TREND_FRESHNESS_HOURS: int = int(os.getenv("TREND_FRESHNESS_HOURS", "48"))
+TREND_CONFIDENCE_MIN: float = float(os.getenv("TREND_CONFIDENCE_MIN", "0.6"))
+
+# Prompt Injection Protection
+MAX_CONTEXT_VALUE_LENGTH: int = int(os.getenv("MAX_CONTEXT_VALUE_LENGTH", "2000"))
+MAX_CONTEXT_LINE_LENGTH: int = int(os.getenv("MAX_CONTEXT_LINE_LENGTH", "500"))
+
+# P1-11: Prompt Injection Protection — Unicode и zero-width chars
+ZERO_WIDTH_CHARS: str = "\u200B\u200C\u200D\uFEFF\u2060\u2061\u2062\u2063\u2064"
+MAX_BASE64_RATIO: float = float(os.getenv("MAX_BASE64_RATIO", "0.5"))  # Макс. доля base64 в строке
+
+# Rate Limiter (Token Bucket) для LLM API
+DEFAULT_LLM_RPM: int = int(os.getenv("LLM_RPM", "60"))  # Requests per minute
+DEFAULT_LLM_TPM: int = int(os.getenv("LLM_TPM", "60000"))  # Tokens per minute
+RATE_LIMITER_WINDOW: float = float(os.getenv("RATE_LIMITER_WINDOW", "60.0"))  # seconds
+
+# P1-2: Parallel agents
+DEFAULT_MAX_PARALLEL_AGENTS: int = int(os.getenv("MAX_PARALLEL_AGENTS", "3"))
+
+# Circuit Breaker
+CIRCUIT_FAILURE_THRESHOLD: int = int(os.getenv("CIRCUIT_FAILURE_THRESHOLD", "5"))
+CIRCUIT_RECOVERY_TIMEOUT: float = float(os.getenv("CIRCUIT_RECOVERY_TIMEOUT", "30.0"))
+
+# Health / Monitoring
+HEALTH_ERROR_THRESHOLD: int = int(os.getenv("HEALTH_ERROR_THRESHOLD", "10"))
+DAILY_REPORT_HOUR: int = int(os.getenv("DAILY_REPORT_HOUR", "9"))
+GRACEFUL_SHUTDOWN_TIMEOUT: int = int(os.getenv("GRACEFUL_SHUTDOWN_TIMEOUT", "30"))
 
 # Список имён агентов в системе
 AGENT_NAMES: List[str] = [
@@ -227,12 +350,15 @@ class AgentConfig:
         """
         Загружает конфигурацию агента из JSON-файла.
 
+        P2-3: Валидирует конфигурацию по JSON Schema.
+
         Returns:
             Словарь с конфигурацией агента
 
         Raises:
             FileNotFoundError: Если файл конфигурации не найден
             json.JSONDecodeError: Если файл содержит невалидный JSON
+            ConfigError: Если конфигурация не проходит валидацию
         """
         config_file = self._get_config_file()
         self.logger.info("Загрузка конфигурации", config_file=str(config_file))
@@ -249,14 +375,30 @@ class AgentConfig:
                 "Конфигурация загружена успешно",
                 version=self._config.get("version", "unknown"),
             )
+
+            # P2-3: JSON Schema валидация
+            try:
+                from scripts.config_validator import validate_agent_config, ConfigError
+                validate_agent_config(self._config)
+            except ConfigError as e:
+                self.logger.error("Config validation failed", error=str(e))
+                raise
+            except ImportError:
+                self.logger.warning("config_validator not available, skipping validation")
+
             return self._config
         except json.JSONDecodeError as e:
             self.logger.error("Ошибка парсинга JSON", error=str(e))
+            raise
+        except Exception as e:
+            self.logger.error("Ошибка загрузки конфигурации", error=str(e))
             raise
 
     def get_system_prompt(self) -> str:
         """
         Возвращает системный промпт для LLM.
+
+        P2-2: Подставляет BRAND_NAME из env вместо хардкода.
 
         Returns:
             Системный промпт агента
@@ -270,6 +412,11 @@ class AgentConfig:
         prompt = self._config.get("system_prompt", "")
         if not prompt:
             self.logger.warning("Системный промпт не задан, используется пустой")
+            return prompt
+
+        # P2-2: Заменяем хардкод бренда на переменную окружения
+        brand = os.getenv("BRAND_NAME", "smart-skidka.ru")
+        prompt = prompt.replace("smart-skidka.ru", brand)
         return prompt
 
     def get_schedule(self) -> Dict[str, Any]:
@@ -322,17 +469,245 @@ class AgentConfig:
 
         defaults = {
             "model": os.getenv("DEFAULT_LLM_MODEL", "deepseek/deepseek-chat-v3.1"),
-            "temperature": 0.7,
-            "max_tokens": 4096,
+            "temperature": DEFAULT_TEMPERATURE,
+            "max_tokens": DEFAULT_MAX_TOKENS,
         }
         return self._config.get("llm_settings", defaults)
+
+    @property
+    def agent_type(self) -> str:
+        """P2-4: Возвращает тип агента (префикс до первого '-')."""
+        return self.agent_name.split("-")[0] if "-" in self.agent_name else self.agent_name
 
     def is_enabled(self) -> bool:
         """Проверяет, включён ли агент в расписании."""
         return self.get_schedule().get("enabled", True)
 
     def __repr__(self) -> str:
-        return f"AgentConfig(name={self.agent_name}, loaded={self._loaded})"
+        return f"AgentConfig(name={self.agent_name}, type={self.agent_type}, loaded={self._loaded})"
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TokenBucketRateLimiter — Rate Limiter для LLM API (P1-3)
+# ═══════════════════════════════════════════════════════════════════════════════
+class TokenBucketRateLimiter:
+    """
+    Token-bucket rate limiter для LLM API.
+
+    Отслеживает RPM (requests per minute) и TPM (tokens per minute),
+    динамически подстраивается под заголовки ответа API.
+
+    Attributes:
+        rpm: Максимальное количество запросов в минуту
+        tpm: Максимальное количество токенов в минуту
+        window: Окно подсчёта в секундах (по умолчанию 60)
+    """
+
+    def __init__(
+        self,
+        rpm: int = DEFAULT_LLM_RPM,
+        tpm: int = DEFAULT_LLM_TPM,
+        window: float = RATE_LIMITER_WINDOW,
+    ) -> None:
+        self.rpm = rpm
+        self.tpm = tpm
+        self.window = window
+        self._tokens = rpm  # Текущий баланс токенов запросов
+        self._token_tokens = tpm  # Текущий баланс токенов (TPM)
+        self._last_update = time.monotonic()
+        self._request_times: List[float] = []
+        self._token_usage: List[Tuple[float, int]] = []
+        self._lock = asyncio.Lock()
+        self.logger = structlog.get_logger("rate_limiter")
+
+    def _replenish(self) -> None:
+        """Пополняет бакет токенов на основе прошедшего времени."""
+        now = time.monotonic()
+        elapsed = now - self._last_update
+        self._last_update = now
+
+        # Пополняем RPM токены
+        rate_per_sec = self.rpm / self.window
+        self._tokens = min(self.rpm, self._tokens + elapsed * rate_per_sec)
+
+        # Пополняем TPM токены
+        token_rate_per_sec = self.tpm / self.window
+        self._token_tokens = min(self.tpm, self._token_tokens + elapsed * token_rate_per_sec)
+
+    async def acquire(self, tokens_needed: int = 1) -> None:
+        """
+        Ожидает, пока не станет доступно достаточно токенов.
+
+        Args:
+            tokens_needed: Количество токенов, необходимых для запроса
+                (1 для RPM, prompt_tokens для TPM)
+        """
+        async with self._lock:
+            self._replenish()
+            while self._tokens < 1 or self._token_tokens < tokens_needed:
+                wait_time = 0.0
+                if self._tokens < 1:
+                    wait_time = max(wait_time, (1 - self._tokens) * (self.window / self.rpm))
+                if self._token_tokens < tokens_needed:
+                    wait_time = max(
+                        wait_time,
+                        (tokens_needed - self._token_tokens) * (self.window / self.tpm),
+                    )
+                self.logger.debug(
+                    "rate_limiter_wait",
+                    wait_ms=round(wait_time * 1000, 2),
+                    tokens_needed=tokens_needed,
+                    rpm_remaining=round(self._tokens, 2),
+                    tpm_remaining=round(self._token_tokens, 2),
+                )
+                await asyncio.sleep(wait_time)
+                self._replenish()
+
+            self._tokens -= 1
+            self._token_tokens -= tokens_needed
+            self._request_times.append(time.monotonic())
+            self._token_usage.append((time.monotonic(), tokens_needed))
+
+    def update_from_headers(self, headers: Dict[str, str]) -> None:
+        """
+        Динамически обновляет лимиты из заголовков ответа API.
+
+        Поддерживаемые заголовки:
+            - x-ratelimit-remaining-requests: оставшиеся запросы
+            - x-ratelimit-remaining-tokens: оставшиеся токены
+            - x-ratelimit-limit-requests: лимит запросов
+            - x-ratelimit-limit-tokens: лимит токенов
+        """
+        try:
+            if "x-ratelimit-limit-requests" in headers:
+                new_rpm = int(headers["x-ratelimit-limit-requests"])
+                if new_rpm != self.rpm:
+                    self.logger.info(
+                        "rate_limiter_rpm_updated",
+                        old=self.rpm,
+                        new=new_rpm,
+                    )
+                    self.rpm = new_rpm
+                    self._tokens = min(self._tokens, self.rpm)
+
+            if "x-ratelimit-limit-tokens" in headers:
+                new_tpm = int(headers["x-ratelimit-limit-tokens"])
+                if new_tpm != self.tpm:
+                    self.logger.info(
+                        "rate_limiter_tpm_updated",
+                        old=self.tpm,
+                        new=new_tpm,
+                    )
+                    self.tpm = new_tpm
+                    self._token_tokens = min(self._token_tokens, self.tpm)
+        except (ValueError, TypeError):
+            pass
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Возвращает текущую статистику rate limiter."""
+        now = time.monotonic()
+        # Очищаем старые записи
+        cutoff = now - self.window
+        self._request_times = [t for t in self._request_times if t > cutoff]
+        self._token_usage = [(t, c) for t, c in self._token_usage if t > cutoff]
+        return {
+            "rpm_limit": self.rpm,
+            "tpm_limit": self.tpm,
+            "requests_in_window": len(self._request_times),
+            "tokens_in_window": sum(c for _, c in self._token_usage),
+            "rpm_remaining": round(self._tokens, 2),
+            "tpm_remaining": round(self._token_tokens, 2),
+        }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Circuit Breaker для LLMClient
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class CircuitState(str, Enum):
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half_open"
+
+
+class CircuitBreaker:
+    """
+    Circuit Breaker для защиты от каскадных ошибок при вызовах LLM API.
+
+    Состояния:
+        - CLOSED: нормальная работа, запросы проходят
+        - OPEN: превышен порог ошибок, запросы мгновенно отклоняются
+        - HALF_OPEN: после таймаута восстановления, пропускается один тестовый запрос
+
+    Параметры:
+        - failure_threshold: порог ошибок для перехода в OPEN (по умолчанию 5)
+        - recovery_timeout: время восстановления в секундах (по умолчанию 30)
+    """
+
+    def __init__(
+        self,
+        failure_threshold: int = 5,
+        recovery_timeout: float = 30.0,
+    ) -> None:
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self._state = CircuitState.CLOSED
+        self._failure_count = 0
+        self._last_failure_time: Optional[float] = None
+        self._lock = asyncio.Lock()
+        self.logger = structlog.get_logger("circuit_breaker")
+
+    @property
+    def state(self) -> CircuitState:
+        return self._state
+
+    async def call(self, coro):
+        """
+        Выполняет корутину с защитой Circuit Breaker.
+
+        Raises:
+            RuntimeError: если circuit в состоянии OPEN
+        """
+        async with self._lock:
+            if self._state == CircuitState.OPEN:
+                if self._last_failure_time and (time.monotonic() - self._last_failure_time) >= self.recovery_timeout:
+                    self._state = CircuitState.HALF_OPEN
+                    self.logger.info("circuit_breaker_half_open", timeout=self.recovery_timeout)
+                else:
+                    self.logger.warning("circuit_breaker_open", reject=True)
+                    raise RuntimeError(
+                        f"Circuit breaker is OPEN. Rejecting request. "
+                        f"Retry after {self.recovery_timeout}s."
+                    )
+
+        try:
+            result = await coro
+            async with self._lock:
+                if self._state == CircuitState.HALF_OPEN:
+                    self._state = CircuitState.CLOSED
+                    self._failure_count = 0
+                    self.logger.info("circuit_breaker_closed")
+                else:
+                    self._failure_count = 0
+            return result
+        except Exception as e:
+            async with self._lock:
+                self._failure_count += 1
+                self._last_failure_time = time.monotonic()
+                if self._failure_count >= self.failure_threshold:
+                    self._state = CircuitState.OPEN
+                    self.logger.error(
+                        "circuit_breaker_opened",
+                        failures=self._failure_count,
+                        threshold=self.failure_threshold,
+                    )
+                else:
+                    self.logger.warning(
+                        "circuit_breaker_failure",
+                        count=self._failure_count,
+                        threshold=self.failure_threshold,
+                    )
+            raise
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -362,7 +737,7 @@ class LLMClient:
         api_key: Optional[str] = None,
         model: str = "deepseek/deepseek-chat-v3.1",
         base_url: Optional[str] = None,
-        timeout: float = 120.0,
+        timeout: float = LLM_TIMEOUT,
     ) -> None:
         """
         Инициализация клиента LLM.
@@ -394,6 +769,14 @@ class LLMClient:
         # Сессия будет создана при первом использовании
         self._session: Optional[aiohttp.ClientSession] = None
         self._semaphore: asyncio.Semaphore = asyncio.Semaphore(5)  # Ограничение параллельных запросов
+        self._rate_limiter = TokenBucketRateLimiter(
+            rpm=DEFAULT_LLM_RPM,
+            tpm=DEFAULT_LLM_TPM,
+        )
+        self._circuit_breaker = CircuitBreaker(
+            failure_threshold=CIRCUIT_FAILURE_THRESHOLD,
+            recovery_timeout=CIRCUIT_RECOVERY_TIMEOUT,
+        )
 
     async def _get_session(self) -> aiohttp.ClientSession:
         """Получает или создаёт aiohttp-сессию."""
@@ -465,43 +848,57 @@ class LLMClient:
 
             start_time = time.monotonic()
 
-            try:
+            # P1-3: Rate limiting — оцениваем токены в промпте
+            estimated_tokens = len(user_prompt) // 4 + len(system_prompt) // 4 + 100
+            await self._rate_limiter.acquire(tokens_needed=estimated_tokens)
+
+            async def _do_request():
                 async with session.post(self.base_url, json=payload) as response:
                     response.raise_for_status()
-                    result = await response.json()
+                    # P1-3: Обновляем лимиты из заголовков ответа
+                    self._rate_limiter.update_from_headers(dict(response.headers))
+                    return await response.json()
 
-                    elapsed_ms = (time.monotonic() - start_time) * 1000
+            try:
+                result = await self._circuit_breaker.call(_do_request())
 
-                    # Извлечение контента из ответа
-                    content = ""
-                    if "choices" in result and result["choices"]:
-                        choice = result["choices"][0]
-                        message = choice.get("message", {})
+                elapsed_ms = (time.monotonic() - start_time) * 1000
 
-                        # Проверка на tool_calls
-                        if "tool_calls" in message and message["tool_calls"]:
-                            content = json.dumps({
-                                "tool_calls": message["tool_calls"]
-                            }, ensure_ascii=False)
-                        else:
-                            content = message.get("content", "")
+                # Извлечение контента из ответа
+                content = ""
+                if "choices" in result and result["choices"]:
+                    choice = result["choices"][0]
+                    message = choice.get("message", {})
 
-                    usage = result.get("usage", {})
+                    # Проверка на tool_calls
+                    if "tool_calls" in message and message["tool_calls"]:
+                        content = json.dumps({
+                            "tool_calls": message["tool_calls"]
+                        }, ensure_ascii=False)
+                    else:
+                        content = message.get("content", "")
 
-                    self.logger.info(
-                        "Ответ получен от LLM",
-                        elapsed_ms=round(elapsed_ms, 2),
-                        prompt_tokens=usage.get("prompt_tokens", 0),
-                        completion_tokens=usage.get("completion_tokens", 0),
-                    )
+                usage = result.get("usage", {})
 
-                    return {
-                        "content": content,
-                        "usage": usage,
-                        "model": result.get("model", self.model),
-                        "elapsed_ms": round(elapsed_ms, 2),
-                    }
+                self.logger.info(
+                    "Ответ получен от LLM",
+                    elapsed_ms=round(elapsed_ms, 2),
+                    prompt_tokens=usage.get("prompt_tokens", 0),
+                    completion_tokens=usage.get("completion_tokens", 0),
+                )
 
+                return {
+                    "content": content,
+                    "usage": usage,
+                    "model": result.get("model", self.model),
+                    "elapsed_ms": round(elapsed_ms, 2),
+                }
+
+            except RuntimeError as e:
+                if "Circuit breaker is OPEN" in str(e):
+                    self.logger.error("Circuit breaker OPEN — запрос отклонён")
+                    raise
+                raise
             except aiohttp.ClientResponseError as e:
                 self.logger.error(
                     "HTTP ошибка от LLM API",
@@ -587,9 +984,28 @@ class ResultValidator:
         self.rules: Dict[str, Any] = rules
         self.logger = structlog.get_logger("validator")
 
+    def _convert_ext_result(self, ext_result) -> ValidationResult:
+        """P1-10: Конвертирует результат внешнего валидатора во внутренний формат."""
+        status_map = {
+            "passed": ValidationStatus.PASSED,
+            "failed": ValidationStatus.FAILED,
+            "warning": ValidationStatus.WARNING,
+            "skipped": ValidationStatus.SKIPPED,
+        }
+        return ValidationResult(
+            status=status_map.get(getattr(ext_result, "status", "failed"), ValidationStatus.FAILED),
+            score=getattr(ext_result, "score", 0.0),
+            errors=getattr(ext_result, "errors", []),
+            warnings=getattr(ext_result, "warnings", []),
+            metadata=getattr(ext_result, "metadata", None),
+        )
+
     def validate(self, result: Dict[str, Any], agent_type: str) -> ValidationResult:
         """
         Валидирует результат агента в зависимости от его типа.
+
+        P1-10: При наличии внешнего validator.py делегирует проверку ему
+        для единого источника правды. Иначе использует встроенные методы.
 
         Args:
             result: Результат работы агента
@@ -606,6 +1022,29 @@ class ResultValidator:
                 errors=["Результат пустой"],
                 score=0.0,
             )
+
+        # P1-10: Делегируем внешнему валидатору если доступен
+        if _EXT_VALIDATOR_AVAILABLE:
+            ext_validators = {
+                AgentType.SEO.value: validate_seo_result,
+                AgentType.SMM.value: validate_smm_result,
+                AgentType.PERFORMANCE.value: validate_performance_result,
+                AgentType.EMAIL.value: validate_email_result,
+                AgentType.ANALYTICS.value: validate_analytics_result,
+                AgentType.CONTENT.value: validate_content_result,
+                AgentType.TREND.value: validate_trend_result,
+            }
+            ext_validator = ext_validators.get(agent_type)
+            if ext_validator:
+                try:
+                    ext_result = ext_validator(result)
+                    return self._convert_ext_result(ext_result)
+                except Exception as e:
+                    self.logger.warning(
+                        "External validator failed, falling back to internal",
+                        agent_type=agent_type,
+                        error=str(e),
+                    )
 
         # Определяем метод валидации по типу агента
         validation_methods = {
@@ -671,33 +1110,33 @@ class ResultValidator:
         # Проверка длины title
         title = result.get("title", "")
         if title:
-            if len(title) < 30:
-                warnings.append(f"Title слишком короткий ({len(title)} симв., мин. 30)")
+            if len(title) < SEO_TITLE_MIN:
+                warnings.append(f"Title слишком короткий ({len(title)} симв., мин. {SEO_TITLE_MIN})")
                 score -= 0.1
-            elif len(title) > 60:
-                warnings.append(f"Title слишком длинный ({len(title)} симв., макс. 60)")
+            elif len(title) > SEO_TITLE_MAX:
+                warnings.append(f"Title слишком длинный ({len(title)} симв., макс. {SEO_TITLE_MAX})")
                 score -= 0.1
 
         # Проверка длины meta_description
         meta = result.get("meta_description", "")
         if meta:
-            if len(meta) < 120:
-                warnings.append(f"Meta description слишком короткий ({len(meta)} симв.)")
+            if len(meta) < SEO_META_MIN:
+                warnings.append(f"Meta description слишком короткий ({len(meta)} симв., мин. {SEO_META_MIN})")
                 score -= 0.1
-            elif len(meta) > 160:
-                warnings.append(f"Meta description слишком длинный ({len(meta)} симв.)")
+            elif len(meta) > SEO_META_MAX:
+                warnings.append(f"Meta description слишком длинный ({len(meta)} симв., макс. {SEO_META_MAX})")
                 score -= 0.1
 
         # Проверка ключевых слов
         keywords = result.get("keywords", [])
-        if isinstance(keywords, list) and len(keywords) < 3:
-            warnings.append(f"Мало ключевых слов ({len(keywords)}, рекомендуется 5-10)")
+        if isinstance(keywords, list) and len(keywords) < SEO_KEYWORDS_MIN:
+            warnings.append(f"Мало ключевых слов ({len(keywords)}, рекомендуется {SEO_KEYWORDS_MIN}-{SEO_KEYWORDS_MAX})")
             score -= 0.1
 
         # Проверка наличия H1
         h1 = result.get("h1", "")
-        if h1 and len(h1) < 10:
-            warnings.append("H1 слишком короткий")
+        if h1 and len(h1) < SEO_H1_MIN:
+            warnings.append(f"H1 слишком короткий (мин. {SEO_H1_MIN})")
             score -= 0.05
 
         final_score = max(0.0, score)
@@ -740,18 +1179,18 @@ class ResultValidator:
         text = result.get("text", "")
         platform = result.get("platform", "general")
 
-        if platform == "twitter" and len(text) > 280:
-            errors.append(f"Текст превышает лимит Twitter ({len(text)} > 280)")
+        if platform == "twitter" and len(text) > SMM_TWITTER_MAX:
+            errors.append(f"Текст превышает лимит Twitter ({len(text)} > {SMM_TWITTER_MAX})")
             score -= 0.3
-        elif platform == "instagram" and len(text) > 2200:
+        elif platform == "instagram" and len(text) > SMM_INSTAGRAM_MAX:
             warnings.append(f"Текст длинный для Instagram ({len(text)} симв.)")
             score -= 0.1
 
         # Проверка хештегов
         hashtags = result.get("hashtags", [])
         if isinstance(hashtags, list):
-            if len(hashtags) > 30:
-                warnings.append(f"Слишком много хештегов ({len(hashtags)}, макс. 30)")
+            if len(hashtags) > SMM_HASHTAGS_MAX:
+                warnings.append(f"Слишком много хештегов ({len(hashtags)}, макс. {SMM_HASHTAGS_MAX})")
                 score -= 0.1
             if len(hashtags) == 0:
                 warnings.append("Нет хештегов — рекомендуется добавить")
@@ -864,11 +1303,11 @@ class ResultValidator:
         # Проверка длины subject
         subject = result.get("subject", "")
         if subject:
-            if len(subject) > 80:
-                warnings.append(f"Тема слишком длинная ({len(subject)} симв.)")
+            if len(subject) > EMAIL_SUBJECT_MAX:
+                warnings.append(f"Тема слишком длинная ({len(subject)} симв., макс. {EMAIL_SUBJECT_MAX})")
                 score -= 0.1
-            elif len(subject) < 20:
-                warnings.append(f"Тема слишком короткая ({len(subject)} симв.)")
+            elif len(subject) < EMAIL_SUBJECT_MIN:
+                warnings.append(f"Тема слишком короткая ({len(subject)} симв., мин. {EMAIL_SUBJECT_MIN})")
                 score -= 0.05
 
         # Проверка на спам-триггеры
@@ -992,8 +1431,7 @@ class ResultValidator:
         content = result.get("content", "")
         content_type = result.get("content_type", "article")
 
-        min_lengths = {"article": 800, "guide": 1500, "review": 500, "news": 300}
-        min_len = min_lengths.get(content_type, 500)
+        min_len = CONTENT_MIN_LENGTHS.get(content_type, 500)
 
         if len(content) < min_len:
             warnings.append(
@@ -1101,7 +1539,7 @@ class ResultValidator:
             return True
         try:
             dt = datetime.fromisoformat(str(detected).replace("Z", "+00:00"))
-            return (datetime.now(dt.tzinfo) - dt).total_seconds() < 48 * 3600
+            return (datetime.now(dt.tzinfo) - dt).total_seconds() < TREND_FRESHNESS_HOURS * 3600
         except Exception:
             return True
 
@@ -1159,24 +1597,89 @@ class AgentRunner:
     ]
     
     # Максимальная длина значения контекста (символов)
-    _MAX_CONTEXT_VALUE_LENGTH: int = 2000
+    _MAX_CONTEXT_VALUE_LENGTH: int = MAX_CONTEXT_VALUE_LENGTH
     
     # Максимальная длина строки в контексте
-    _MAX_CONTEXT_LINE_LENGTH: int = 500
+    _MAX_CONTEXT_LINE_LENGTH: int = MAX_CONTEXT_LINE_LENGTH
     
     def _sanitize_context_value(self, value: Any) -> Any:
         """
         P2-11: Санитизирует значение контекста от prompt injection.
         
+        P1-11: Дополнительная защита от:
+        - Unicode obfuscation (homoglyphs, confusables)
+        - Zero-width characters
+        - Base64-encoded injection payloads
+        
         Применяет:
         - Ограничение длины
         - Удаление подозрительных паттернов
         - Экранирование спец-символов
+        - Очистка zero-width и управляющих символов
+        - Детекция base64-обфускации
         """
         if value is None:
             return None
         
         if isinstance(value, str):
+            # P1-11: Удаляем zero-width characters
+            for zw in ZERO_WIDTH_CHARS:
+                if zw in value:
+                    value = value.replace(zw, "")
+                    self.logger.warning(
+                        "zero_width_char_removed",
+                        char_code=hex(ord(zw)),
+                        agent=getattr(self, "config", None) and getattr(self.config, "agent_name", "unknown"),
+                    )
+            
+            # P1-11: Детекция base64-обфускации
+            # Ищем длинные base64-подстроки (>50 chars, >80% base64-alphabet)
+            def _has_base64_obfuscation(s: str) -> bool:
+                import base64 as _b64
+                # Ищем подстроки длиной >50, состоящие преимущественно из base64-alphabet
+                words = s.split()
+                total_len = len(s) if s else 1
+                base64_like_len = 0
+                for word in words:
+                    if len(word) > 50:
+                        b64_chars = sum(1 for c in word if c.isalnum() or c in "+/=")
+                        if b64_chars / len(word) > 0.85:
+                            try:
+                                decoded = _b64.b64decode(word, validate=True)
+                                # Если декодируется в читаемый текст — подозрительно
+                                try:
+                                    decoded_text = decoded.decode("utf-8", errors="strict")
+                                    if len(decoded_text) > 10:
+                                        return True
+                                except UnicodeDecodeError:
+                                    pass
+                            except Exception:
+                                pass
+                    # Считаем короткие base64-like слова
+                    if len(word) > 20:
+                        b64_chars = sum(1 for c in word if c.isalnum() or c in "+/=")
+                        if b64_chars / len(word) > 0.90:
+                            base64_like_len += len(word)
+                # P1-11 fix: только если строка в основном base64-like и не однородная (не 'AAAA...')
+                if total_len > 100 and (base64_like_len / total_len) > MAX_BASE64_RATIO:
+                    # Исключаем однородные строки (все одинаковые символы) — это не base64
+                    unique_chars = len(set(s.strip()))
+                    if unique_chars <= 3:
+                        return False
+                    # Исключаем строки из одних букв (все alpha, один тип)
+                    if s.strip() and len(set(s.strip().lower())) <= 3:
+                        return False
+                    return True
+                return False
+            
+            # P1-11: проверяем base64 только если строка не однородная
+            if len(set(value.strip().lower())) > 3 and _has_base64_obfuscation(value):
+                value = "[SANITIZED: base64 obfuscation detected and removed]"
+                self.logger.warning(
+                    "base64_obfuscation_detected",
+                    agent=getattr(self, "config", None) and getattr(self.config, "agent_name", "unknown"),
+                )
+            
             # Ограничение длины
             if len(value) > self._MAX_CONTEXT_VALUE_LENGTH:
                 value = value[:self._MAX_CONTEXT_VALUE_LENGTH] + "... [truncated]"
@@ -1190,7 +1693,7 @@ class AgentRunner:
                     self.logger.warning(
                         "prompt_injection_detected",
                         pattern=pattern,
-                        agent=self.config.agent_name,
+                        agent=getattr(self, "config", None) and getattr(self.config, "agent_name", "unknown"),
                     )
                     break
             
@@ -1357,6 +1860,12 @@ class AgentRunner:
         """
         Запускает агента через LLM API.
 
+        P1-18: Интеграция с A/B testing — если ab_test включён в конфиге,
+        выбирает вариант промпта из registry и записывает validation score.
+
+        P1-19: Интеграция с temperature calibration — адаптирует temperature
+        на основе истории validation scores.
+
         Args:
             context: Контекст для агента (предыдущие результаты и т.д.)
 
@@ -1372,16 +1881,34 @@ class AgentRunner:
         start_time = time.monotonic()
 
         try:
+            # P1-18: A/B testing — выбираем вариант промпта
             system_prompt = self.config.get_system_prompt()
+            selected_variant = None
+            if _AB_TESTING_AVAILABLE and self.config._config.get("ab_test", False):
+                ab_config = ABTestEnabledConfig(self.config)
+                system_prompt = ab_config.get_system_prompt()
+                selected_variant = ab_config.selected_variant
+
             user_prompt = self._build_prompt(context)
             llm_settings = self.config.get_llm_settings()
+
+            # P1-19: Temperature calibration
+            temperature = llm_settings.get("temperature", DEFAULT_TEMPERATURE)
+            if _TEMP_CALIBRATION_AVAILABLE:
+                try:
+                    calibrator = TemperatureCalibrator(self.config.agent_name)
+                    temperature = calibrator.get_temperature(
+                        base_temperature=temperature,
+                    )
+                except Exception:
+                    pass
 
             # Вызов LLM
             llm_result = await self.llm.generate(
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
-                temperature=llm_settings.get("temperature", 0.7),
-                max_tokens=llm_settings.get("max_tokens", 4096),
+                temperature=temperature,
+                max_tokens=llm_settings.get("max_tokens", DEFAULT_MAX_TOKENS),
             )
 
             # Парсинг результата
@@ -1396,7 +1923,7 @@ class AgentRunner:
                 completion_tokens=llm_result["usage"].get("completion_tokens", 0),
             )
 
-            return {
+            result = {
                 "data": parsed_data,
                 "raw": llm_result["content"],
                 "usage": llm_result["usage"],
@@ -1405,6 +1932,19 @@ class AgentRunner:
                 "elapsed_ms": round(elapsed_ms, 2),
                 "error": None,
             }
+
+            # P1-18: Записываем validation score для A/B теста
+            if selected_variant and _AB_TESTING_AVAILABLE:
+                try:
+                    ab_config = ABTestEnabledConfig(self.config)
+                    ab_config.selected_variant = selected_variant
+                    # Оценка: 1.0 если успешно, 0.0 если ошибка парсинга
+                    score = 1.0 if not parsed_data.get("parse_error") else 0.5
+                    ab_config.record_validation_score(score)
+                except Exception:
+                    pass
+
+            return result
 
         except Exception as e:
             elapsed_ms = (time.monotonic() - start_time) * 1000
@@ -1478,6 +2018,14 @@ class AgentRunner:
         
         return corrections
 
+    def _is_retryable(self, error: str) -> bool:
+        """P1-9: Проверяет, является ли ошибка ретраибельной."""
+        error_lower = error.lower()
+        for non_retryable in NON_RETRYABLE_ERRORS:
+            if non_retryable in error_lower:
+                return False
+        return True
+
     async def retry(
         self,
         previous_result: Dict[str, Any],
@@ -1485,9 +2033,13 @@ class AgentRunner:
         max_retries: int = DEFAULT_MAX_RETRIES,
     ) -> Dict[str, Any]:
         """
-        Повторный запуск агента с экспоненциальным backoff.
+        Повторный запуск агента с экспоненциальным backoff + jitter.
         
-        P2-10: Умный retry — анализирует причину ошибки и адаптирует стратегию.
+        P1-9: Улучшенный retry:
+        - Jitter: random.uniform(0, 1) добавляется к задержке
+        - MAX_RETRY_DELAY: потолок задержки 60 секунд
+        - Retryable/non-retryable классификация ошибок
+        - P2-10: Умный retry — анализирует причину ошибки и адаптирует стратегию.
 
         Args:
             previous_result: Результат предыдущей попытки
@@ -1497,6 +2049,20 @@ class AgentRunner:
         Returns:
             Результат выполнения (успешный или с ошибкой после всех попыток)
         """
+        # P1-9: Не ретраить неретраибельные ошибки
+        if not self._is_retryable(error):
+            self.logger.warning(
+                "Non-retryable error, skipping retry",
+                error=error,
+            )
+            return {
+                **previous_result,
+                "retry_attempts": 0,
+                "retry_exhausted": True,
+                "retry_skipped": True,
+                "retry_reason": "non_retryable_error",
+            }
+
         self.logger.info(
             "Начало retry-цикла",
             max_retries=max_retries,
@@ -1504,14 +2070,18 @@ class AgentRunner:
         )
 
         for attempt in range(1, max_retries + 1):
-            delay = DEFAULT_RETRY_DELAY * (RETRY_BACKOFF_MULTIPLIER ** (attempt - 1))
+            # P1-9: Экспоненциальный backoff с jitter и потолком
+            base_delay = DEFAULT_RETRY_DELAY * (RETRY_BACKOFF_MULTIPLIER ** (attempt - 1))
+            jitter = random.uniform(0, 1)  # 0–1 секунда случайного джиттера
+            delay = min(base_delay + jitter, MAX_RETRY_DELAY)
 
             self.logger.info(
                 f"Попытка {attempt}/{max_retries}",
                 delay_seconds=round(delay, 2),
+                base_delay=round(base_delay, 2),
+                jitter=round(jitter, 3),
             )
 
-            # Экспоненциальная задержка
             await asyncio.sleep(delay)
 
             # P2-10: Анализ ошибки и формирование корректирующего контекста
@@ -1703,8 +2273,8 @@ class MemoryStore:
         model = result.get("model", "unknown")
         elapsed_ms = result.get("elapsed_ms", 0.0)
 
-        # Извлекаем тип агента из имени
-        agent_type = agent_name.split("-")[0] if "-" in agent_name else agent_name
+        # P2-4: Извлекаем тип агента из имени
+        agent_type = _get_agent_type(agent_name)
 
         async with pool.acquire() as conn:
             await conn.execute(
@@ -1886,7 +2456,7 @@ class MemoryStore:
         # ═══ PROJECT CONTEXT: кэш по mtime + fallback на файловое I/O ═══
         try:
             from scripts.project_context import get_project_context_for_agent, PROJECT_ROOT
-            atype = agent_name.split("-")[0] if "-" in agent_name else agent_name
+            atype = _get_agent_type(agent_name)
 
             project_ctx = None
             if hasattr(self, 'context_cache') and self.context_cache:
@@ -2009,27 +2579,6 @@ class MemoryStore:
             self.logger.error("Failed to mark analytics tasks", agent=agent_name, error=str(e))
 
     async def save_metrics(self, agent_name: str, metrics: Dict[str, Any]) -> None:
-        """
-        Сохраняет метрики агента.
-
-        Args:
-            agent_name: Имя агента
-            metrics: Словарь с метриками
-        """
-        pool = await self._get_db_pool()
-
-        async with pool.acquire() as conn:
-            await conn.execute(
-                """
-                INSERT INTO agent_metrics (agent_name, metrics)
-                VALUES ($1, $2)
-                """,
-                agent_name,
-                json.dumps(metrics),
-            )
-
-        self.logger.info("Метрики сохранены", agent=agent_name, metrics_keys=list(metrics.keys()))
-
         """
         Сохраняет метрики агента.
 
@@ -2201,7 +2750,7 @@ class TelegramReporter:
     async def _get_session(self) -> aiohttp.ClientSession:
         """Получает или создаёт HTTP-сессию."""
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30))
+            self._session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=CIRCUIT_RECOVERY_TIMEOUT))
         return self._session
 
     async def _send_message(self, text: str, parse_mode: str = "Markdown") -> bool:
@@ -2375,25 +2924,24 @@ class TelegramReporter:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Orchestrator — Главный оркестратор
 # ═══════════════════════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Orchestrator — Главный оркестратор (фасад над сервисами)
+# ═══════════════════════════════════════════════════════════════════════════════
 class Orchestrator:
     """
-    Главный оркестратор — координирует всех агентов в системе.
+    Главный оркестратор — тонкий фасад над сервисным слоем (P1-1).
 
-    Управляет жизненным циклом агентов: загрузка конфигураций,
-    запуск по расписанию, валидация результатов, обработка ошибок,
-    хранение в БД и отправка отчётов.
-
-    Attributes:
-        config_path: Путь к директории с конфигурациями агентов
-        db_url: URL подключения к PostgreSQL
-        redis_url: URL подключения к Redis
-        running: Флаг работы оркестратора
-        paused_agents: Множество приостановленных агентов
+    Делегирует всю работу 4 специализированным сервисам:
+    - CycleManager: жизненный цикл агентов
+    - TaskDispatcher: диспетчеризация задач
+    - ReportGenerator: отчёты и метрики
+    - ActionExecutor: выполнение actions
 
     Example:
-        >>> orch = Orchestrator("./configs", "postgresql://...", "redis://...")
-        >>> await orch.load_agents()
-        >>> await orch.run()  # Бесконечный цикл
+        >>> orch = Orchestrator("./configs")
+        >>> await orch.initialize()
+        >>> await orch.run()
     """
 
     def __init__(
@@ -2402,849 +2950,262 @@ class Orchestrator:
         db_url: Optional[str] = None,
         redis_url: Optional[str] = None,
     ) -> None:
-        """
-        Инициализация оркестратора.
-
-        Args:
-            config_path: Путь к директории с конфигурациями агентов
-            db_url: URL PostgreSQL (или из env DATABASE_URL)
-            redis_url: URL Redis (или из env REDIS_URL)
-        """
-        self.config_path: str = config_path
-        self.db_url: str = db_url or os.getenv(
-            "DATABASE_URL", "postgresql://user:pass@localhost/agents"
-        )
-        self.redis_url: str = redis_url or os.getenv(
-            "REDIS_URL", "redis://localhost:6379"
-        )
-
-        # Компоненты системы
-        self.llm_client: Optional[LLMClient] = None
-        self.memory: Optional[MemoryStore] = None
-        self.reporter: Optional[TelegramReporter] = None
-        self.validator: Optional[ResultValidator] = None
-
-        # Состояние агентов
-        self.agents: List[AgentConfig] = []
-        self.agent_runners: Dict[str, AgentRunner] = {}
-        self.running: bool = False
-        self.paused_agents: set = set()
-
-        # Статистика
-        self.cycle_count: int = 0
-        self.total_errors: int = 0
-        self.start_time: Optional[datetime] = None
-
         self.logger = structlog.get_logger("orchestrator")
 
+        # P1-1: Сервисный слой
+        self._cycle = CycleManager(config_path, db_url, redis_url)
+        self._tasks = TaskDispatcher(self._cycle.memory)
+        self._reports = ReportGenerator(self._cycle.memory, self._cycle.reporter)
+        self._actions = ActionExecutor()
+
+    # ─── Прокси-свойства для обратной совместимости ───
+
+    @property
+    def config_path(self) -> str:
+        return self._cycle.config_path
+
+    @property
+    def db_url(self) -> str:
+        return self._cycle.db_url
+
+    @property
+    def redis_url(self) -> str:
+        return self._cycle.redis_url
+
+    @property
+    def llm_client(self) -> Optional[LLMClient]:
+        return self._cycle.llm_client
+
+    @llm_client.setter
+    def llm_client(self, value: Optional[LLMClient]) -> None:
+        self._cycle.llm_client = value
+
+    @property
+    def memory(self) -> Optional[MemoryStore]:
+        return self._cycle.memory
+
+    @memory.setter
+    def memory(self, value: Optional[MemoryStore]) -> None:
+        self._cycle.memory = value
+        self._tasks.memory = value
+        self._reports.memory = value
+
+    @property
+    def reporter(self) -> Optional[TelegramReporter]:
+        return self._cycle.reporter
+
+    @reporter.setter
+    def reporter(self, value: Optional[TelegramReporter]) -> None:
+        self._cycle.reporter = value
+        self._reports.reporter = value
+
+    @property
+    def validator(self) -> Optional[ResultValidator]:
+        return self._cycle.validator
+
+    @validator.setter
+    def validator(self, value: Optional[ResultValidator]) -> None:
+        self._cycle.validator = value
+
+    @property
+    def agents(self) -> List[AgentConfig]:
+        return self._cycle.agents
+
+    @agents.setter
+    def agents(self, value: List[AgentConfig]) -> None:
+        self._cycle.agents = value
+
+    @property
+    def agent_runners(self) -> Dict[str, AgentRunner]:
+        return self._cycle.agent_runners
+
+    @agent_runners.setter
+    def agent_runners(self, value: Dict[str, AgentRunner]) -> None:
+        self._cycle.agent_runners = value
+
+    @property
+    def running(self) -> bool:
+        return self._cycle.running
+
+    @running.setter
+    def running(self, value: bool) -> None:
+        self._cycle.running = value
+
+    @property
+    def paused_agents(self) -> set:
+        return self._cycle.paused_agents
+
+    @paused_agents.setter
+    def paused_agents(self, value: set) -> None:
+        self._cycle.paused_agents = value
+
+    @property
+    def cycle_count(self) -> int:
+        return self._cycle.cycle_count
+
+    @cycle_count.setter
+    def cycle_count(self, value: int) -> None:
+        self._cycle.cycle_count = value
+
+    @property
+    def total_errors(self) -> int:
+        return self._cycle.total_errors
+
+    @total_errors.setter
+    def total_errors(self, value: int) -> None:
+        self._cycle.total_errors = value
+
+    @property
+    def start_time(self) -> Optional[datetime]:
+        return self._cycle.start_time
+
+    @start_time.setter
+    def start_time(self, value: Optional[datetime]) -> None:
+        self._cycle.start_time = value
+
+    # ─── Lifecycle ───
+
     async def initialize(self) -> None:
-        """
-        Инициализирует все компоненты оркестратора.
-
-        Создаёт подключения к БД, Redis, LLM API и инициализирует схему.
-        """
+        """Инициализирует все компоненты через CycleManager."""
         self.logger.info("Инициализация оркестратора")
-
-        # Инициализация LLM клиента (базовый, для общих задач)
-        self.llm_client = LLMClient(
-            api_key=os.getenv("LLM_API_KEY"),
-            model=os.getenv("DEFAULT_LLM_MODEL", "nvidia/nemotron-nano-9b-v2"),
-            base_url=os.getenv("LLM_API_URL"),
-        )
-
-        # Инициализация хранилища памяти
-        self.memory = MemoryStore(self.db_url, self.redis_url)
-        await self.memory.init_schema()
-
-        # Инициализация репортёра (отключено — отчёты теперь через telegram_bot.py)
-        # self.reporter = TelegramReporter()
-        self.reporter = None
-
-        # Инициализация валидатора (правила будут загружены для каждого агента)
-        self.validator = ResultValidator(rules={})
-
-        # Загрузка агентов
-        await self.load_agents()
-
-        self.logger.info(
-            "Оркестратор инициализирован",
-            agents_count=len(self.agents),
-        )
+        await self._cycle.initialize()
+        # Переподключаем TaskDispatcher и ReportGenerator к memory
+        self._tasks.memory = self._cycle.memory
+        self._reports.memory = self._cycle.memory
+        self.logger.info("Оркестратор инициализирован", agents_count=len(self.agents))
 
     async def load_agents(self) -> List[AgentConfig]:
-        """
-        Загружает конфигурации всех агентов из директории.
+        """Загружает агентов через CycleManager."""
+        return await self._cycle.load_agents()
 
-        Сканирует директорию config_path на наличие JSON-файлов
-        и создаёт для каждого AgentConfig.
-
-        Returns:
-            Список загруженных конфигураций агентов
-        """
-        config_dir = Path(self.config_path)
-        if not config_dir.exists():
-            self.logger.warning(
-                "Директория конфигураций не найдена, создаём",
-                path=str(config_dir),
-            )
-            config_dir.mkdir(parents=True, exist_ok=True)
-            return []
-
-        self.agents = []
-        self.agent_runners = {}
-
-        for config_file in sorted(config_dir.glob("*.json")):
-            agent_name = config_file.stem
-            try:
-                config = AgentConfig(agent_name, str(config_dir))
-                config.load_config()
-
-                if not config.is_enabled():
-                    self.logger.info("Агент отключён в конфигурации", agent=agent_name)
-                    continue
-
-                self.agents.append(config)
-
-                # Создаём раннер для агента с персональной моделью
-                # Модель берётся из env вида {AGENT_NAME}_MODEL (например SMM_AGENT_MODEL)
-                agent_model = os.getenv(
-                    f"{agent_name.upper().replace('-', '_')}_MODEL",
-                    os.getenv("DEFAULT_LLM_MODEL", "nvidia/nemotron-nano-9b-v2")
-                )
-                agent_llm = LLMClient(
-                    api_key=os.getenv("LLM_API_KEY"),
-                    model=agent_model,
-                    base_url=os.getenv("LLM_API_URL"),
-                )
-                self.agent_runners[agent_name] = AgentRunner(config, agent_llm)
-
-                self.logger.info(
-                    "Агент загружен",
-                    agent=agent_name,
-                    model=agent_model,
-                )
-
-            except Exception as e:
-                self.logger.error(
-                    "Ошибка загрузки агента",
-                    agent=agent_name,
-                    error=str(e),
-                )
-
-        self.logger.info(
-            "Загрузка агентов завершена",
-            total=len(self.agents),
-        )
-        return self.agents
-
-    async def save_priority_task(self, task: Dict[str, Any]) -> None:
-        """
-        Сохраняет приоритетную задачу в очередь через хранилище памяти.
-
-        Args:
-            task: Словарь с описанием приоритетной задачи
-        """
-        if self.memory:
-            await self.memory.save_task(task)
-        else:
-            self.logger.warning("Хранилище памяти не инициализировано, задача не сохранена")
-
-    async def dispatch_trend_recommendations(self, trend_result: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Рассылка рекомендаций от Trend Agent другим агентам.
-
-        Сохраняет в PostgreSQL таблицу trend_recommendations.
-        Другие агенты при запуске автоматически получают эти рекомендации в свой prompt.
-        """
-        actions = trend_result.get("recommended_actions", [])
-        dispatched: List[Dict[str, Any]] = []
-
-        pool = await self._get_db_pool()
-        async with pool.acquire() as conn:
-            for action in actions:
-                target_agent = action.get("agent")
-                if target_agent not in AGENT_NAMES or target_agent == "trend_agent":
-                    self.logger.warning(
-                        "Пропуск рекомендации — некорректный целевой агент",
-                        target_agent=target_agent,
-                        action=action.get("action"),
-                    )
-                    continue
-
-                # Сохраняем в trend_recommendations
-                await conn.execute(
-                    """
-                    INSERT INTO trend_recommendations 
-                    (trend_id, target_agent, action, priority, deadline, confidence, trend_title, trend_description, metrics, status)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending')
-                    ON CONFLICT DO NOTHING
-                    """,
-                    trend_result.get("trend_id"),
-                    target_agent,
-                    action.get("action"),
-                    action.get("priority", "medium"),
-                    action.get("deadline"),
-                    trend_result.get("confidence"),
-                    trend_result.get("title"),
-                    trend_result.get("description"),
-                    json.dumps(trend_result.get("metrics", {})) if trend_result.get("metrics") else None,
-                )
-
-                task = {
-                    "agent": target_agent,
-                    "trend_title": trend_result.get("title"),
-                    "action": action.get("action"),
-                    "priority": action.get("priority"),
-                }
-                dispatched.append(task)
-
-                self.logger.info(
-                    "trend_recommendation_saved",
-                    target_agent=target_agent,
-                    trend=trend_result.get("title"),
-                    priority=action.get("priority"),
-                )
-
-        return {
-            "trend": trend_result.get("title"),
-            "total_recommendations": len(actions),
-            "dispatched": len(dispatched),
-            "tasks": dispatched,
-        }
-
-    async def dispatch_analytics_tasks(self, analytics_result: Dict[str, Any]) -> int:
-        """
-        Создание задач из рекомендаций Analytics Agent для других агентов.
-
-        Парсит результат analytics_agent, извлекает tasks и сохраняет в agent_tasks.
-        """
-        # Пытаемся найти tasks в разных местах результата
-        tasks = analytics_result.get("tasks", [])
-        
-        # Если tasks не найдены напрямую — ищем в recommendations
-        if not tasks and "recommendations" in analytics_result:
-            recs = analytics_result.get("recommendations", [])
-            for rec in recs:
-                if isinstance(rec, dict):
-                    # Преобразуем рекомендацию в задачу
-                    target = rec.get("executor", rec.get("target_agent", ""))
-                    # Маппинг executor -> agent_name
-                    agent_map = {
-                        "marketing": "smm_agent",
-                        "content": "content_agent",
-                        "seo": "seo_agent",
-                        "smm": "smm_agent",
-                    }
-                    target_agent = agent_map.get(target, target)
-                    if target_agent in AGENT_NAMES and target_agent != "analytics_agent":
-                        tasks.append({
-                            "target_agent": target_agent,
-                            "title": rec.get("problem", rec.get("title", "")),
-                            "description": f"{rec.get('cause', '')}\n\nДействие: {rec.get('action', '')}",
-                            "priority": "medium",
-                            "metrics": rec.get("expected_effect", {}),
-                        })
-
-        if not tasks:
-            return 0
-
-        pool = await self._get_db_pool()
-        saved_count = 0
-        async with pool.acquire() as conn:
-            for task in tasks:
-                target_agent = task.get("target_agent", "")
-                if target_agent not in AGENT_NAMES or target_agent == "analytics_agent":
-                    continue
-
-                await conn.execute(
-                    """
-                    INSERT INTO agent_tasks 
-                    (source_agent, target_agent, title, description, priority, deadline, status, metrics)
-                    VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)
-                    ON CONFLICT DO NOTHING
-                    """,
-                    "analytics_agent",
-                    target_agent,
-                    task.get("title", "")[:200],
-                    task.get("description", "")[:2000],
-                    task.get("priority", "medium"),
-                    task.get("deadline"),
-                    json.dumps(task.get("metrics", {})) if task.get("metrics") else None,
-                )
-                saved_count += 1
-
-        self.logger.info("analytics_tasks_dispatched", count=saved_count)
-        return saved_count
+    # ─── Cycle execution ───
 
     async def run_cycle(self) -> Dict[str, Any]:
-        """
-        Выполняет один цикл оркестратора — запускает всех агентов.
-
-        Для каждого агента:
-        1. Получает контекст из памяти
-        2. Запускает агента через LLM
-        3. Валидирует результат
-        4. Сохраняет в БД
-        5. Обрабатывает ошибки
-
-        Returns:
-            Словарь с результатами цикла:
-                - cycle_id: ID цикла
-                - results: список результатов
-                - duration_ms: длительность
-                - errors: список ошибок
-        """
-        cycle_id = f"cycle-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:8]}"
-        self.cycle_count += 1
-
-        self.logger.info(
-            "=== НАЧАЛО ЦИКЛА ===",
-            cycle_id=cycle_id,
-            cycle_number=self.cycle_count,
-            agents_count=len(self.agents),
+        """Выполняет один цикл через CycleManager."""
+        return await self._cycle.run_cycle(
+            action_executor=self._actions,
+            task_dispatcher=self._tasks,
+            critic_audit_fn=self._run_critic_audit,
         )
 
-        cycle_start = time.monotonic()
-        cycle_results: List[Dict[str, Any]] = []
-        cycle_errors: List[str] = []
-
-        # Запись о начале цикла в БД
-        if self.memory:
-            pool = await self.memory._get_db_pool()
-            async with pool.acquire() as conn:
-                await conn.execute(
-                    "INSERT INTO orchestrator_cycles (cycle_id, agents_count) VALUES ($1, $2)",
-                    cycle_id,
-                    len(self.agents),
-                )
-
-        # Запуск агентов
-        for config in self.agents:
-            agent_name = config.agent_name
-
-            agent_start = time.monotonic()
-
-            try:
-                # Проверка паузы через Telegram (/pause команда)
-                try:
-                    redis = await self.memory._get_redis()
-                    pause_key = f"agent:pause:{agent_name}"
-                    paused = await redis.get(pause_key)
-                    if paused:
-                        self.logger.info("Агент на паузе, пропускаем", agent=agent_name)
-                        cycle_results.append({
-                            "agent_name": agent_name,
-                            "success": True,
-                            "elapsed_ms": 0,
-                            "validation_score": 0.0,
-                            "actions": ["paused"],
-                            "result": {"status": "paused_by_user"},
-                        })
-                        continue
-                except Exception:
-                    pass
-
-                # Проверка срочного запуска (/run_now команда)
-                try:
-                    redis = await self.memory._get_redis()
-                    run_now_key = f"agent:run_now:{agent_name}"
-                    run_now = await redis.get(run_now_key)
-                    if run_now:
-                        await redis.delete(run_now_key)
-                        self.logger.info("Срочный запуск агента", agent=agent_name)
-                except Exception:
-                    pass
-
-                # Получаем контекст из памяти
-                context = {}
-                if self.memory:
-                    context = await self.memory.get_context(agent_name)
-
-                # COS-4: Feedback loop — инжектируем анализ предыдущих запусков
-                try:
-                    feedback = await self._get_feedback_for_agent(agent_name, limit=5)
-                    if feedback:
-                        context["feedback"] = feedback
-                        self.logger.info(
-                            "feedback_injected",
-                            agent=agent_name,
-                            patterns=len(feedback.get("patterns", [])),
-                            recommendations=len(feedback.get("recommendations", [])),
-                        )
-                except Exception as e:
-                    self.logger.warning("feedback_loop_failed", agent=agent_name, error=str(e))
-
-                # Запускаем агента
-                runner = self.agent_runners.get(agent_name)
-                if not runner:
-                    self.logger.warning("Раннер не найден", agent=agent_name)
-                    continue
-
-                result = await runner.run(context=context)
-
-                # Retry при ошибке
-                if not result["success"]:
-                    self.logger.info("Повторная попытка после ошибки", agent=agent_name)
-                    result = await runner.retry(
-                        previous_result=result,
-                        error=result.get("error", "Unknown error"),
-                    )
-
-                # Валидация результата
-                if result["success"] and self.validator:
-                    agent_type = agent_name.split("-")[0] if "-" in agent_name else agent_name
-                    validation = self.validator.validate(result["data"], agent_type)
-                    result["validation"] = {
-                        "status": validation.status.value,
-                        "score": validation.score,
-                        "errors": validation.errors,
-                        "warnings": validation.warnings,
-                    }
-
-                    # Обновляем валидатор в результате
-                    result["validation_result"] = validation
-
-                    # После валидации trend_agent — рассылка рекомендаций
-                    if agent_name == "trend_agent" and validation.is_valid:
-                        dispatch_result = await self.dispatch_trend_recommendations(result["data"])
-                        self.logger.info("trend_recommendations_dispatched", **dispatch_result)
-
-                    # После валидации analytics_agent — создание задач для других агентов
-                    if agent_name == "analytics_agent" and validation.is_valid:
-                        task_count = await self.dispatch_analytics_tasks(result["data"])
-                        self.logger.info("analytics_tasks_dispatched", count=task_count)
-
-                # Сохранение результата
-                if self.memory:
-                    await self.memory.save_result(agent_name, result, cycle_id)
-
-                    # Обновление статуса валидации
-                    if "validation_result" in result:
-                        await self.memory.update_validation_status(
-                            agent_name, cycle_id, result["validation_result"]
-                        )
-
-                # ═══ РЕАЛЬНЫЕ ДЕЙСТВИЯ АГЕНТОВ ═══
-                # P3-1: Плагинная система — actions загружаются из конфига агента
-                if result["success"]:
-                    try:
-                        action_log = []
-                        agent_type = agent_name.split("-")[0] if "-" in agent_name else agent_name
-                        data = result.get("data", {})
-
-                        # File operations — для всех агентов (руки, защищённые)
-                        file_ops = data.get("file_ops", data.get("files", []))
-                        if file_ops:
-                            from scripts.safe_project_context import safe_write_file, validate_write
-                            if isinstance(file_ops, list):
-                                for op in file_ops[:5]:  # макс 5 операций за раз
-                                    if isinstance(op, dict):
-                                        path = op.get("path", op.get("file", ""))
-                                        content = op.get("content", "")
-                                        mode = op.get("mode", "overwrite")
-                                        if path and content:
-                                            # Валидация перед записью
-                                            val = validate_write(path, mode)
-                                            if not val["valid"]:
-                                                action_log.append(f"file:{path}:BLOCKED")
-                                                self.logger.warning("file_op_blocked", agent=agent_name, path=path, reason=val["error"])
-                                                continue
-                                            res = safe_write_file(path, content, append=(mode=="append"))
-                                            action_log.append(f"file:{path}:{res.get('success', False)}")
-                            elif isinstance(file_ops, dict):
-                                path = file_ops.get("path", file_ops.get("file", ""))
-                                content = file_ops.get("content", "")
-                                mode = file_ops.get("mode", "overwrite")
-                                if path and content:
-                                    val = validate_write(path, mode)
-                                    if not val["valid"]:
-                                        action_log.append(f"file:{path}:BLOCKED")
-                                        self.logger.warning("file_op_blocked", agent=agent_name, path=path, reason=val["error"])
-                                    else:
-                                        res = safe_write_file(path, content, append=(mode=="append"))
-                                        action_log.append(f"file:{path}:{res.get('success', False)}")
-
-                        # P3-1: Динамическая диспетчеризация actions через registry
-                        agent_config_obj = next((a for a in self.agents if a.agent_name == agent_name), None)
-                        if agent_config_obj and hasattr(agent_config_obj, '_config'):
-                            config_actions = agent_config_obj._config.get("actions", [])
-                            if config_actions:
-                                from actions.action_registry import ActionDispatcher, discover_actions
-                                discover_actions()  # Убедимся, что actions зарегистрированы
-                                dispatcher = ActionDispatcher()
-                                plugin_log = await dispatcher.execute_agent_actions(
-                                    agent_config_obj._config, data
-                                )
-                                action_log.extend(plugin_log)
-                            else:
-                                # Fallback: старая hardcoded логика для агентов без actions в конфиге
-                                action_log.extend(await self._execute_legacy_actions(agent_type, data))
-                        else:
-                            action_log.extend(await self._execute_legacy_actions(agent_type, data))
-
-                        # Сохраняем лог действий в результат
-                        if action_log:
-                            result["actions"] = action_log
-                            self.logger.info("Agent actions executed", agent=agent_name, actions=action_log)
-
-                        # ═══ Mark trend recommendations as completed ═══
-                        if self.memory and action_log and agent_type in ("smm", "seo", "content"):
-                            # Get pending trend recommendations for this agent
-                            trend_recs = await self.memory.get_trend_recommendations(agent_name, limit=10)
-                            if trend_recs:
-                                completed_actions = [r["action"] for r in trend_recs]
-                                await self.memory.mark_trend_recommendations_completed(agent_name, completed_actions)
-                                self.logger.info(
-                                    "trend_recommendations_marked_completed",
-                                    agent=agent_name,
-                                    count=len(completed_actions),
-                                )
-
-                            # Get pending analytics tasks for this agent
-                            analytics_tasks = await self.memory.get_analytics_tasks(agent_name, limit=10)
-                            if analytics_tasks:
-                                completed_titles = [t["title"] for t in analytics_tasks]
-                                await self.memory.mark_analytics_tasks_completed(agent_name, completed_titles)
-                                self.logger.info(
-                                    "analytics_tasks_marked_completed",
-                                    agent=agent_name,
-                                    count=len(completed_titles),
-                                )
-
-                    except Exception as e:
-                        self.logger.error("Action execution failed", agent=agent_name, error=str(e))
-                        # Не ломаем цикл — просто логируем
-
-                # Обработка ошибок
-                if not result["success"]:
-                    await self.handle_failure(
-                        agent_name=agent_name,
-                        error=result.get("error", "Unknown"),
-                        result=result,
-                    )
-                    cycle_errors.append(f"{agent_name}: {result.get('error', '')}")
-                    self.total_errors += 1
-
-                agent_elapsed = (time.monotonic() - agent_start) * 1000
-
-                cycle_results.append({
-                    "agent_name": agent_name,
-                    "success": result["success"],
-                    "elapsed_ms": agent_elapsed,
-                    "validation_score": result.get("validation", {}).get("score", 0.0),
-                    "actions": result.get("actions", []),
-                    "result": result.get("data", {}),
-                })
-
-                self.logger.info(
-                    "Агент завершён",
-                    agent=agent_name,
-                    success=result["success"],
-                    elapsed_ms=round(agent_elapsed, 2),
-                )
-
-            except Exception as e:
-                agent_elapsed = (time.monotonic() - agent_start) * 1000
-                self.logger.error(
-                    "Критическая ошибка агента",
-                    agent=agent_name,
-                    error=str(e),
-                )
-                await self.handle_failure(agent_name, str(e), {})
-                cycle_errors.append(f"{agent_name}: {str(e)}")
-                self.total_errors += 1
-
-                cycle_results.append({
-                    "agent_name": agent_name,
-                    "success": False,
-                    "elapsed_ms": agent_elapsed,
-                    "error": str(e),
-                })
-
-        # Подсчёт итогов
-        cycle_duration = (time.monotonic() - cycle_start) * 1000
-        success_count = sum(1 for r in cycle_results if r["success"])
-
-        # Обновление записи о цикле
-        if self.memory:
-            pool = await self.memory._get_db_pool()
-            async with pool.acquire() as conn:
-                await conn.execute(
-                    """
-                    UPDATE orchestrator_cycles
-                    SET completed_at = NOW(),
-                        status = $1,
-                        errors_count = $2
-                    WHERE cycle_id = $3
-                    """,
-                    "completed" if len(cycle_errors) == 0 else "completed_with_errors",
-                    len(cycle_errors),
-                    cycle_id,
-                )
-
-        # Отправка сводки в Telegram
-        if self.reporter:
-            await self.reporter.send_summary({
-                "cycle_id": cycle_id,
-                "results": cycle_results,
-                "duration_ms": cycle_duration,
-            })
-
-        self.logger.info(
-            "=== ЦИКЛ ЗАВЕРШЁН ===",
-            cycle_id=cycle_id,
-            duration_ms=round(cycle_duration, 2),
-            success=success_count,
-            failed=len(cycle_results) - success_count,
-        )
-
-        return {
-            "cycle_id": cycle_id,
-            "results": cycle_results,
-            "duration_ms": cycle_duration,
-            "errors": cycle_errors,
-            "timestamp": datetime.now().isoformat(),
-        }
-
-    async def validate_and_store(
+    async def _run_critic_audit(
         self,
-        agent_name: str,
-        result: Dict[str, Any],
-    ) -> ValidationResult:
-        """
-        Валидирует и сохраняет результат агента.
+        cycle_id: str,
+        cycle_results: List[Dict[str, Any]],
+    ) -> Optional[Dict[str, Any]]:
+        """P0-7: Запускает CriticAgent для аудита результатов цикла."""
+        try:
+            from scripts.critic_agent import CriticAgent, CriticSeverity
 
-        Args:
-            agent_name: Имя агента
-            result: Результат для валидации и сохранения
+            critic = CriticAgent()
+            report = critic.audit_cycle(cycle_id, cycle_results)
+            report_dict = report.to_dict()
 
-        Returns:
-            Результат валидации
-        """
-        if not self.validator:
-            return ValidationResult(
-                status=ValidationStatus.SKIPPED,
-                warnings=["Валидатор не инициализирован"],
-            )
+            if self.memory:
+                pool = await self.memory._get_db_pool()
+                async with pool.acquire() as conn:
+                    await conn.execute(
+                        """
+                        INSERT INTO orchestrator_cycles (cycle_id, report)
+                        VALUES ($1, $2)
+                        ON CONFLICT (cycle_id) DO UPDATE SET report = EXCLUDED.report
+                        """,
+                        cycle_id,
+                        json.dumps(report_dict),
+                    )
 
-        agent_type = agent_name.split("-")[0] if "-" in agent_name else agent_name
-        validation = self.validator.validate(result.get("data", {}), agent_type)
+            critical_count = len(report.findings_by_severity(CriticSeverity.CRITICAL))
+            error_count = len(report.findings_by_severity(CriticSeverity.ERROR))
+            if critical_count > 0 or error_count > 0:
+                if self.reporter:
+                    await self.reporter.send_alert(
+                        "critic_agent",
+                        f"CriticAudit: {critical_count} critical, {error_count} error findings in cycle {cycle_id}. Score: {report.overall_score}",
+                    )
+                self.logger.warning(
+                    "critic_audit_findings",
+                    cycle_id=cycle_id,
+                    critical=critical_count,
+                    errors=error_count,
+                    score=report.overall_score,
+                )
 
-        self.logger.info(
-            "Валидация результата",
-            agent=agent_name,
-            status=validation.status.value,
-            score=validation.score,
-        )
+            return report_dict
+        except Exception as e:
+            self.logger.error("critic_audit_failed", cycle_id=cycle_id, error=str(e))
+            return None
 
-        return validation
+    # ─── Task dispatch (прокси) ───
+
+    async def save_priority_task(self, task: Dict[str, Any]) -> None:
+        """Сохраняет приоритетную задачу."""
+        await self._tasks.save_priority_task(task)
+
+    async def dispatch_trend_recommendations(self, trend_result: Dict[str, Any]) -> Dict[str, Any]:
+        """Рассылает trend-рекомендации."""
+        return await self._tasks.dispatch_trend_recommendations(trend_result)
+
+    async def dispatch_analytics_tasks(self, analytics_result: Dict[str, Any]) -> int:
+        """Создаёт analytics-задачи."""
+        return await self._tasks.dispatch_analytics_tasks(analytics_result)
+
+    # ─── Action execution (прокси) ───
 
     async def _execute_legacy_actions(
         self,
         agent_type: str,
         data: Dict[str, Any],
     ) -> List[str]:
-        """
-        P3-1: Fallback hardcoded actions для агентов без конфигурации actions.
+        """Fallback legacy actions через ActionExecutor."""
+        return await self._actions._execute_legacy_actions(agent_type, data)
 
-        Сохранена для обратной совместимости. Новые агенты должны
-        использовать "actions" в JSON-конфиге.
-        """
-        action_log: List[str] = []
-
-        if agent_type == "smm":
-            posts = data.get("posts", data.get("content", []))
-            if isinstance(posts, list):
-                for post in posts[:3]:
-                    if isinstance(post, dict):
-                        ok = await post_discount(post)
-                    else:
-                        ok = await post_to_channel(str(post))
-                    action_log.append(f"tg_post:{ok}")
-            elif isinstance(posts, str):
-                ok = await post_to_channel(posts)
-                action_log.append(f"tg_post:{ok}")
-
-        elif agent_type == "seo":
-            title = data.get("title", data.get("meta_title", ""))
-            desc = data.get("description", data.get("meta_description", ""))
-            keywords = data.get("keywords", "")
-            if title and desc:
-                ok = update_meta_tags(title, desc, keywords)
-                action_log.append(f"meta_updated:{ok}")
-
-        elif agent_type == "performance":
-            top_ids = data.get("top_products", data.get("prioritize", []))
-            if top_ids:
-                ok = prioritize_products(top_ids)
-                action_log.append(f"prioritized:{ok}")
-            featured = data.get("featured_products", [])
-            for fid in featured[:5]:
-                ok = add_badge(str(fid), "ХИТ")
-                action_log.append(f"badge:{fid}:{ok}")
-            new_items = data.get("new_products", [])
-            for nid in new_items[:3]:
-                ok = add_badge(str(nid), "NEW")
-                action_log.append(f"badge:new:{nid}:{ok}")
-            top_items = data.get("top_rated", [])
-            for tid in top_items[:3]:
-                ok = add_badge(str(tid), "ТОП")
-                action_log.append(f"badge:top:{tid}:{ok}")
-
-        elif agent_type == "content":
-            cat = data.get("category", data.get("page_category", ""))
-            html = data.get("html", data.get("content", ""))
-            if cat and html:
-                ok = create_category_page(cat, html)
-                action_log.append(f"category_page:{cat}:{ok}")
-            items = data.get("items", data.get("product_descriptions", []))
-            for item in items[:3]:
-                if isinstance(item, dict):
-                    iid = item.get("id", item.get("itemId", ""))
-                    desc = item.get("description", "")
-                    if iid and desc:
-                        ok = update_item_description(str(iid), desc)
-                        action_log.append(f"item_desc:{iid}:{ok}")
-
-        return action_log
-
-    async def handle_failure(
-        self,
-        agent_name: str,
-        error: str,
-        result: Dict[str, Any],
-    ) -> None:
-        """
-        Обрабатывает ошибку агента.
-
-        Логирует ошибку, отправляет алерт в Telegram.
-
-        Args:
-            agent_name: Имя агента
-            error: Текст ошибки
-            result: Результат (может быть пустым)
-        """
-        self.logger.error(
-            "Ошибка агента",
-            agent=agent_name,
-            error=error,
-        )
-
-        # Отправка алерта
-        if self.reporter:
-            await self.reporter.send_alert(agent_name, error)
+    # ─── Reports & metrics (прокси) ───
 
     async def generate_daily_report(self) -> Dict[str, Any]:
-        """
-        Генерирует ежедневный отчёт о работе оркестратора.
+        """Генерирует ежедневный отчёт."""
+        return await self._reports.generate_daily_report(
+            agents=self.agents,
+            cycle_count=self.cycle_count,
+            total_errors=self.total_errors,
+            start_time=self.start_time,
+        )
 
-        Собирает статистику за текущий день из БД.
+    def get_health_status(self) -> Dict[str, Any]:
+        """P2-4: Возвращает статус здоровья."""
+        return self._reports.get_health_status(
+            running=self.running,
+            cycle_count=self.cycle_count,
+            total_errors=self.total_errors,
+            start_time=self.start_time,
+            agents=self.agents,
+            paused_agents=self.paused_agents,
+        )
 
-        Returns:
-            Словарь с данными ежедневного отчёта:
-                - date: дата отчёта
-                - total_agents: всего агентов
-                - successful_runs: успешных запусков
-                - failed_runs: неудачных запусков
-                - avg_validation_score: средняя оценка
-                - agent_details: детали по агентам
-        """
-        today = datetime.now().strftime("%Y-%m-%d")
+    async def get_metrics(self) -> Dict[str, Any]:
+        """P2-7: Возвращает метрики."""
+        return await self._reports.get_metrics(
+            cycle_count=self.cycle_count,
+            total_errors=self.total_errors,
+            agents_count=len(self.agents),
+            paused_count=len(self.paused_agents),
+        )
 
-        if not self.memory:
-            return {
-                "date": today,
-                "total_agents": len(self.agents),
-                "successful_runs": 0,
-                "failed_runs": 0,
-                "avg_validation_score": 0.0,
-                "agent_details": [],
-            }
+    async def get_validation_history(
+        self,
+        limit: int = 20,
+        agent_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """P2-6: Возвращает историю валидации."""
+        return await self._reports.get_validation_history(limit, agent_name)
 
-        pool = await self.memory._get_db_pool()
-
-        async with pool.acquire() as conn:
-            # Статистика по агентам за сегодня
-            rows = await conn.fetch(
-                """
-                SELECT
-                    agent_name,
-                    COUNT(*) as run_count,
-                    AVG(validation_score) as avg_score,
-                    SUM(CASE WHEN validation_status = 'failed' THEN 1 ELSE 0 END) as fail_count
-                FROM agent_results
-                WHERE timestamp >= $1
-                GROUP BY agent_name
-                """,
-                datetime.now().replace(hour=0, minute=0, second=0, microsecond=0),
-            )
-
-        agent_details = []
-        total_success = 0
-        total_fail = 0
-        total_score = 0.0
-
-        for row in rows:
-            fail_count = row["fail_count"] or 0
-            run_count = row["run_count"] or 0
-            success_count = run_count - fail_count
-            avg_score = row["avg_score"] or 0.0
-
-            agent_details.append({
-                "name": row["agent_name"],
-                "runs": run_count,
-                "successful": success_count,
-                "failed": fail_count,
-                "avg_score": round(avg_score, 3),
-                "status": "success" if fail_count == 0 else "partial" if success_count > 0 else "failed",
-                "validation_score": avg_score,
-            })
-
-            total_success += success_count
-            total_fail += fail_count
-            total_score += avg_score
-
-        avg_total = total_score / len(rows) if rows else 0.0
-
-        report = {
-            "date": today,
-            "total_agents": len(self.agents),
-            "successful_runs": total_success,
-            "failed_runs": total_fail,
-            "avg_validation_score": round(avg_total, 3),
-            "agent_details": agent_details,
-            "cycle_count": self.cycle_count,
-            "total_errors": self.total_errors,
-            "uptime_hours": (
-                (datetime.now() - self.start_time).total_seconds() / 3600
-                if self.start_time else 0
-            ),
-        }
-
-        # Отправка отчёта в Telegram
-        if self.reporter:
-            await self.reporter.send_daily_report(report)
-
-        self.logger.info("Ежедневный отчёт сгенерирован", date=today)
-        return report
+    # ─── Control ───
 
     async def run(self) -> None:
-        """
-        Запускает бесконечный цикл оркестратора.
-
-        Выполняет циклы с заданным интервалом до получения
-        сигнала остановки (SIGINT, SIGTERM).
-
-        The loop:
-            1. Проверка времени для ежедневного отчёта (9:00)
-            2. Запуск cycle для всех агентов
-            3. Ожидание interval секунд
-        """
-        self.running = True
-        self.start_time = datetime.now()
+        """Запускает бесконечный цикл."""
+        self._cycle.running = True
+        self._cycle.start_time = datetime.now()
         last_report_date = None
 
-        # Интервал между циклами
         interval = int(os.getenv("CYCLE_INTERVAL", DEFAULT_CYCLE_INTERVAL))
 
         self.logger.info(
@@ -3253,22 +3214,17 @@ class Orchestrator:
             agents=[a.agent_name for a in self.agents],
         )
 
-        while self.running:
+        while self._cycle.running:
             try:
-                # Проверка времени для ежедневного отчёта (9:00)
                 now = datetime.now()
-                if now.hour == 9 and last_report_date != now.strftime("%Y-%m-%d"):
+                if now.hour == DAILY_REPORT_HOUR and last_report_date != now.strftime("%Y-%m-%d"):
                     self.logger.info("Генерация ежедневного отчёта")
                     await self.generate_daily_report()
                     last_report_date = now.strftime("%Y-%m-%d")
 
-                # Выполнение цикла
                 await self.run_cycle()
 
-                # Ожидание до следующего цикла
-                self.logger.info(
-                    f"Ожидание {interval} секунд до следующего цикла"
-                )
+                self.logger.info(f"Ожидание {interval} секунд до следующего цикла")
                 await asyncio.sleep(interval)
 
             except asyncio.CancelledError:
@@ -3276,228 +3232,103 @@ class Orchestrator:
                 break
             except Exception as e:
                 self.logger.error("Ошибка в цикле оркестратора", error=str(e))
-                self.total_errors += 1
+                self._cycle.total_errors += 1
                 await asyncio.sleep(interval)
 
         self.logger.info("Оркестратор остановлен")
 
     def pause_agent(self, agent_name: str) -> bool:
-        """
-        Приостанавливает агента.
-
-        Args:
-            agent_name: Имя агента для приостановки
-
-        Returns:
-            True если агент найден и приостановлен
-        """
-        for config in self.agents:
-            if config.agent_name == agent_name:
-                self.paused_agents.add(agent_name)
-                self.logger.info("Агент приостановлен", agent=agent_name)
-                return True
-        return False
+        """Приостанавливает агента."""
+        return self._cycle.pause_agent(agent_name)
 
     def resume_agent(self, agent_name: str) -> bool:
-        """
-        Возобновляет работу агента.
-
-        Args:
-            agent_name: Имя агента для возобновления
-
-        Returns:
-            True если агент найден и возобновлён
-        """
-        if agent_name in self.paused_agents:
-            self.paused_agents.discard(agent_name)
-            self.logger.info("Агент возобновлён", agent=agent_name)
-            return True
-        return False
+        """Возобновляет работу агента."""
+        return self._cycle.resume_agent(agent_name)
 
     def stop(self) -> None:
         """Останавливает оркестратор."""
         self.logger.info("Получена команда остановки")
-        self.running = False
+        self._cycle.stop()
 
     async def close(self) -> None:
         """Закрывает все ресурсы."""
-        self.stop()
+        await self._cycle.close()
 
-        if self.llm_client:
-            await self.llm_client.close()
-        if self.memory:
-            await self.memory.close()
-        if self.reporter:
-            await self.reporter.close()
+    # ─── Validation (прокси) ───
 
-        self.logger.info("Все ресурсы оркестратора освобождены")
-
-    def get_health_status(self) -> Dict[str, Any]:
-        """P2-4: Возвращает статус здоровья оркестратора."""
-        uptime_seconds = 0
-        if self.start_time:
-            uptime_seconds = int((datetime.now() - self.start_time).total_seconds())
-        status = "unhealthy"
-        if self.running:
-            if self.total_errors > 10:
-                status = "degraded"
-            else:
-                status = "healthy"
-        return {
-            "status": status,
-            "running": self.running,
-            "cycle_count": self.cycle_count,
-            "errors_total": self.total_errors,
-            "uptime_seconds": uptime_seconds,
-            "agents_total": len(self.agents),
-            "agents_paused": len(self.paused_agents),
-        }
-
-    async def get_metrics(self) -> Dict[str, Any]:
-        """P2-7 + COS-2: Возвращает метрики в формате Prometheus + контент-метрики."""
-        content = await self._get_content_metrics()
-        return {
-            "cycles_total": self.cycle_count,
-            "errors_total": self.total_errors,
-            "agents_total": len(self.agents),
-            "agents_paused": len(self.paused_agents),
-            **content,
-        }
-
-    async def get_validation_history(self, limit: int = 20, agent_name: Optional[str] = None) -> Dict[str, Any]:
-        """P2-6: Возвращает историю валидации агентов."""
-        if not self.memory:
-            return {"total": 0, "results": [], "summary": {"passed": 0, "failed": 0, "avg_score": 0.0}}
-        pool = await self.memory._get_db_pool()
-        async with pool.acquire() as conn:
-            if agent_name:
-                rows = await conn.fetch(
-                    "SELECT * FROM agent_results WHERE agent_name = $1 ORDER BY created_at DESC LIMIT $2",
-                    agent_name, limit,
-                )
-                total = (await conn.fetchrow("SELECT COUNT(*) FROM agent_results WHERE agent_name = $1", agent_name))[0] or 0
-            else:
-                rows = await conn.fetch(
-                    "SELECT * FROM agent_results ORDER BY created_at DESC LIMIT $1", limit,
-                )
-                total = (await conn.fetchrow("SELECT COUNT(*) FROM agent_results"))[0] or 0
-        results = []
-        passed, failed = 0, 0
-        scores = []
-        for row in rows:
-            score = row["validation_score"] or 0.0
-            status = row["status"] or "unknown"
-            if status == "completed":
-                passed += 1
-            elif status == "failed":
-                failed += 1
-            if score:
-                scores.append(score)
-            results.append({
-                "cycle_id": str(row["cycle_id"]),
-                "agent_name": row["agent_name"],
-                "status": status,
-                "validation_score": score,
-                "created_at": row["created_at"].isoformat() if row["created_at"] else None,
-            })
-        avg_score = round(sum(scores) / len(scores), 3) if scores else 0.0
-        return {
-            "total": total,
-            "results": results,
-            "summary": {"passed": passed, "failed": failed, "avg_score": avg_score},
-        }
-
-    async def _get_feedback_for_agent(self, agent_name: str, limit: int = 5) -> Optional[Dict[str, Any]]:
-        """COS-4: Feedback loop — анализ предыдущих запусков агента."""
-        if not self.memory:
-            return None
-        pool = await self.memory._get_db_pool()
-        async with pool.acquire() as conn:
-            rows = await conn.fetch(
-                """SELECT cycle_id, created_at, validation_score, validation_errors, status, result, execution_time_ms
-                    FROM agent_results WHERE agent_name = $1 ORDER BY created_at DESC LIMIT $2""",
-                agent_name, limit,
+    async def validate_and_store(
+        self,
+        agent_name: str,
+        result: Dict[str, Any],
+    ) -> ValidationResult:
+        """Валидирует и сохраняет результат."""
+        if not self.validator:
+            return ValidationResult(
+                status=ValidationStatus.SKIPPED,
+                warnings=["Валидатор не инициализирован"],
             )
-        if not rows:
-            return None
-        runs, high_scores, low_scores, error_patterns, action_history = [], [], [], {}, []
-        for row in rows:
-            score = row["validation_score"] or 0.0
-            status = row["status"] or "unknown"
-            errors = row["validation_errors"] or []
-            result_data = row["result"]
-            if isinstance(result_data, str):
-                try:
-                    result_data = json.loads(result_data)
-                except json.JSONDecodeError:
-                    result_data = {}
-            elif not isinstance(result_data, dict):
-                result_data = {}
-            run_info = {"cycle_id": str(row["cycle_id"]), "timestamp": row["created_at"].isoformat() if row["created_at"] else None, "validation_score": score, "status": status, "execution_time_ms": row["execution_time_ms"]}
-            runs.append(run_info)
-            actions = result_data.get("actions", []) if isinstance(result_data, dict) else []
-            if actions:
-                action_history.extend(actions[:3])
-            if score >= 0.8:
-                high_scores.append(run_info)
-            elif score < 0.5 or status == "failed":
-                low_scores.append(run_info)
-            if errors:
-                for err in errors[:3]:
-                    key = str(err)[:30]
-                    error_patterns[key] = error_patterns.get(key, 0) + 1
-        patterns = []
-        if high_scores:
-            patterns.append({"type": "success_pattern", "message": f"{len(high_scores)} из {len(runs)} запусков с высоким score (≥0.8)", "count": len(high_scores)})
-        if low_scores:
-            patterns.append({"type": "failure_pattern", "message": f"{len(low_scores)} из {len(runs)} запусков с низким score (<0.5) или failed", "count": len(low_scores)})
-        if error_patterns:
-            for err_key, count in sorted(error_patterns.items(), key=lambda x: x[1], reverse=True)[:2]:
-                patterns.append({"type": "recurring_error", "message": f"Ошибка повторяется {count} раз(а): {err_key}...", "count": count})
-        recommendations = []
-        if len(low_scores) > len(high_scores):
-            recommendations.append("Последние запуски показывают снижение качества. Рассмотрите упрощение задачи.")
-        if error_patterns:
-            recommendations.append("Обнаружены повторяющиеся ошибки. Проверьте валидацию входных данных.")
-        if not action_history:
-            recommendations.append("В последних запусках не зафиксировано действий. Убедитесь, что агент генерирует executable output.")
-        return {"runs": runs, "patterns": patterns, "recommendations": recommendations, "action_history": action_history[:5], "avg_score": round(sum(r["validation_score"] for r in runs) / len(runs), 3) if runs else 0.0}
+        agent_type = _get_agent_type(agent_name)
+        validation = self.validator.validate(result.get("data", {}), agent_type)
+        self.logger.info(
+            "Валидация результата",
+            agent=agent_name,
+            status=validation.status.value,
+            score=validation.score,
+        )
+        return validation
 
-    async def _get_content_metrics(self) -> Dict[str, Any]:
-        """COS-2: Собирает метрики контента из БД."""
-        if not self.memory:
-            return {"pages_total": 0, "pages_today": 0, "pages_this_week": 0, "pages_this_month": 0, "avg_validation_score": 0.0, "published_content_count": 0}
-        pool = await self.memory._get_db_pool()
-        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        week_start = today_start - timedelta(days=today_start.weekday())
-        month_start = today_start.replace(day=1)
-        async with pool.acquire() as conn:
-            pages_total = (await conn.fetchrow("SELECT COUNT(*) FROM agent_pages WHERE status = 'active'"))[0] or 0
-            pages_today = (await conn.fetchrow("SELECT COUNT(*) FROM agent_pages WHERE created_at >= $1", today_start))[0] or 0
-            pages_week = (await conn.fetchrow("SELECT COUNT(*) FROM agent_pages WHERE created_at >= $1", week_start))[0] or 0
-            pages_month = (await conn.fetchrow("SELECT COUNT(*) FROM agent_pages WHERE created_at >= $1", month_start))[0] or 0
-            avg_score_row = await conn.fetchrow("SELECT AVG(validation_score) FROM agent_results WHERE created_at >= $1 AND validation_score IS NOT NULL", today_start)
-            avg_score = avg_score_row[0] if avg_score_row and avg_score_row[0] else 0.0
-            published = (await conn.fetchrow("SELECT COUNT(*) FROM content_registry WHERE status = 'published'"))[0] or 0
-        return {"pages_total": pages_total, "pages_today": pages_today, "pages_this_week": pages_week, "pages_this_month": pages_month, "avg_validation_score": round(avg_score, 3), "published_content_count": published}
+    # ─── Failure handling (прокси) ───
 
+    async def handle_failure(
+        self,
+        agent_name: str,
+        error: str,
+        result: Dict[str, Any],
+    ) -> None:
+        """Обрабатывает ошибку агента."""
+        await self._cycle.handle_failure(agent_name, error, result)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Обработка сигналов для graceful shutdown
 # ═══════════════════════════════════════════════════════════════════════════════
-def setup_signal_handlers(orchestrator: Orchestrator) -> None:
+async def _async_shutdown(orchestrator: Orchestrator) -> None:
+    """P1-8: Асинхронный shutdown — ждёт завершения текущего цикла."""
+    logger.info("Graceful shutdown initiated, waiting for current cycle...")
+    orchestrator.stop()
+    # Даём циклу время завершиться (max 30 секунд)
+    for _ in range(GRACEFUL_SHUTDOWN_TIMEOUT):
+        if not orchestrator.running:
+            break
+        await asyncio.sleep(1)
+    await orchestrator.close()
+    logger.info("Graceful shutdown complete")
+
+
+def setup_signal_handlers(orchestrator: Orchestrator, loop: asyncio.AbstractEventLoop) -> None:
     """
-    Настраивает обработчики сигналов для корректной остановки.
+    P1-8: Настраивает асинхронные обработчики сигналов.
 
     Args:
         orchestrator: Экземпляр оркестратора
+        loop: Event loop для регистрации обработчиков
     """
-    def signal_handler(sig, frame):
-        logger.info(f"Получен сигнал {sig}, останавливаем оркестратор...")
-        orchestrator.stop()
+    def signal_handler() -> None:
+        logger.info("Received shutdown signal")
+        # Создаём задачу для graceful shutdown
+        asyncio.create_task(_async_shutdown(orchestrator))
 
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    try:
+        loop.add_signal_handler(signal.SIGINT, signal_handler)
+        loop.add_signal_handler(signal.SIGTERM, signal_handler)
+        logger.info("Async signal handlers registered")
+    except NotImplementedError:
+        # Fallback для Windows — используем sync signal
+        logger.warning("asyncio.add_signal_handler not supported, using fallback")
+        def sync_handler(sig, frame):
+            logger.info(f"Received signal {sig}")
+            orchestrator.stop()
+        signal.signal(signal.SIGINT, sync_handler)
+        signal.signal(signal.SIGTERM, sync_handler)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -3509,8 +3340,10 @@ async def main() -> None:
         config_path=os.getenv("AGENTS_CONFIG_PATH", "./configs"),
     )
 
-    # Настройка обработчиков сигналов
-    setup_signal_handlers(orchestrator)
+    loop = asyncio.get_running_loop()
+
+    # P1-8: Настройка асинхронных обработчиков сигналов
+    setup_signal_handlers(orchestrator, loop)
 
     try:
         # Инициализация
@@ -3519,8 +3352,8 @@ async def main() -> None:
         # Запуск бесконечного цикла
         await orchestrator.run()
 
-    except KeyboardInterrupt:
-        logger.info("Прервано пользователем")
+    except asyncio.CancelledError:
+        logger.info("Orchestrator cancelled")
     except Exception as e:
         logger.error("Критическая ошибка оркестратора", error=str(e))
         raise

@@ -12,7 +12,7 @@ sys.path.insert(0, '/opt/smart-skidka-agents')
 sys.path.insert(0, '/opt/smart-skidka-agents/scripts')
 
 from scripts.actions.telegram_actions import (
-    _RateLimiter,
+    _MemoryRateLimiter,
     get_telegram_rate_limit_status,
     TELEGRAM_POST_COOLDOWN_SECONDS,
     TELEGRAM_POST_DAILY_LIMIT,
@@ -23,7 +23,7 @@ class TestRateLimiter(unittest.IsolatedAsyncioTestCase):
     """Тесты rate limiter для Telegram."""
 
     async def asyncSetUp(self):
-        self.limiter = _RateLimiter()
+        self.limiter = _MemoryRateLimiter()
         self.limiter.last_post_time = 0.0
         self.limiter.daily_posts = []
 
@@ -84,6 +84,9 @@ class TestGlobalRateLimitStatus(unittest.IsolatedAsyncioTestCase):
 
     async def test_get_telegram_rate_limit_status(self):
         """get_telegram_rate_limit_status возвращает словарь."""
+        # P2-7 fix: Мокаем Redis для теста без подключения
+        import os
+        os.environ["REDIS_URL"] = "redis://localhost:9999/1"  # Несуществующий порт
         status = await get_telegram_rate_limit_status()
         self.assertIsInstance(status, dict)
         self.assertIn("daily_posts_count", status)

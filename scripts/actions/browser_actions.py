@@ -113,12 +113,27 @@ class CompetitorData:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# Browser Manager — управление жизненным циклом браузера
+# P1-15: Browser Manager — управление жизненным циклом браузера с лимитами
 # ═══════════════════════════════════════════════════════════════════════════════
+
+# P1-15: Константы лимитов
+DEFAULT_BROWSER_MAX_PAGES: int = int(os.getenv("BROWSER_MAX_PAGES", "10"))
+DEFAULT_BROWSER_SCREENSHOT_QUOTA: int = int(os.getenv("BROWSER_SCREENSHOT_QUOTA", "50"))
+DEFAULT_BROWSER_PAGE_TTL: int = int(os.getenv("BROWSER_PAGE_TTL", "300"))  # seconds
+DEFAULT_BROWSER_DOMAIN_WHITELIST: List[str] = os.getenv(
+    "BROWSER_DOMAIN_WHITELIST", ""
+).split(",") if os.getenv("BROWSER_DOMAIN_WHITELIST", "") else []
+
 
 class BrowserManager:
     """
     Менеджер браузера — singleton для переиспользования BrowserContext.
+    
+    P1-15: Добавлены лимиты:
+    - max_pages: максимальное количество открытых страниц
+    - screenshot_quota: лимит скриншотов за сессию
+    - page_ttl: время жизни страницы (автоматическая очистка)
+    - domain_whitelist: разрешённые домены
     
     Использует паттерн async context manager для автоматического закрытия.
     """
@@ -132,7 +147,43 @@ class BrowserManager:
             cls._instance._browser: Optional[Browser] = None
             cls._instance._context: Optional[BrowserContext] = None
             cls._instance._playwright = None
+            # P1-15: Лимиты и квоты
+            cls._instance._max_pages = DEFAULT_BROWSER_MAX_PAGES
+            cls._instance._screenshot_quota = DEFAULT_BROWSER_SCREENSHOT_QUOTA
+            cls._instance._page_ttl = DEFAULT_BROWSER_PAGE_TTL
+            cls._instance._domain_whitelist = [d.strip() for d in DEFAULT_BROWSER_DOMAIN_WHITELIST if d.strip()]
+            cls._instance._pages: Dict[Page, float] = {}  # page -> created_at timestamp
+            cls._instance._screenshots_taken: int = 0
+            cls._instance._cleanup_task: Optional[asyncio.Task] = None
         return cls._instance
+
+    def _is_domain_allowed(self, url: str) -> bool:
+        """P1-15: Проверяет, разрешён ли домен URL."""
+        if not self._domain_whitelist:
+            return True
+        from urllib.parse import urlparse
+        domain = urlparse(url).netloc.lower()
+        return any(
+            domain == allowed.lower() or domain.endswith(f".{allowed.lower()}")
+            for allowed in self._domain_whitelist
+        )
+
+    async def _cleanup_expired_pages(self) -> None:
+        """P1-15: Фоновая задача — закрывает страницы старше TTL."""
+        while True:
+            await asyncio.sleep(30)
+            now = asyncio.get_event_loop().time()
+            expired = [
+                page for page, created_at in list(self._pages.items())
+                if (now - created_at) > self._page_ttl
+            ]
+            for page in expired:
+                try:
+                    if not page.is_closed():
+                        await page.close()
+                except Exception:
+                    pass
+                self._pages.pop(page, None)
 
     async def _ensure_browser(self) -> Browser:
         """Создаёт браузер если не существует."""
@@ -142,6 +193,9 @@ class BrowserManager:
                 headless=True,
                 args=["--no-sandbox", "--disable-dev-shm-usage"],
             )
+            # P1-15: Запускаем фоновую очистку
+            if self._cleanup_task is None or self._cleanup_task.done():
+                self._cleanup_task = asyncio.create_task(self._cleanup_expired_pages())
         return self._browser
 
     async def get_context(self) -> BrowserContext:
@@ -154,13 +208,61 @@ class BrowserManager:
             )
         return self._context
 
-    async def new_page(self) -> Page:
-        """Создаёт новую страницу в контексте."""
+    async def new_page(self, url: Optional[str] = None) -> Page:
+        """
+        Создаёт новую страницу в контексте.
+        
+        P1-15: Проверяет лимиты перед созданием.
+        """
+        # P1-15: Проверка домена
+        if url and not self._is_domain_allowed(url):
+            raise PermissionError(
+                f"Domain not allowed: {url}. Allowed: {self._domain_whitelist}"
+            )
+        # P1-15: Проверка лимита страниц
+        if len(self._pages) >= self._max_pages:
+            # Закрываем самую старую страницу
+            if self._pages:
+                oldest_page = min(self._pages, key=self._pages.get)
+                try:
+                    if not oldest_page.is_closed():
+                        await oldest_page.close()
+                except Exception:
+                    pass
+                self._pages.pop(oldest_page, None)
         context = await self.get_context()
-        return await context.new_page()
+        page = await context.new_page()
+        self._pages[page] = asyncio.get_event_loop().time()
+        return page
+
+    async def take_screenshot(self, page: Page, path: str, **kwargs) -> None:
+        """
+        P1-15: Делает скриншот с учётом квоты.
+        """
+        if self._screenshots_taken >= self._screenshot_quota:
+            raise RuntimeError(
+                f"Screenshot quota exceeded: {self._screenshots_taken}/{self._screenshot_quota}"
+            )
+        await page.screenshot(path=path, **kwargs)
+        self._screenshots_taken += 1
 
     async def close(self) -> None:
         """Закрывает браузер и очищает ресурсы."""
+        # P1-15: Отменяем фоновую задачу
+        if self._cleanup_task and not self._cleanup_task.done():
+            self._cleanup_task.cancel()
+            try:
+                await self._cleanup_task
+            except asyncio.CancelledError:
+                pass
+        # Закрываем все страницы
+        for page in list(self._pages.keys()):
+            try:
+                if not page.is_closed():
+                    await page.close()
+            except Exception:
+                pass
+        self._pages.clear()
         if self._context:
             await self._context.close()
             self._context = None
@@ -177,6 +279,27 @@ class BrowserManager:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         await self.close()
+
+    def get_stats(self) -> Dict[str, Any]:
+        """P1-15: Возвращает статистику менеджера."""
+        now = asyncio.get_event_loop().time()
+        active_pages = sum(
+            1 for page in self._pages
+            if not page.is_closed()
+        )
+        expired_pages = sum(
+            1 for page, created_at in self._pages.items()
+            if (now - created_at) > self._page_ttl
+        )
+        return {
+            "max_pages": self._max_pages,
+            "active_pages": active_pages,
+            "screenshot_quota": self._screenshot_quota,
+            "screenshots_taken": self._screenshots_taken,
+            "page_ttl": self._page_ttl,
+            "domain_whitelist": self._domain_whitelist,
+            "expired_pages": expired_pages,
+        }
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -292,7 +415,7 @@ async def check_page_render(
         if take_screenshot:
             safe_name = url.replace("https://", "").replace("http://", "").replace("/", "_")[:50]
             screenshot_path = str(SCREENSHOT_DIR / f"{safe_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
-            await page.screenshot(path=screenshot_path, full_page=True)
+            await manager.take_screenshot(page, screenshot_path, full_page=True)
 
         return PageMetrics(
             url=url,
@@ -320,6 +443,7 @@ async def check_page_render(
         )
     finally:
         await page.close()
+        manager._pages.pop(page, None)
 
 
 async def measure_core_vitals(url: str, timeout: int = DEFAULT_TIMEOUT) -> Dict[str, Any]:
@@ -388,7 +512,7 @@ async def screenshot_product(
         Путь к сохранённому скриншоту
     """
     manager = BrowserManager()
-    page = await manager.new_page()
+    page = await manager.new_page(url=url)
 
     try:
         await page.goto(url, timeout=timeout, wait_until="networkidle")
@@ -397,9 +521,9 @@ async def screenshot_product(
         screenshot_path = str(SCREENSHOT_DIR / f"product_{safe_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
 
         if selector and await page.locator(selector).count() > 0:
-            await page.locator(selector).first.screenshot(path=screenshot_path)
+            await manager.take_screenshot(page, screenshot_path)
         else:
-            await page.screenshot(path=screenshot_path, full_page=full_page)
+            await manager.take_screenshot(page, screenshot_path, full_page=full_page)
 
         return screenshot_path
 
@@ -407,6 +531,7 @@ async def screenshot_product(
         raise RuntimeError(f"Screenshot failed for {url}: {e}")
     finally:
         await page.close()
+        manager._pages.pop(page, None)
 
 
 async def check_competitor(
@@ -430,7 +555,7 @@ async def check_competitor(
         CompetitorData с извлечёнными данными
     """
     manager = BrowserManager()
-    page = await manager.new_page()
+    page = await manager.new_page(url=url)
 
     try:
         await page.goto(url, timeout=timeout, wait_until="domcontentloaded")
@@ -500,6 +625,7 @@ async def check_competitor(
         return CompetitorData(url=url, product_name=f"ERROR: {str(e)[:100]}")
     finally:
         await page.close()
+        manager._pages.pop(page, None)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -573,3 +699,10 @@ async def close_browser() -> None:
     """Закрывает браузер и освобождает ресурсы."""
     manager = BrowserManager()
     await manager.close()
+
+
+# P1-15: Экспортируем stats для мониторинга
+async def get_browser_stats() -> Dict[str, Any]:
+    """Возвращает статистику BrowserManager."""
+    manager = BrowserManager()
+    return manager.get_stats()

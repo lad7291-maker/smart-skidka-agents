@@ -27,12 +27,12 @@ _REGISTRY.clear()
 
 
 @register_action("test_action", agent_types=["test"], description="Test action")
-def test_action(value: str) -> str:
+def _test_action_impl(value: str) -> str:
     return f"result:{value}"
 
 
 @register_action("test_async_action", agent_types=["test"], description="Test async action")
-async def test_async_action(value: str) -> str:
+async def _test_async_action_impl(value: str) -> str:
     return f"async_result:{value}"
 
 

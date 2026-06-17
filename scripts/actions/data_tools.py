@@ -348,7 +348,19 @@ async def marketplace_trends(
                 "error": f"HTTP {response.status}",
                 "products": [],
             }
-        data = await response.json()
+        # P2-7 fix: Обрабатываем text/plain ответ от WB
+        try:
+            data = await response.json()
+        except Exception:
+            text = await response.text()
+            try:
+                data = json.loads(text)
+            except Exception:
+                return {
+                    "success": False,
+                    "error": f"Invalid JSON response: {text[:200]}",
+                    "products": [],
+                }
 
     products = []
     for item in data.get("data", {}).get("products", [])[:limit]:
@@ -555,7 +567,9 @@ async def _reddit_scanner(
     }
 
     session = await _get_session()
-    async with session.get(url, headers=headers, params={"limit": limit * 2}, ssl=False) as response:
+    # P1-16: SSL verification configurable via env, default True
+    ssl_verify = os.getenv("REDDIT_SSL_VERIFY", "true").lower() != "false"
+    async with session.get(url, headers=headers, params={"limit": limit * 2}, ssl=ssl_verify) as response:
         if response.status != 200:
             return {
                 "success": False,

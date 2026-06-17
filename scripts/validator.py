@@ -346,10 +346,14 @@ def validate_seo_result(result: Dict[str, Any]) -> ValidationResult:
             metadata["title_optimal"] = True
 
         # Проверка на бренд
-        brand_keywords = ["smart-skidka", "смарт-скидка", "smart skidka"]
+        brand = os.getenv("BRAND_NAME", "smart-skidka")
+        brand_keywords = [brand, brand.replace("-", " "), brand.replace(".", "")]
+        # Fallback на дефолтные варианты если бренд = smart-skidka
+        if brand == "smart-skidka":
+            brand_keywords = ["smart-skidka", "смарт-скидка", "smart skidka"]
         has_brand = any(bk.lower() in title.lower() for bk in brand_keywords)
         if not has_brand:
-            warnings.append("В title отсутствует упоминание бренда smart-skidka")
+            warnings.append(f"В title отсутствует упоминание бренда {brand}")
             score -= 0.05
 
         # Проверка на спам в title (повторение ключевых слов)
@@ -633,14 +637,16 @@ def validate_smm_result(result: Dict[str, Any]) -> ValidationResult:
 
     # ─── Проверка ссылки ──────────────────────────────────────────────────────
     link = result.get("link", "")
+    brand_domain = os.getenv("BRAND_NAME", "smart-skidka.ru")
+    brand_short = brand_domain.replace(".ru", "").replace(".com", "").replace(".net", "")
     if not link:
-        warnings.append("Отсутствует ссылка на smart-skidka.ru")
+        warnings.append(f"Отсутствует ссылка на {brand_domain}")
         score -= 0.1
-    elif "smart-skidka.ru" not in link and "smart-skidka" not in link:
-        warnings.append("Ссылка не ведёт на smart-skidka.ru")
+    elif brand_domain not in link and brand_short not in link:
+        warnings.append(f"Ссылка не ведёт на {brand_domain}")
         score -= 0.1
     else:
-        metadata["has_smart_skidka_link"] = True
+        metadata["has_brand_link"] = True
 
     # ─── Проверка описания изображения ────────────────────────────────────────
     if "image_prompt" not in result and "image_description" not in result:
@@ -786,11 +792,13 @@ def validate_performance_result(result: Dict[str, Any]) -> ValidationResult:
 
     # ─── Валидация URL ────────────────────────────────────────────────────────
     final_url = result.get("final_url", "")
+    brand_domain = os.getenv("BRAND_NAME", "smart-skidka.ru")
+    brand_short = brand_domain.replace(".ru", "").replace(".com", "").replace(".net", "")
     if not final_url:
         errors.append("Отсутствует URL посадочной страницы")
         score -= 0.2
-    elif "smart-skidka.ru" not in final_url and "smart-skidka" not in final_url:
-        warnings.append("URL не ведёт на smart-skidka.ru")
+    elif brand_domain not in final_url and brand_short not in final_url:
+        warnings.append(f"URL не ведёт на {brand_domain}")
         score -= 0.1
     else:
         metadata["has_valid_url"] = True
@@ -1109,12 +1117,16 @@ def validate_email_result(result: Dict[str, Any]) -> ValidationResult:
 
     # ─── Проверка отправителя ─────────────────────────────────────────────────
     from_name = result.get("from_name", "")
+    brand = os.getenv("BRAND_NAME", "smart-skidka")
+    brand_short = brand.replace(".ru", "").replace(".com", "").replace(".net", "")
     if not from_name:
         warnings.append("Не указано имя отправителя (from_name)")
         score -= 0.1
-    elif "smart-skidka" not in from_name.lower():
-        warnings.append("Имя отправителя не содержит smart-skidka")
+    elif brand_short not in from_name.lower():
+        warnings.append(f"Имя отправителя не содержит {brand_short}")
         score -= 0.05
+    else:
+        metadata["has_brand_from_name"] = True
 
     # ─── Итоговая оценка ──────────────────────────────────────────────────────
     final_score = max(0.0, min(1.0, score))
@@ -1341,13 +1353,16 @@ def check_uniqueness(text: str, reference_texts: Optional[List[str]] = None) -> 
         "shingles_count": total_shingles,
     }
 
-    # Если нет референсных текстов — возвращаем условную высокую уникальность
+    # P1-12: Без референсных текстов проверка невозможна
     if not reference_texts:
-        logger.info(
+        logger.warning(
             "Проверка уникальности без референсных текстов",
             shingles=total_shingles,
         )
-        return 0.95  # Предполагаем высокую уникальность при отсутствии базы
+        raise ValueError(
+            "reference_texts is required for uniqueness check. "
+            "Pass a list of reference texts or use an external plagiarism API."
+        )
 
     # Сравнение с референсными текстами
     max_similarity = 0.0

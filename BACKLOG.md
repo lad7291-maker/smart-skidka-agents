@@ -41,6 +41,13 @@
 | ~~P1-7~~ | ~~Внедрить LLM-as-a-Judge для валидации контента~~ | `scripts/llm_judge.py` (новый) | ✅ **ИСПРАВЛЕНО** — создан `scripts/llm_judge.py` (500+ строк) с `LLMJudge` (через LLM API) и `HeuristicJudge` (fallback без LLM). Критерии: relevance, readability, structure, usefulness, no_hallucinations. Есть `combined_validate()` для объединения rule-based + judge. 8 тестов проходят. | Готово |
 | ~~P1-8~~ | ~~Добавить browser-based агент для веб-навигации~~ | `scripts/actions/browser_actions.py` (новый) | ✅ **ИСПРАВЛЕНО** — создан `scripts/actions/browser_actions.py` (563 строки) с `BrowserManager` (singleton Playwright), `check_page_render()` (meta, headings, structured data), `measure_core_vitals()` (LCP/CLS/load ratings + recommendations), `screenshot_product()`, `check_competitor()` (auto-detect selectors), batch-операции с semaphore. 10 тестов проходят. | **Готово** |
 | ~~P1-9~~ | ~~Защитить `products.json` от перезаписи~~ | `scripts/actions/file_utils.py`, `scripts/actions/site_actions.py` | ✅ **ИСПРАВЛЕНО** — добавлен whitelist полей: `PRODUCTS_ALLOWED_FIELDS = {description, badge, priority, discount, promo_code, expires_at}` и `PRODUCTS_PROTECTED_FIELDS = {id, name, price, original_price, image, category, link, rating, reviews}`. Все actions (`update_item_description`, `add_badge`, `update_product_field`) проверяют поля перед записью. 10 тестов проходят. | Готово |
+| **P1-2** | **Параллельный запуск агентов** | `scripts/services/cycle_manager.py` | ✅ **ИСПРАВЛЕНО** — `asyncio.gather()` + `Semaphore(MAX_PARALLEL_AGENTS)` с приоритетными группами: trend → seo/smm/performance → analytics → email → content. Per-agent error isolation через try/except в `_run_with_semaphore()`. | **Готово** |
+| **P1-3** | **Token-bucket rate limiter для LLM** | `scripts/orchestrator.py` | ✅ **ИСПРАВЛЕНО** — `TokenBucketRateLimiter` (RPM/TPM) с динамической подстройкой из заголовков ответа (`x-ratelimit-limit-requests`, `x-ratelimit-limit-tokens`). Интегрирован в `LLMClient.generate()`. | **Готово** |
+| **P1-11** | **Prompt Injection Protection** | `scripts/orchestrator.py` | ✅ **ИСПРАВЛЕНО** — защита от: zero-width chars (U+200B–U+2064), base64-обфускации (с исключением однородных строк), unicode obfuscation. Дополнение к существующим regex-паттернам и markdown-экранированию. | **Готово** |
+| **P1-15** | **BrowserManager лимиты** | `scripts/actions/browser_actions.py` | ✅ **ИСПРАВЛЕНО** — max_pages (LRU eviction при превышении), screenshot_quota (квота за сессию), page_ttl (фоновая очистка каждые 30 сек), domain_whitelist (разрешённые домены через env). | **Готово** |
+| **P1-17** | **Audit log persistence** | `scripts/secrets_manager.py` | ✅ **ИСПРАВЛЕНО** — `AuditLog` теперь загружает записи из файла при старте (`_load_from_file`) и дописывает новые в JSON Lines (`_append_to_file`). Путь через `AUDIT_LOG_FILE` env. Ротация по `max_entries`. | **Готово** |
+| **P1-18** | **A/B testing для content/smm** | `scripts/orchestrator.py` | ✅ **ИСПРАВЛЕНО** — `AgentRunner.run()` интегрирован с `ABTestEnabledConfig`: выбор варианта промпта при `ab_test: true` в конфиге, запись validation score после успешного запуска. | **Готово** |
+| **P1-19** | **Temperature calibration** | `scripts/temperature_calibration.py` | ✅ **ИСПРАВЛЕНО** — multi-arm bandit (5 arms: 0.3–0.9), epsilon-greedy (ε=0.2), forced exploration до `min_runs_per_arm`, EMA score tracking. JSON-персистентность per-agent. 18 тестов проходят. | **Готово** |
 
 ---
 
@@ -134,6 +141,13 @@
 | P1-6 — Оптимизировать Redis в telegram_bot | ✅ | 30 мин |
 | P1-7 — LLM-as-a-Judge + HeuristicJudge | ✅ | 3 часа |
 | P1-9 — Защита `products.json` (whitelist) | ✅ | 1 час |
+| P1-2 — Параллельный запуск агентов (asyncio.gather) | ✅ | 2 часа |
+| P1-3 — Token-bucket rate limiter для LLM API | ✅ | 2 часа |
+| P1-11 — Prompt Injection Protection (unicode, zero-width, base64) | ✅ | 1 час |
+| P1-15 — BrowserManager лимиты (max_pages, screenshot quota, TTL, whitelist) | ✅ | 2 часа |
+| P1-17 — Audit log persistence для secrets_manager | ✅ | 1 час |
+| P1-18 — A/B testing интеграция для content/smm | ✅ | 1 час |
+| P1-19 — Temperature calibration (multi-arm bandit, ε-greedy) | ✅ | 2 часа |
 | P2-1 — Объединить валидаторы | ✅ | 2 часа |
 | P2-2 — Rate limiting LLM | ✅ | 1 час |
 | P2-3 — Health-check endpoint | ✅ | 30 мин |

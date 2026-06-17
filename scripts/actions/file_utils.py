@@ -14,10 +14,24 @@ from datetime import datetime
 from typing import Optional
 
 # Пути к проекту
-SITE_ROOT = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp"))
+SITE_ROOT = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp")).resolve()
 PRODUCTS_JSON = SITE_ROOT / "products.json"
 INDEX_HTML = SITE_ROOT / "index.html"
 ITEMS_DIR = SITE_ROOT / "item"
+
+
+def _resolve_within_site_root(path: Path) -> Path:
+    """Проверяет, что путь находится внутри SITE_ROOT (защита от path traversal)."""
+    resolved = path.resolve()
+    # Приводим к общему виду для сравнения
+    try:
+        resolved.relative_to(SITE_ROOT)
+    except ValueError:
+        raise ValueError(
+            f"Path traversal detected: {resolved} is outside SITE_ROOT {SITE_ROOT}"
+        )
+    return resolved
+
 
 def _backup_path(target: Path) -> Path:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -26,19 +40,27 @@ def _backup_path(target: Path) -> Path:
 def safe_read(path: Path) -> str:
     """Читает файл, возвращает пустую строку если не найден."""
     try:
+        _resolve_within_site_root(path)
         return path.read_text(encoding="utf-8")
     except FileNotFoundError:
+        return ""
+    except ValueError:
+        # Path traversal — silently return empty
         return ""
 
 def safe_write(path: Path, content: str, make_backup: bool = True) -> bool:
     """
     Атомарно пишет файл с бэкапом.
-    1. Делает бэкап оригинала
-    2. Пишет во временный файл
-    3. Перемещает (атомарно)
-    4. При ошибке — откатывает из бэкапа
+    1. Проверяет, что путь внутри SITE_ROOT
+    2. Делает бэкап оригинала
+    3. Пишет во временный файл
+    4. Перемещает (атомарно)
+    5. При ошибке — откатывает из бэкапа
     """
+    backup: Optional[Path] = None
     try:
+        _resolve_within_site_root(path)
+
         if make_backup and path.exists():
             backup = _backup_path(path)
             shutil.copy2(path, backup)
@@ -48,10 +70,12 @@ def safe_write(path: Path, content: str, make_backup: bool = True) -> bool:
         tmp.rename(path)
         return True
     except Exception as e:
-        # rollback
-        backup = _backup_path(path)
-        if backup.exists():
-            shutil.copy2(backup, path)
+        # rollback из сохранённого бэкапа
+        if backup is not None and backup.exists():
+            try:
+                shutil.copy2(backup, path)
+            except Exception as rollback_err:
+                print(f"[ERROR] rollback failed for {path}: {rollback_err}")
         print(f"[ERROR] safe_write failed for {path}: {e}")
         return False
 

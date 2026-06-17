@@ -105,11 +105,54 @@ class TestDashboardHandlers(AioHTTPTestCase):
         d.DASHBOARD_API_KEY = ""  # reset
 
     @unittest_run_loop
-    async def test_cors_headers(self):
-        """CORS headers присутствуют."""
+    async def test_cors_headers_no_whitelist(self):
+        """P1-4: Без CORS_WHITELIST заголовки CORS не добавляются."""
         resp = await self.client.request("GET", "/health")
+        self.assertNotIn("Access-Control-Allow-Origin", resp.headers)
+
+    @unittest_run_loop
+    async def test_cors_headers_with_whitelist(self):
+        """P1-4: CORS заголовки только для разрешённого origin."""
+        import scripts.dashboard as d
+        d._CORS_ALLOWED_ORIGINS = {"https://example.com"}
+        resp = await self.client.request(
+            "GET", "/health", headers={"Origin": "https://example.com"}
+        )
         self.assertIn("Access-Control-Allow-Origin", resp.headers)
-        self.assertEqual(resp.headers["Access-Control-Allow-Origin"], "*")
+        self.assertEqual(resp.headers["Access-Control-Allow-Origin"], "https://example.com")
+        # Неразрешённый origin — без CORS
+        resp2 = await self.client.request(
+            "GET", "/health", headers={"Origin": "https://evil.com"}
+        )
+        self.assertNotIn("Access-Control-Allow-Origin", resp2.headers)
+        d._CORS_ALLOWED_ORIGINS = set()  # reset
+
+    @unittest_run_loop
+    async def test_metrics_requires_auth(self):
+        """P1-6: GET /metrics требует API key."""
+        import scripts.dashboard as d
+        d.DASHBOARD_API_KEY = "test_key"
+        # Без ключа — 401
+        resp = await self.client.request("GET", "/metrics")
+        self.assertEqual(resp.status, 401)
+        # С ключом в заголовке — 200
+        resp2 = await self.client.request(
+            "GET", "/metrics", headers={"X-API-Key": "test_key"}
+        )
+        self.assertEqual(resp2.status, 200)
+        d.DASHBOARD_API_KEY = ""  # reset
+
+    @unittest_run_loop
+    async def test_api_key_only_in_header(self):
+        """P1-5: API key в query params не принимается."""
+        import scripts.dashboard as d
+        d.DASHBOARD_API_KEY = "test_key"
+        # Query param не должен работать
+        resp = await self.client.request(
+            "POST", "/api/agents/seo-agent/pause?api_key=test_key"
+        )
+        self.assertEqual(resp.status, 401)
+        d.DASHBOARD_API_KEY = ""  # reset
 
 
 class TestDashboardUnit(unittest.TestCase):

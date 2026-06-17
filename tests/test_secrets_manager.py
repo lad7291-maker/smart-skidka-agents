@@ -359,11 +359,18 @@ class TestConvenienceFunctions(unittest.TestCase):
         self.assertEqual(val, "my_value")
 
     def test_get_secret_fallback_to_env(self):
-        """get_secret fallback на env если нет в storage."""
+        """get_secret fallback на env если нет в storage и allow_env_fallback=True."""
         os.environ["ENV_ONLY_KEY"] = "env_value"
-        val = get_secret("ENV_ONLY_KEY")
+        val = get_secret("ENV_ONLY_KEY", allow_env_fallback=True)
         self.assertEqual(val, "env_value")
         del os.environ["ENV_ONLY_KEY"]
+
+    def test_get_secret_no_fallback_by_default(self):
+        """get_secret НЕ fallback на env по умолчанию."""
+        os.environ["ENV_ONLY_KEY2"] = "env_value"
+        val = get_secret("ENV_ONLY_KEY2")
+        self.assertIsNone(val)
+        del os.environ["ENV_ONLY_KEY2"]
 
     def test_get_secret_with_default(self):
         """get_secret возвращает default если нигде нет."""

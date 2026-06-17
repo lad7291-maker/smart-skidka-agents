@@ -382,7 +382,7 @@ class TestOrchestratorContentMetrics(unittest.IsolatedAsyncioTestCase):
         mock_pool.acquire = MagicMock(return_value=mock_cm)
         self.orch.memory._db_pool = mock_pool
 
-        metrics = await self.orch._get_content_metrics()
+        metrics = await self.orch._reports._get_content_metrics()
         self.assertEqual(metrics["pages_total"], 0)
         self.assertEqual(metrics["pages_today"], 0)
         self.assertEqual(metrics["pages_this_week"], 0)
@@ -392,7 +392,7 @@ class TestOrchestratorContentMetrics(unittest.IsolatedAsyncioTestCase):
 
     async def test_content_metrics_structure(self):
         """Структура метрик контента корректна."""
-        metrics = await self.orch._get_content_metrics()
+        metrics = await self.orch._reports._get_content_metrics()
         required_keys = [
             "pages_total", "pages_today", "pages_this_week",
             "pages_this_month", "avg_validation_score", "published_content_count",
@@ -469,12 +469,12 @@ class TestOrchestratorFeedbackLoop(unittest.IsolatedAsyncioTestCase):
     async def test_feedback_no_db(self):
         """Feedback без БД возвращает None."""
         self.orch.memory = None
-        feedback = await self.orch._get_feedback_for_agent("seo", limit=5)
+        feedback = await self.orch._cycle._get_feedback_for_agent("seo", limit=5)
         self.assertIsNone(feedback)
 
     async def test_feedback_empty_results(self):
         """Feedback с пустыми результатами возвращает структуру с пустыми списками."""
-        feedback = await self.orch._get_feedback_for_agent("seo", limit=5)
+        feedback = await self.orch._cycle._get_feedback_for_agent("seo", limit=5)
         # Mock возвращает пустой список rows → метод возвращает структуру с пустыми runs
         self.assertIsNotNone(feedback)
         self.assertEqual(feedback["runs"], [])

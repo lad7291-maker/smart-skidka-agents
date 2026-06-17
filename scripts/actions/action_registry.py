@@ -157,6 +157,7 @@ class ActionDispatcher:
         self,
         action_name: str,
         params: Dict[str, Any],
+        agent_type: Optional[str] = None,
     ) -> Any:
         """
         Выполняет один action по имени с заданными параметрами.
@@ -164,16 +165,35 @@ class ActionDispatcher:
         Args:
             action_name: Имя зарегистрированного action
             params: Словарь аргументов для функции
+            agent_type: Тип агента для RBAC-проверки (например, "seo", "smm")
 
         Returns:
             Результат выполнения action
+
+        Raises:
+            ValueError: Если action не найден
+            PermissionError: Если агенту не разрешён этот action
         """
         action_def = get_action(action_name)
         if action_def is None:
             raise ValueError(f"Action '{action_name}' not found in registry. "
                            f"Available: {list(_REGISTRY.keys())}")
 
-        self.logger.debug("executing_action", name=action_name, params_keys=list(params.keys()))
+        # RBAC-проверка: агент должен быть в списке разрешённых типов
+        if agent_type is not None and action_def.agent_types:
+            if agent_type not in action_def.agent_types:
+                self.logger.warning(
+                    "rbac_denied",
+                    action=action_name,
+                    agent_type=agent_type,
+                    allowed=action_def.agent_types,
+                )
+                raise PermissionError(
+                    f"Agent type '{agent_type}' is not allowed to execute action '{action_name}'. "
+                    f"Allowed types: {action_def.agent_types}"
+                )
+
+        self.logger.debug("executing_action", name=action_name, params_keys=list(params.keys()), agent_type=agent_type)
 
         # Фильтруем параметры — оставляем только те, что принимает функция
         sig = inspect.signature(action_def.func)
@@ -244,10 +264,16 @@ class ActionDispatcher:
                 action_log.append(f"{action_name}:SKIPPED")
                 continue
 
-            # Выполняем action
+            # Определяем тип агента из конфигурации для RBAC
+            agent_type = agent_config.get("agent_type") or agent_config.get("agent_name", "").split("-")[0]
+
+            # Выполняем action с RBAC-проверкой
             try:
-                result = await self.execute(action_name, params)
+                result = await self.execute(action_name, params, agent_type=agent_type)
                 action_log.append(f"{action_name}:{result}")
+            except PermissionError as e:
+                action_log.append(f"{action_name}:RBAC_DENIED:{str(e)[:50]}")
+                self.logger.warning("action_execution_denied", name=action_name, agent_type=agent_type, error=str(e))
             except Exception as e:
                 action_log.append(f"{action_name}:ERROR:{str(e)[:50]}")
                 self.logger.error("action_execution_failed", name=action_name, error=str(e))

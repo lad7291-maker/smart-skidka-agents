@@ -107,7 +107,7 @@ class LLMJudge:
                 "content": "",
             }
 
-        session = await _get_session()
+        session = await self._get_session()
         payload = {
             "model": self.model,
             "messages": [

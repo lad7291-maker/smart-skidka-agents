@@ -25,6 +25,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import json
@@ -33,7 +34,7 @@ import secrets
 import structlog
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -100,16 +101,68 @@ class AuditEntry:
 
 
 class AuditLog:
-    """In-memory audit log with optional file persistence."""
+    """In-memory audit log with file persistence."""
 
-    def __init__(self, max_entries: int = 1000):
+    def __init__(self, max_entries: int = 1000,
+                 audit_file: Optional[Path] = None):
         self._entries: List[AuditEntry] = []
         self._max_entries = max_entries
+        # P1-17: Персистентный audit log
+        self._audit_file = audit_file or Path(
+            os.getenv("AUDIT_LOG_FILE", "logs/audit.log")
+        )
+        self._lock = asyncio.Lock()
+        self._load_from_file()
+
+    def _load_from_file(self) -> None:
+        """P1-17: Загружает audit entries из файла при инициализации."""
+        if not self._audit_file.exists():
+            return
+        try:
+            with open(self._audit_file, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        data = json.loads(line)
+                        self._entries.append(AuditEntry(
+                            timestamp=data.get("timestamp", ""),
+                            action=data.get("action", ""),
+                            key=data.get("key", ""),
+                            role=data.get("role", ""),
+                            success=data.get("success", False),
+                            error=data.get("error"),
+                        ))
+                    except (json.JSONDecodeError, KeyError):
+                        continue
+            # Ограничиваем размер
+            if len(self._entries) > self._max_entries:
+                self._entries = self._entries[-self._max_entries:]
+        except Exception as e:
+            logger.warning("Failed to load audit log", error=str(e))
+
+    async def _append_to_file(self, entry: AuditEntry) -> None:
+        """P1-17: Дописывает entry в audit log файл."""
+        try:
+            self._audit_file.parent.mkdir(parents=True, exist_ok=True)
+            line = json.dumps({
+                "timestamp": entry.timestamp,
+                "action": entry.action,
+                "key": entry.key,
+                "role": entry.role,
+                "success": entry.success,
+                "error": entry.error,
+            }, ensure_ascii=False)
+            with open(self._audit_file, "a", encoding="utf-8") as f:
+                f.write(line + "\n")
+        except Exception as e:
+            logger.warning("Failed to write audit log", error=str(e))
 
     def record(self, action: str, key: str, role: str, success: bool,
                error: Optional[str] = None) -> None:
         entry = AuditEntry(
-            timestamp=datetime.utcnow().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             action=action,
             key=key,
             role=role,
@@ -119,6 +172,13 @@ class AuditLog:
         self._entries.append(entry)
         if len(self._entries) > self._max_entries:
             self._entries = self._entries[-self._max_entries:]
+        # P1-17: Асинхронно пишем в файл
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._append_to_file(entry))
+        except RuntimeError:
+            # Нет running loop — пропускаем async запись
+            pass
 
     def get_entries(self, key: Optional[str] = None, action: Optional[str] = None,
                     limit: int = 100) -> List[Dict[str, Any]]:
@@ -267,8 +327,8 @@ class SecretsManager:
                 self._secrets[key] = SecretEntry(
                     value=plaintext,
                     level=SecretLevel(entry_data.get("level", "sensitive")),
-                    created_at=entry_data.get("created_at", datetime.utcnow().isoformat()),
-                    updated_at=entry_data.get("updated_at", datetime.utcnow().isoformat()),
+                    created_at=entry_data.get("created_at", datetime.now(timezone.utc).isoformat()),
+                    updated_at=entry_data.get("updated_at", datetime.now(timezone.utc).isoformat()),
                     description=entry_data.get("description", ""),
                     tags=entry_data.get("tags", []),
                 )
@@ -281,7 +341,7 @@ class SecretsManager:
         data: Dict[str, Any] = {
             "_meta": {
                 "version": "1.0",
-                "created": datetime.utcnow().isoformat(),
+                "created": datetime.now(timezone.utc).isoformat(),
                 "count": len(self._secrets),
             }
         }
@@ -337,7 +397,7 @@ class SecretsManager:
             logger.warning("Write denied", key=key, role=role.value, level=level.value)
             return False
 
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         existing = self._secrets.get(key)
 
         self._secrets[key] = SecretEntry(
@@ -390,7 +450,7 @@ class SecretsManager:
                     value=value,
                     level=entry.level,
                     created_at=entry.created_at,
-                    updated_at=datetime.utcnow().isoformat(),
+                    updated_at=datetime.now(timezone.utc).isoformat(),
                     description=entry.description,
                     tags=entry.tags,
                 )
@@ -445,7 +505,7 @@ class SecretsManager:
             if value:
                 level = SecretLevel.CRITICAL if "URL" in key or "DB" in key else SecretLevel.SENSITIVE
                 success = self.set(key, value, role=Role.ADMIN, level=level,
-                                  description=f"Migrated from env on {datetime.utcnow().isoformat()}")
+                                  description=f"Migrated from env on {datetime.now(timezone.utc).isoformat()}")
                 results[key] = success
                 if success:
                     logger.info("Migrated secret from env", key=key)
@@ -469,7 +529,8 @@ def get_manager() -> SecretsManager:
 
 
 def get_secret(key: str, default: Optional[str] = None,
-               role: str = "read") -> Optional[str]:
+               role: str = "read",
+               allow_env_fallback: bool = False) -> Optional[str]:
     """
     Drop-in replacement for os.getenv() with encryption.
 
@@ -477,6 +538,7 @@ def get_secret(key: str, default: Optional[str] = None,
         key: Secret key name
         default: Default value if not found
         role: Access role (read/write/admin)
+        allow_env_fallback: Если True — fallback на os.getenv при отсутствии в хранилище
 
     Returns:
         Decrypted secret value or default
@@ -490,8 +552,10 @@ def get_secret(key: str, default: Optional[str] = None,
     except Exception as e:
         logger.debug("Secrets manager not available, falling back to env", error=str(e))
 
-    # Fallback to environment variable
-    return os.getenv(key, default)
+    # Fallback to environment variable only if explicitly allowed
+    if allow_env_fallback:
+        return os.getenv(key, default)
+    return default
 
 
 def set_secret(key: str, value: str, role: str = "admin",

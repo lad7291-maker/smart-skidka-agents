@@ -96,7 +96,7 @@ class TestPromptInjectionProtection(unittest.TestCase):
 
     def test_sanitize_long_string(self):
         """Длинная строка обрезается."""
-        val = self.runner._sanitize_context_value("A" * 5000)
+        val = self.runner._sanitize_context_value("B" * 5000)
         self.assertTrue(len(val) < 3000)
         self.assertIn("truncated", val)
 
