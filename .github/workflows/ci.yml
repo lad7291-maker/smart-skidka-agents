@@ -71,6 +71,15 @@ jobs:
         run: |
           alembic upgrade head
 
+      - name: Create test project structure
+        run: |
+          mkdir -p /tmp/test-site
+          echo '<!DOCTYPE html><html><head><title>SmartSkidka</title></head><body></body></html>' > /tmp/test-site/index.html
+          echo '[{"id":1,"itemId":"item1","title":"Test"}]' > /tmp/test-site/products.json
+          echo '{"site_name":"Test"}' > /tmp/test-site/site.json
+          mkdir -p /tmp/test-site/guides
+          echo '# Guide' > /tmp/test-site/guides/test.md
+
       - name: Run tests
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/agents_test
@@ -80,6 +89,7 @@ jobs:
           TELEGRAM_CHAT_ID: test-chat
           DASHBOARD_API_KEY: test-dashboard-key
           SECRETS_MASTER_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          PROJECT_ROOT: /tmp/test-site
         run: |
           python -m pytest tests/ -v --tb=short --cov=scripts --cov-report=xml --cov-report=term
 
