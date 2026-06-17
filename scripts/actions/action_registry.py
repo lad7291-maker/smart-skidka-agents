@@ -32,7 +32,7 @@ import functools
 import importlib
 import inspect
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional
 
 import structlog
 
@@ -177,7 +177,7 @@ class ActionDispatcher:
         action_def = get_action(action_name)
         if action_def is None:
             raise ValueError(f"Action '{action_name}' not found in registry. "
-                           f"Available: {list(_REGISTRY.keys())}")
+                             f"Available: {list(_REGISTRY.keys())}")
 
         # RBAC-проверка: агент должен быть в списке разрешённых типов
         if agent_type is not None and action_def.agent_types:

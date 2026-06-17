@@ -35,16 +35,13 @@ Example:
 from __future__ import annotations
 
 import hashlib
-import json
-import math
 import os
 import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set
 
-import aiohttp
 import structlog
 from dotenv import load_dotenv
 
@@ -1091,7 +1088,7 @@ def validate_email_result(result: Dict[str, Any]) -> ValidationResult:
 
         # Проверка CTA
         cta_patterns = ["перейти", "подробнее", "узнать", "смотреть", "купить",
-                       "заказать", "скачать", "получить", "подписаться", "button"]
+                        "заказать", "скачать", "получить", "подписаться", "button"]
         has_cta = any(cta in body.lower() for cta in cta_patterns)
         if not has_cta:
             warnings.append("Отсутствует явный призыв к действию (CTA)")
@@ -1765,7 +1762,7 @@ if __name__ == "__main__":
     seo_result = {
         "title": "Лучшие скидки на электронику — smart-skidka.ru 2024",
         "meta_description": "Найдите лучшие скидки на электронику в интернет-магазинах. "
-                          "Сравнивайте цены и экономьте до 50% на покупках вместе с smart-skidka.ru.",
+        "Сравнивайте цены и экономьте до 50% на покупках вместе с smart-skidka.ru.",
         "keywords": ["скидки", "электроника", "дешевые гаджеты", "распродажа", "сравнение цен"],
         "h1": "Скидки на электронику: лучшие предложения",
     }

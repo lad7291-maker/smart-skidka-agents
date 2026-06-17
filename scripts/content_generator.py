@@ -37,12 +37,10 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import random
 import time
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import aiohttp
 import structlog
@@ -51,7 +49,6 @@ from dotenv import load_dotenv
 # ═══════════════════════════════════════════════════════════════════════════════
 # Загрузка переменных окружения
 # ═══════════════════════════════════════════════════════════════════════════════
-import os
 _env_loaded = load_dotenv()
 if not _env_loaded and not os.getenv("LLM_API_KEY"):
     import warnings
@@ -756,11 +753,14 @@ class ContentGenerator:
     ) -> Dict[str, Any]:
         """Создаёт базовый гайд при ошибке LLM."""
         default_steps = [
-            {"title": "Определите свои потребности", "description": "Подумайте, что именно вам нужно и какой бюджет вы готовы выделить."},
+            {"title": "Определите свои потребности",
+                "description": "Подумайте, что именно вам нужно и какой бюджет вы готовы выделить."},
             {"title": "Изучите рынок", "description": "Посмотрите актуальные предложения на smart-skidka.ru и сравните цены."},
             {"title": "Сравните характеристики", "description": "Обратите внимание на ключевые параметры и отзывы покупателей."},
-            {"title": "Выберите лучшее предложение", "description": "Используйте фильтры и сортировку для поиска оптимального варианта."},
-            {"title": "Оформите покупку со скидкой", "description": "Не забудьте применить промокод или перейти по специальной ссылке."},
+            {"title": "Выберите лучшее предложение",
+                "description": "Используйте фильтры и сортировку для поиска оптимального варианта."},
+            {"title": "Оформите покупку со скидкой",
+                "description": "Не забудьте применить промокод или перейти по специальной ссылке."},
         ]
 
         return {

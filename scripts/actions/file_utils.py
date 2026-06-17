@@ -37,6 +37,7 @@ def _backup_path(target: Path) -> Path:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     return Path(str(target) + f".bak.{ts}")
 
+
 def safe_read(path: Path) -> str:
     """Читает файл, возвращает пустую строку если не найден."""
     try:
@@ -47,6 +48,7 @@ def safe_read(path: Path) -> str:
     except ValueError:
         # Path traversal — silently return empty
         return ""
+
 
 def safe_write(path: Path, content: str, make_backup: bool = True) -> bool:
     """
@@ -79,12 +81,14 @@ def safe_write(path: Path, content: str, make_backup: bool = True) -> bool:
         print(f"[ERROR] safe_write failed for {path}: {e}")
         return False
 
+
 def safe_read_json(path: Path) -> dict:
     """Читает JSON, возвращает {} при ошибке."""
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return {}
+
 
 def safe_write_json(path: Path, data: dict) -> bool:
     """Атомарно пишет JSON с бэкапом."""
@@ -95,11 +99,14 @@ def safe_write_json(path: Path, data: dict) -> bool:
         print(f"[ERROR] safe_write_json failed: {e}")
         return False
 
+
 def read_site_html() -> str:
     return safe_read(INDEX_HTML)
 
+
 def write_site_html(content: str) -> bool:
     return safe_write(INDEX_HTML, content)
+
 
 def read_products() -> dict:
     data = safe_read_json(PRODUCTS_JSON)
@@ -108,6 +115,7 @@ def read_products() -> dict:
     return data if isinstance(data, dict) else {}
 
 # ─── P1-9: Защита products.json — whitelist операций ─────────────────────
+
 
 # Разрешённые поля для обновления через агентов
 PRODUCTS_ALLOWED_FIELDS = {
@@ -152,6 +160,7 @@ def write_products(data: dict, validate: bool = False) -> bool:
         return safe_write_json(PRODUCTS_JSON, data["products"])
     return safe_write_json(PRODUCTS_JSON, data)
 
+
 def list_items() -> list:
     """Список всех HTML-страниц товаров."""
     if not ITEMS_DIR.exists():
@@ -164,11 +173,11 @@ def list_items() -> list:
 def git_commit_file(path: Path, message: Optional[str] = None) -> bool:
     """
     Автоматически коммитит изменённый файл в git.
-    
+
     Args:
         path: Путь к файлу
         message: Сообщение коммита (auto-generated если None)
-    
+
     Returns:
         True если коммит создан или файл уже в git
     """
@@ -233,13 +242,13 @@ def safe_write_with_git(path: Path, content: str, make_backup: bool = True,
                         git_message: Optional[str] = None) -> bool:
     """
     Атомарная запись + автоматический git-коммит.
-    
+
     Args:
         path: Путь к файлу
         content: Содержимое
         make_backup: Создавать ли бэкап
         git_message: Сообщение коммита
-    
+
     Returns:
         True если запись успешна (git-коммит опционален)
     """

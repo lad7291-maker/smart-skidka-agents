@@ -25,7 +25,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import structlog
 
@@ -218,7 +218,7 @@ class Checkers:
         if similarity <= threshold:
             return 1.0, f"Поля достаточно разные (sim={similarity:.2f})"
         return max(0.0, 1.0 - (similarity - threshold) / (1 - threshold)), \
-               f"Поля слишком похожи (sim={similarity:.2f})"
+            f"Поля слишком похожи (sim={similarity:.2f})"
 
     @staticmethod
     def has_structure(data: Dict[str, Any], field: str, required_keys: List[str]) -> Tuple[float, str]:
@@ -339,11 +339,16 @@ SEO_SUBGOALS: List[Dict[str, Any]] = [
 # SMM subgoals
 SMM_SUBGOALS: List[Dict[str, Any]] = [
     {"name": "text_exists", "weight": 0.20, "check": lambda d: Checkers.field_exists(d, "text"), "binary": True},
-    {"name": "text_length", "weight": 0.15, "check": lambda d: Checkers.string_length(d, "text", 50, 2200), "binary": False},
-    {"name": "has_cta", "weight": 0.10, "check": lambda d: Checkers.contains_any(d, "text", ["перейти", "купить", "узнать", "подробнее"]), "binary": True},
-    {"name": "has_hashtags", "weight": 0.10, "check": lambda d: ("#" in d.get("text", ""), "Hashtags found" if "#" in d.get("text", "") else "No hashtags"), "binary": True},
-    {"name": "has_link", "weight": 0.15, "check": lambda d: Checkers.contains_any(d, "text", ["http://", "https://", "smart-skidka.ru"]), "binary": True},
-    {"name": "image_attached", "weight": 0.15, "check": lambda d: Checkers.field_exists(d, "image_url"), "binary": True},
+    {"name": "text_length", "weight": 0.15, "check": lambda d: Checkers.string_length(
+        d, "text", 50, 2200), "binary": False},
+    {"name": "has_cta", "weight": 0.10, "check": lambda d: Checkers.contains_any(
+        d, "text", ["перейти", "купить", "узнать", "подробнее"]), "binary": True},
+    {"name": "has_hashtags", "weight": 0.10, "check": lambda d: ("#" in d.get(
+        "text", ""), "Hashtags found" if "#" in d.get("text", "") else "No hashtags"), "binary": True},
+    {"name": "has_link", "weight": 0.15, "check": lambda d: Checkers.contains_any(
+        d, "text", ["http://", "https://", "smart-skidka.ru"]), "binary": True},
+    {"name": "image_attached", "weight": 0.15,
+        "check": lambda d: Checkers.field_exists(d, "image_url"), "binary": True},
     {"name": "platform_optimal", "weight": 0.15, "check": lambda d: _check_platform_optimal(d), "binary": False},
 ]
 
@@ -366,18 +371,24 @@ CONTENT_SUBGOALS: List[Dict[str, Any]] = [
     {"name": "title_exists", "weight": 0.10, "check": lambda d: Checkers.field_exists(d, "title"), "binary": True},
     {"name": "content_exists", "weight": 0.20, "check": lambda d: Checkers.field_exists(d, "content"), "binary": True},
     {"name": "content_length", "weight": 0.15, "check": lambda d: _check_content_length(d), "binary": False},
-    {"name": "has_headings", "weight": 0.10, "check": lambda d: ("<h" in d.get("content", ""), "Has headings" if "<h" in d.get("content", "") else "No headings"), "binary": True},
-    {"name": "has_internal_links", "weight": 0.10, "check": lambda d: Checkers.list_size(d, "internal_links", 1, 20), "binary": False},
-    {"name": "has_image", "weight": 0.10, "check": lambda d: Checkers.field_exists(d, "featured_image"), "binary": True},
-    {"name": "has_keywords", "weight": 0.10, "check": lambda d: Checkers.list_size(d, "keywords", 1, 10), "binary": False},
-    {"name": "content_type_valid", "weight": 0.10, "check": lambda d: (d.get("content_type") in ["article", "guide", "review", "news", "comparison", "product_description"], f"Type: {d.get('content_type', 'missing')}"), "binary": True},
+    {"name": "has_headings", "weight": 0.10, "check": lambda d: ("<h" in d.get(
+        "content", ""), "Has headings" if "<h" in d.get("content", "") else "No headings"), "binary": True},
+    {"name": "has_internal_links", "weight": 0.10, "check": lambda d: Checkers.list_size(
+        d, "internal_links", 1, 20), "binary": False},
+    {"name": "has_image", "weight": 0.10, "check": lambda d: Checkers.field_exists(
+        d, "featured_image"), "binary": True},
+    {"name": "has_keywords", "weight": 0.10, "check": lambda d: Checkers.list_size(
+        d, "keywords", 1, 10), "binary": False},
+    {"name": "content_type_valid", "weight": 0.10, "check": lambda d: (d.get("content_type") in [
+                                                                       "article", "guide", "review", "news", "comparison", "product_description"], f"Type: {d.get('content_type', 'missing')}"), "binary": True},
     {"name": "readability", "weight": 0.05, "check": lambda d: _check_readability(d), "binary": False},
 ]
 
 
 def _check_content_length(data: Dict[str, Any]) -> Tuple[float, str]:
     ctype = data.get("content_type", "article")
-    min_lens = {"article": 800, "guide": 1500, "review": 500, "news": 300, "comparison": 600, "product_description": 200}
+    min_lens = {"article": 800, "guide": 1500, "review": 500,
+                "news": 300, "comparison": 600, "product_description": 200}
     min_len = min_lens.get(ctype, 500)
     return Checkers.word_count_range(data, "content", min_len, min_len * 5)
 
@@ -409,11 +420,16 @@ def _check_readability(data: Dict[str, Any]) -> Tuple[float, str]:
 
 # Performance subgoals
 PERFORMANCE_SUBGOALS: List[Dict[str, Any]] = [
-    {"name": "headline_exists", "weight": 0.20, "check": lambda d: Checkers.field_exists(d, "headline"), "binary": True},
-    {"name": "headline_length", "weight": 0.15, "check": lambda d: Checkers.string_length(d, "headline", 20, 60), "binary": False},
-    {"name": "description_exists", "weight": 0.15, "check": lambda d: Checkers.field_exists(d, "description"), "binary": True},
-    {"name": "cta_strong", "weight": 0.15, "check": lambda d: Checkers.contains_any(d, "headline", ["скидка", "дешевле", "экономия", "бесплатно", "подарок"]), "binary": True},
-    {"name": "targeting_defined", "weight": 0.15, "check": lambda d: Checkers.field_exists(d, "target_audience"), "binary": True},
+    {"name": "headline_exists", "weight": 0.20,
+        "check": lambda d: Checkers.field_exists(d, "headline"), "binary": True},
+    {"name": "headline_length", "weight": 0.15, "check": lambda d: Checkers.string_length(
+        d, "headline", 20, 60), "binary": False},
+    {"name": "description_exists", "weight": 0.15,
+        "check": lambda d: Checkers.field_exists(d, "description"), "binary": True},
+    {"name": "cta_strong", "weight": 0.15, "check": lambda d: Checkers.contains_any(
+        d, "headline", ["скидка", "дешевле", "экономия", "бесплатно", "подарок"]), "binary": True},
+    {"name": "targeting_defined", "weight": 0.15,
+        "check": lambda d: Checkers.field_exists(d, "target_audience"), "binary": True},
     {"name": "budget_specified", "weight": 0.10, "check": lambda d: Checkers.field_exists(d, "budget"), "binary": True},
     {"name": "duration_valid", "weight": 0.10, "check": lambda d: _check_duration(d), "binary": False},
 ]
@@ -436,10 +452,13 @@ def _check_duration(data: Dict[str, Any]) -> Tuple[float, str]:
 # Email subgoals
 EMAIL_SUBGOALS: List[Dict[str, Any]] = [
     {"name": "subject_exists", "weight": 0.20, "check": lambda d: Checkers.field_exists(d, "subject"), "binary": True},
-    {"name": "subject_length", "weight": 0.15, "check": lambda d: Checkers.string_length(d, "subject", 20, 60), "binary": False},
+    {"name": "subject_length", "weight": 0.15, "check": lambda d: Checkers.string_length(
+        d, "subject", 20, 60), "binary": False},
     {"name": "body_exists", "weight": 0.20, "check": lambda d: Checkers.field_exists(d, "body"), "binary": True},
-    {"name": "body_length", "weight": 0.15, "check": lambda d: Checkers.word_count_range(d, "body", 100, 2000), "binary": False},
-    {"name": "has_unsubscribe", "weight": 0.15, "check": lambda d: Checkers.contains_any(d, "body", ["отписаться", "unsubscribe", "отменить подписку"]), "binary": True},
+    {"name": "body_length", "weight": 0.15, "check": lambda d: Checkers.word_count_range(
+        d, "body", 100, 2000), "binary": False},
+    {"name": "has_unsubscribe", "weight": 0.15, "check": lambda d: Checkers.contains_any(
+        d, "body", ["отписаться", "unsubscribe", "отменить подписку"]), "binary": True},
     {"name": "low_spam_score", "weight": 0.15, "check": lambda d: _check_spam_score(d), "binary": False},
 ]
 
@@ -469,12 +488,16 @@ def _check_spam_score(data: Dict[str, Any]) -> Tuple[float, str]:
 
 # Analytics subgoals
 ANALYTICS_SUBGOALS: List[Dict[str, Any]] = [
-    {"name": "metrics_present", "weight": 0.25, "check": lambda d: Checkers.list_size(d, "metrics", 3, 20), "binary": False},
-    {"name": "has_trend", "weight": 0.20, "check": lambda d: Checkers.field_exists(d, "trend_direction"), "binary": True},
-    {"name": "has_recommendation", "weight": 0.20, "check": lambda d: Checkers.field_exists(d, "recommendations"), "binary": True},
+    {"name": "metrics_present", "weight": 0.25,
+        "check": lambda d: Checkers.list_size(d, "metrics", 3, 20), "binary": False},
+    {"name": "has_trend", "weight": 0.20, "check": lambda d: Checkers.field_exists(
+        d, "trend_direction"), "binary": True},
+    {"name": "has_recommendation", "weight": 0.20,
+        "check": lambda d: Checkers.field_exists(d, "recommendations"), "binary": True},
     {"name": "data_fresh", "weight": 0.15, "check": lambda d: _check_data_freshness(d), "binary": False},
     {"name": "visualization", "weight": 0.10, "check": lambda d: Checkers.field_exists(d, "charts"), "binary": True},
-    {"name": "comparison_period", "weight": 0.10, "check": lambda d: Checkers.field_exists(d, "comparison_period"), "binary": True},
+    {"name": "comparison_period", "weight": 0.10,
+        "check": lambda d: Checkers.field_exists(d, "comparison_period"), "binary": True},
 ]
 
 
@@ -484,7 +507,7 @@ def _check_data_freshness(data: Dict[str, Any]) -> Tuple[float, str]:
     if not date_str:
         return 0.0, "No data date"
     try:
-        from datetime import datetime, timedelta
+        from datetime import datetime
         data_date = datetime.fromisoformat(str(date_str).replace("Z", "+00:00"))
         age = (datetime.now(data_date.tzinfo) - data_date).days
         if age <= 1:
@@ -500,11 +523,15 @@ def _check_data_freshness(data: Dict[str, Any]) -> Tuple[float, str]:
 
 # Trend subgoals
 TREND_SUBGOALS: List[Dict[str, Any]] = [
-    {"name": "trend_identified", "weight": 0.30, "check": lambda d: Checkers.field_exists(d, "trend_name"), "binary": True},
+    {"name": "trend_identified", "weight": 0.30,
+        "check": lambda d: Checkers.field_exists(d, "trend_name"), "binary": True},
     {"name": "confidence_score", "weight": 0.20, "check": lambda d: _check_confidence(d), "binary": False},
-    {"name": "sources_cited", "weight": 0.20, "check": lambda d: Checkers.list_size(d, "sources", 1, 10), "binary": False},
-    {"name": "actionable", "weight": 0.15, "check": lambda d: Checkers.field_exists(d, "recommended_actions"), "binary": True},
-    {"name": "category_defined", "weight": 0.15, "check": lambda d: Checkers.field_exists(d, "category"), "binary": True},
+    {"name": "sources_cited", "weight": 0.20, "check": lambda d: Checkers.list_size(
+        d, "sources", 1, 10), "binary": False},
+    {"name": "actionable", "weight": 0.15, "check": lambda d: Checkers.field_exists(
+        d, "recommended_actions"), "binary": True},
+    {"name": "category_defined", "weight": 0.15,
+        "check": lambda d: Checkers.field_exists(d, "category"), "binary": True},
 ]
 
 

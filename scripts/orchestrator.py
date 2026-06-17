@@ -33,16 +33,15 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import random
 import re
 import signal
-import sys
 import time
-import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 import aiohttp
 import redis.asyncio as aioredis
@@ -52,7 +51,7 @@ from dotenv import load_dotenv
 
 # P1-18: A/B testing integration
 try:
-    from scripts.ab_testing import ABTestEnabledConfig, PromptVariantRegistry
+    from scripts.ab_testing import ABTestEnabledConfig
     _AB_TESTING_AVAILABLE = True
 except Exception:
     _AB_TESTING_AVAILABLE = False
@@ -73,8 +72,6 @@ try:
         validate_analytics_result,
         validate_content_result,
         validate_trend_result,
-        ValidationResult as ExtValidationResult,
-        ValidationStatus as ExtValidationStatus,
     )
     _EXT_VALIDATOR_AVAILABLE = True
 except Exception:
@@ -93,15 +90,6 @@ from scripts.services import (
 # ═══════════════════════════════════════════════════════════════════════════════
 # P3-1: Плагинная система — actions регистрируются динамически через @register_action
 # Старые импорты оставлены для _execute_legacy_actions fallback
-from actions.telegram_actions import post_discount, post_to_channel
-from actions.site_actions import (
-    add_badge,
-    create_category_page,
-    prioritize_products,
-    update_item_description,
-    update_meta_tags,
-    update_product_field,
-)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Загрузка переменных окружения
@@ -1102,9 +1090,10 @@ class ResultValidator:
         required_fields = self.rules.get("required_fields", ["title", "meta_description", "keywords", "h1"])
 
         # Проверка обязательных полей
-        for field in required_fields:
-            if field not in result or not result[field]:
-                errors.append(f"Отсутствует обязательное поле: {field}")
+        required_fields = self.rules.get("required_fields", ["title", "meta_description", "keywords", "h1"])
+        for field_name in required_fields:
+            if field_name not in result or not result[field_name]:
+                errors.append(f"Отсутствует обязательное поле: {field_name}")
                 score -= 0.2
 
         # Проверка длины title
@@ -1130,7 +1119,8 @@ class ResultValidator:
         # Проверка ключевых слов
         keywords = result.get("keywords", [])
         if isinstance(keywords, list) and len(keywords) < SEO_KEYWORDS_MIN:
-            warnings.append(f"Мало ключевых слов ({len(keywords)}, рекомендуется {SEO_KEYWORDS_MIN}-{SEO_KEYWORDS_MAX})")
+            warnings.append(
+                f"Мало ключевых слов ({len(keywords)}, рекомендуется {SEO_KEYWORDS_MIN}-{SEO_KEYWORDS_MAX})")
             score -= 0.1
 
         # Проверка наличия H1
@@ -1234,9 +1224,9 @@ class ResultValidator:
 
         # Проверка обязательных полей
         required = ["headlines", "descriptions", "keywords"]
-        for field in required:
-            if field not in result or not result[field]:
-                errors.append(f"Отсутствует обязательное поле: {field}")
+        for field_name in required:
+            if field_name not in result or not result[field_name]:
+                errors.append(f"Отсутствует обязательное поле: {field_name}")
                 score -= 0.25
 
         # Проверка заголовков
@@ -1312,7 +1302,7 @@ class ResultValidator:
 
         # Проверка на спам-триггеры
         spam_keywords = ["БЕСПЛАТНО", "КУПИТЬ СЕЙЧАС", "ОГРАНИЧЕННОЕ ВРЕМЯ",
-                        "$$$", "100% бесплатно", "НЕ УДАЛЯЙТЕ"]
+                         "$$$", "100% бесплатно", "НЕ УДАЛЯЙТЕ"]
         body_lower = result.get("body", "").upper()
         found_spam = [kw for kw in spam_keywords if kw.upper() in body_lower]
         if found_spam:
@@ -1578,7 +1568,7 @@ class AgentRunner:
     # ═══════════════════════════════════════════════════════════════════════
     # P2-11: Prompt Injection Protection
     # ═══════════════════════════════════════════════════════════════════════
-    
+
     # Запрещённые паттерны для prompt injection
     _PROMPT_INJECTION_PATTERNS = [
         r"ignore\s+(previous|above|all)\s+instructions",
@@ -1595,22 +1585,22 @@ class AgentRunner:
         r"`\s*curl\s+.*\|\s*sh",
         r"`\s*wget\s+.*\|\s*sh",
     ]
-    
+
     # Максимальная длина значения контекста (символов)
     _MAX_CONTEXT_VALUE_LENGTH: int = MAX_CONTEXT_VALUE_LENGTH
-    
+
     # Максимальная длина строки в контексте
     _MAX_CONTEXT_LINE_LENGTH: int = MAX_CONTEXT_LINE_LENGTH
-    
+
     def _sanitize_context_value(self, value: Any) -> Any:
         """
         P2-11: Санитизирует значение контекста от prompt injection.
-        
+
         P1-11: Дополнительная защита от:
         - Unicode obfuscation (homoglyphs, confusables)
         - Zero-width characters
         - Base64-encoded injection payloads
-        
+
         Применяет:
         - Ограничение длины
         - Удаление подозрительных паттернов
@@ -1620,7 +1610,7 @@ class AgentRunner:
         """
         if value is None:
             return None
-        
+
         if isinstance(value, str):
             # P1-11: Удаляем zero-width characters
             for zw in ZERO_WIDTH_CHARS:
@@ -1631,7 +1621,7 @@ class AgentRunner:
                         char_code=hex(ord(zw)),
                         agent=getattr(self, "config", None) and getattr(self.config, "agent_name", "unknown"),
                     )
-            
+
             # P1-11: Детекция base64-обфускации
             # Ищем длинные base64-подстроки (>50 chars, >80% base64-alphabet)
             def _has_base64_obfuscation(s: str) -> bool:
@@ -1671,7 +1661,7 @@ class AgentRunner:
                         return False
                     return True
                 return False
-            
+
             # P1-11: проверяем base64 только если строка не однородная
             if len(set(value.strip().lower())) > 3 and _has_base64_obfuscation(value):
                 value = "[SANITIZED: base64 obfuscation detected and removed]"
@@ -1679,11 +1669,11 @@ class AgentRunner:
                     "base64_obfuscation_detected",
                     agent=getattr(self, "config", None) and getattr(self.config, "agent_name", "unknown"),
                 )
-            
+
             # Ограничение длины
             if len(value) > self._MAX_CONTEXT_VALUE_LENGTH:
                 value = value[:self._MAX_CONTEXT_VALUE_LENGTH] + "... [truncated]"
-            
+
             # Проверка на prompt injection паттерны
             value_lower = value.lower()
             for pattern in self._PROMPT_INJECTION_PATTERNS:
@@ -1696,11 +1686,11 @@ class AgentRunner:
                         agent=getattr(self, "config", None) and getattr(self.config, "agent_name", "unknown"),
                     )
                     break
-            
+
             # Экранирование потенциально опасных markdown-конструкций
             # Заменяем ``` на безопасный эквивалент
             value = value.replace("```", "` ` `")
-            
+
             # Ограничение длины отдельных строк
             lines = value.split("\n")
             sanitized_lines = []
@@ -1709,24 +1699,24 @@ class AgentRunner:
                     line = line[:self._MAX_CONTEXT_LINE_LENGTH] + "... [line truncated]"
                 sanitized_lines.append(line)
             value = "\n".join(sanitized_lines)
-            
+
             return value
-        
+
         elif isinstance(value, list):
             return [self._sanitize_context_value(item) for item in value]
-        
+
         elif isinstance(value, dict):
             return {
                 k: self._sanitize_context_value(v)
                 for k, v in value.items()
             }
-        
+
         return value
-    
+
     def _build_prompt(self, context: Optional[Dict[str, Any]] = None) -> str:
         """
         Формирует пользовательский промпт на основе контекста.
-        
+
         P2-11: Все значения контекста проходят санитизацию
         перед вставкой в prompt.
         """
@@ -1745,7 +1735,7 @@ class AgentRunner:
         if context:
             # Санитизируем весь контекст
             safe_context = self._sanitize_context_value(context)
-            
+
             parts.append("\n## Контекст:")
             for key, value in safe_context.items():
                 # Особое форматирование trend-рекомендаций
@@ -1963,21 +1953,21 @@ class AgentRunner:
     def _analyze_error(self, error: str, previous_result: Dict[str, Any]) -> Dict[str, Any]:
         """
         P2-10: Анализирует ошибку и формирует корректирующие инструкции.
-        
+
         Returns:
             Словарь с корректирующими инструкциями для retry-контекста.
         """
         error_lower = error.lower()
         raw_snippet = previous_result.get("raw", "")[:500]
         corrections = {}
-        
+
         # 1. JSON parse error
         if "json" in error_lower or "parse" in error_lower or previous_result.get("parse_error"):
             corrections["json_fix"] = (
                 "Верни результат СТРОГО в формате JSON без markdown-обёртки (```json). "
                 "Не добавляй пояснений вне JSON. Убедись, что JSON валиден."
             )
-        
+
         # 2. Timeout / слишком долгий ответ
         if "timeout" in error_lower or "time" in error_lower:
             corrections["timeout_fix"] = (
@@ -1985,7 +1975,7 @@ class AgentRunner:
                 "Сократи ответ, используй более компактный формат. "
                 "Максимум 2000 токенов."
             )
-        
+
         # 3. Validation failed
         if "validation" in error_lower or "valid" in error_lower:
             corrections["validation_fix"] = (
@@ -1993,20 +1983,20 @@ class AgentRunner:
                 "Проверь обязательные поля, длины title (30-60), meta (120-160), "
                 "наличие H1, ключевых слов."
             )
-        
+
         # 4. Empty / incomplete result
         if "empty" in error_lower or not previous_result.get("data"):
             corrections["completeness_fix"] = (
                 "Предыдущий результат был пустым или неполным. "
                 "Убедись, что все обязательные поля заполнены."
             )
-        
+
         # 5. LLM API error (rate limit, circuit breaker)
         if "rate limit" in error_lower or "circuit" in error_lower or "http" in error_lower:
             corrections["api_fix"] = (
                 "Проблема с API. Попробуй упростить запрос."
             )
-        
+
         # 6. Если ошибка не распознана — общая рекомендация
         # Но completeness_fix уже сработал если data пустая — не затираем его
         has_specific_fix = any(k != "completeness_fix" for k in corrections.keys())
@@ -2015,7 +2005,7 @@ class AgentRunner:
                 "Предыдущая попытка завершилась ошибкой. "
                 "Внимательно проверь результат перед отправкой."
             )
-        
+
         return corrections
 
     def _is_retryable(self, error: str) -> bool:
@@ -2034,7 +2024,7 @@ class AgentRunner:
     ) -> Dict[str, Any]:
         """
         Повторный запуск агента с экспоненциальным backoff + jitter.
-        
+
         P1-9: Улучшенный retry:
         - Jitter: random.uniform(0, 1) добавляется к задержке
         - MAX_RETRY_DELAY: потолок задержки 60 секунд
@@ -2086,7 +2076,7 @@ class AgentRunner:
 
             # P2-10: Анализ ошибки и формирование корректирующего контекста
             corrections = self._analyze_error(error, previous_result)
-            
+
             # Формируем контекст с информацией об ошибке
             retry_context = {
                 "previous_error": error,
@@ -2094,7 +2084,7 @@ class AgentRunner:
                 "previous_result_snippet": previous_result.get("raw", "")[:500],
                 **corrections,
             }
-            
+
             # P2-10: Адаптация max_tokens при timeout
             llm_settings = self.config.get_llm_settings()
             if "timeout" in error.lower() and attempt >= 2:
@@ -3291,6 +3281,8 @@ class Orchestrator:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Обработка сигналов для graceful shutdown
 # ═══════════════════════════════════════════════════════════════════════════════
+
+
 async def _async_shutdown(orchestrator: Orchestrator) -> None:
     """P1-8: Асинхронный shutdown — ждёт завершения текущего цикла."""
     logger.info("Graceful shutdown initiated, waiting for current cycle...")
@@ -3324,6 +3316,7 @@ def setup_signal_handlers(orchestrator: Orchestrator, loop: asyncio.AbstractEven
     except NotImplementedError:
         # Fallback для Windows — используем sync signal
         logger.warning("asyncio.add_signal_handler not supported, using fallback")
+
         def sync_handler(sig, frame):
             logger.info(f"Received signal {sig}")
             orchestrator.stop()

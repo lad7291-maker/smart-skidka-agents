@@ -9,7 +9,6 @@ import html as html_module
 import os
 import re
 import asyncio
-import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -28,6 +27,7 @@ def _h(value: str) -> str:
 # ═══════════════════════════════════════════════════════════════════════════════
 # P2-9: Квоты на создание файлов
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 # Максимум новых страниц категорий в сутки
 DAILY_CATEGORY_PAGE_LIMIT: int = int(os.getenv("DAILY_CATEGORY_PAGE_LIMIT", "10"))
@@ -72,7 +72,7 @@ def _cleanup_old_entries(data: Dict[str, Any]) -> Dict[str, Any]:
     """Удаляет записи старше 24 часов."""
     now = datetime.now()
     cutoff = now - timedelta(hours=24)
-    
+
     for key in data:
         if isinstance(data[key], list):
             data[key] = [
@@ -93,20 +93,20 @@ def _parse_time(ts: str) -> datetime:
 def check_category_page_quota() -> tuple[bool, str, Dict[str, Any]]:
     """
     Проверяет, не превышена ли дневная квота на создание страниц.
-    
+
     Returns: (allowed, reason, tracker_data)
     """
     tracker = _load_quota_tracker()
     tracker = _cleanup_old_entries(tracker)
-    
+
     created_today = len(tracker.get("created_pages", []))
-    
+
     if created_today >= DAILY_CATEGORY_PAGE_LIMIT:
         return False, (
             f"Daily category page limit reached: {created_today}/"
             f"{DAILY_CATEGORY_PAGE_LIMIT}. Try again tomorrow."
         ), tracker
-    
+
     return True, "", tracker
 
 
@@ -114,12 +114,12 @@ def record_category_page_creation(page_name: str) -> bool:
     """Записывает факт создания страницы категории."""
     tracker = _load_quota_tracker()
     tracker = _cleanup_old_entries(tracker)
-    
+
     tracker.setdefault("created_pages", []).append({
         "page": page_name,
         "timestamp": datetime.now().isoformat(),
     })
-    
+
     return _save_quota_tracker(tracker)
 
 
@@ -127,7 +127,7 @@ def get_quota_status() -> Dict[str, Any]:
     """Возвращает текущий статус квот для мониторинга."""
     tracker = _load_quota_tracker()
     tracker = _cleanup_old_entries(tracker)
-    
+
     return {
         "daily_category_page_limit": DAILY_CATEGORY_PAGE_LIMIT,
         "created_pages_today": len(tracker.get("created_pages", [])),
@@ -137,6 +137,7 @@ def get_quota_status() -> Dict[str, Any]:
     }
 
 # ─── SEO: обновление meta-тегов в index.html ─────────────────────────────
+
 
 @with_retry(max_retries=3, delay=0.5, backoff=2.0, exceptions=(Exception,))
 @register_action("update_meta_tags", agent_types=["seo"], description="Обновляет meta-теги сайта")
@@ -181,7 +182,7 @@ def create_category_page(category_name: str, items: list) -> bool:
     """
     Создаёт страницу категории (например, category/naushniki.html).
     items — список словарей с ключами title, price, image, link.
-    
+
     P2-9: Проверяет дневную квоту перед созданием.
     """
     # Проверка квоты
@@ -189,7 +190,7 @@ def create_category_page(category_name: str, items: list) -> bool:
     if not allowed:
         print(f"[QUOTA_BLOCKED] create_category_page: {reason}")
         return False
-    
+
     site_root = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp"))
     slug = re.sub(r'[^a-z0-9\-]', '', category_name.lower().replace(' ', '-'))
     path = site_root / "category" / f"{slug}.html"
@@ -226,7 +227,7 @@ def create_category_page(category_name: str, items: list) -> bool:
 
     # Записываем факт создания для квоты
     record_category_page_creation(f"category/{slug}.html")
-    
+
     return safe_write(path, html)
 
 
@@ -334,40 +335,40 @@ def _add_badge_to_index(item_id: str, badge_text: str) -> bool:
 def update_sitemap(pages: list) -> bool:
     """
     Обновляет sitemap.xml списком страниц.
-    
+
     Args:
         pages: Список словарей с ключами: path, lastmod (опционально), changefreq (опционально)
-    
+
     Returns:
         True если успешно
     """
     site_root = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp"))
     sitemap_path = site_root / "sitemap.xml"
-    
+
     today = datetime.now().strftime("%Y-%m-%d")
-    
+
     urls = []
     for page in pages:
         path = page.get("path", "")
         lastmod = page.get("lastmod", today)
         changefreq = page.get("changefreq", "weekly")
         priority = page.get("priority", "0.5")
-        
+
         # Формируем полный URL
         url = f"https://smart-skidka.ru/{path.lstrip('/')}"
-        
+
         urls.append(f"""  <url>
     <loc>{_h(url)}</loc>
     <lastmod>{_h(lastmod)}</lastmod>
     <changefreq>{_h(changefreq)}</changefreq>
     <priority>{_h(priority)}</priority>
   </url>""")
-    
+
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 {chr(10).join(urls)}
 </urlset>"""
-    
+
     return safe_write(sitemap_path, xml)
 
 
@@ -375,7 +376,7 @@ def add_to_sitemap(path: str, priority: str = "0.5", changefreq: str = "weekly")
     """
     Добавляет одну страницу в существующий sitemap.xml.
     Если страница уже есть — обновляет lastmod.
-    
+
     Args:
         path: Относительный путь (например, "guides/naushniki.html")
         priority: Приоритет (0.0-1.0)
@@ -383,13 +384,13 @@ def add_to_sitemap(path: str, priority: str = "0.5", changefreq: str = "weekly")
     """
     site_root = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp"))
     sitemap_path = site_root / "sitemap.xml"
-    
+
     today = datetime.now().strftime("%Y-%m-%d")
     url = f"https://smart-skidka.ru/{path.lstrip('/')}"
-    
+
     # Читаем существующий sitemap
     existing = safe_read(sitemap_path)
-    
+
     if existing and "<urlset" in existing:
         # Проверяем, есть ли уже такой URL
         if f"<loc>{url}</loc>" in existing:
@@ -399,7 +400,7 @@ def add_to_sitemap(path: str, priority: str = "0.5", changefreq: str = "weekly")
             if updated != existing:
                 return safe_write(sitemap_path, updated)
             return True  # already up to date
-        
+
         # Добавляем новый URL перед закрывающим </urlset>
         new_url = f"""  <url>
     <loc>{url}</loc>
@@ -424,21 +425,21 @@ def add_to_sitemap(path: str, priority: str = "0.5", changefreq: str = "weekly")
 def add_cross_links(page_path: str, related_pages: list) -> bool:
     """
     Добавляет блок "Читайте также" с ссылками на связанные страницы.
-    
+
     Args:
         page_path: Путь к странице, куда добавлять ссылки
         related_pages: Список словарей {title, path}
-    
+
     Returns:
         True если успешно
     """
     site_root = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp"))
     full_path = site_root / page_path.lstrip("/")
-    
+
     html = safe_read(full_path)
     if not html:
         return False
-    
+
     # Удаляем старый блок если есть
     html = re.sub(
         r'<div class="related-links">.*?</ul>\s*</div>\s*',
@@ -446,27 +447,27 @@ def add_cross_links(page_path: str, related_pages: list) -> bool:
         html,
         flags=re.DOTALL,
     )
-    
+
     # Если нет связанных страниц — просто сохраняем без блока
     valid_pages = [p for p in related_pages if p.get("title") and p.get("path")]
     if not valid_pages:
         return safe_write(full_path, html)
-    
+
     # Формируем блок ссылок
     links_html = '<div class="related-links"><h3>📚 Читайте также</h3><ul>\n'
     for page in valid_pages:
         title = page.get("title", "")
         path = page.get("path", "")
-        url = f"/{path.lstrip('/')}" 
+        url = f"/{path.lstrip('/')}"
         links_html += f'  <li><a href="{_h(url)}">{_h(title)}</a></li>\n'
     links_html += '</ul></div>'
-    
+
     # Вставляем перед </body>
     if "</body>" in html:
         html = html.replace("</body>", f"{links_html}\n</body>")
     else:
         html += f"\n{links_html}"
-    
+
     return safe_write(full_path, html)
 
 
@@ -475,16 +476,16 @@ def add_cross_links(page_path: str, related_pages: list) -> bool:
 async def post_new_page_to_telegram(page_path: str, title: str, description: str = "") -> bool:
     """
     Публикует анонс новой страницы в Telegram канал.
-    
+
     Args:
         page_path: Путь к странице
         title: Заголовок страницы
         description: Краткое описание
     """
     from .telegram_actions import post_to_channel
-    
+
     url = f"https://smart-skidka.ru/{page_path.lstrip('/')}"
-    
+
     text = f"""📢 Новый гайд на сайте!
 
 <b>{title}</b>
@@ -492,7 +493,7 @@ async def post_new_page_to_telegram(page_path: str, title: str, description: str
 {description[:200]}{'...' if len(description) > 200 else ''}
 
 👉 <a href='{url}'>Читать на сайте</a>"""
-    
+
     return await post_to_channel(text)
 
 
@@ -510,17 +511,17 @@ async def check_page_http_status(
 ) -> dict:
     """
     Проверяет HTTP-статус страницы после публикации.
-    
+
     Args:
         page_path: Относительный путь (например, "guides/naushniki.html")
         expected_status: Ожидаемый статус (по умолчанию 200)
         timeout: Таймаут запроса в секундах
-    
+
     Returns:
         Словарь {"ok": bool, "status": int, "url": str, "error": str|None}
     """
     url = f"{HTTP_CHECK_BASE_URL}/{page_path.lstrip('/')}"
-    
+
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout), allow_redirects=True) as resp:
@@ -550,11 +551,11 @@ async def verify_and_track_page(
     page_type: str = "",
     title: str = "",
     html_valid: Optional[bool] = None,
-    track_func = None,
+    track_func=None,
 ) -> dict:
     """
     Полный пайплайн проверки: HTTP 200 + трекинг в БД.
-    
+
     Args:
         page_path: Путь к странице
         agent_name: Имя агента
@@ -562,13 +563,13 @@ async def verify_and_track_page(
         title: Заголовок
         html_valid: Результат валидации HTML
         track_func: Async функция для трекинга (MemoryStore.track_page)
-    
+
     Returns:
         {"ok": bool, "http_check": dict, "tracked": bool}
     """
     # 1. HTTP check
     http_result = await check_page_http_status(page_path)
-    
+
     # 2. Track in DB если передана функция
     tracked = False
     if track_func is not None:
@@ -584,7 +585,7 @@ async def verify_and_track_page(
             tracked = True
         except Exception as e:
             print(f"[TRACK ERROR] {page_path}: {e}")
-    
+
     return {
         "ok": http_result["ok"] and tracked,
         "http_check": http_result,
@@ -604,19 +605,19 @@ def generate_slug(title: str) -> str:
 def is_duplicate_title(new_title: str, existing_titles: list, threshold: float = 0.7) -> bool:
     """
     Проверяет, является ли заголовок дубликатом (локальная проверка).
-    
+
     Args:
         new_title: Новый заголовок
         existing_titles: Список существующих заголовков
         threshold: Порог схожести (0-1)
-    
+
     Returns:
         True если дубликат найден
     """
     new_words = set(new_title.lower().split())
     if not new_words:
         return False
-    
+
     for existing in existing_titles:
         existing_words = set(existing.lower().split())
         if not existing_words:
@@ -626,29 +627,29 @@ def is_duplicate_title(new_title: str, existing_titles: list, threshold: float =
         similarity = len(intersection) / len(union) if union else 0
         if similarity >= threshold:
             return True
-    
+
     return False
 
 
 def suggest_unique_title(base_title: str, existing_titles: list, max_attempts: int = 10) -> str:
     """
     Предлагает уникальный заголовок, добавляя номер если нужно.
-    
+
     Args:
         base_title: Базовый заголовок
         existing_titles: Список существующих заголовков
         max_attempts: Максимум попыток
-    
+
     Returns:
         Уникальный заголовок
     """
     if not is_duplicate_title(base_title, existing_titles):
         return base_title
-    
+
     for i in range(2, max_attempts + 2):
         candidate = f"{base_title} ({i})"
         if not is_duplicate_title(candidate, existing_titles):
             return candidate
-    
+
     # Fallback: добавляем timestamp
     return f"{base_title} — {datetime.now().strftime('%Y-%m-%d')}"

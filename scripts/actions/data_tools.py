@@ -25,11 +25,10 @@ import asyncio
 import json
 import os
 import re
-import xml.etree.ElementTree as ET
 from defusedxml import ElementTree as DefusedET
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
-from urllib.parse import quote, urljoin
+from urllib.parse import urljoin
 
 import aiohttp
 
@@ -647,9 +646,11 @@ async def gather_trend_data(
         return_exceptions=True,
     )
 
-    google_result = results[0] if not isinstance(results[0], Exception) else {"success": False, "error": str(results[0])}
+    google_result = results[0] if not isinstance(results[0], Exception) else {
+        "success": False, "error": str(results[0])}
     news_result = results[1] if not isinstance(results[1], Exception) else {"success": False, "error": str(results[1])}
-    marketplace_result = results[2] if not isinstance(results[2], Exception) else {"success": False, "error": str(results[2])}
+    marketplace_result = results[2] if not isinstance(results[2], Exception) else {
+        "success": False, "error": str(results[2])}
     forum_result = results[3] if not isinstance(results[3], Exception) else {"success": False, "error": str(results[3])}
 
     # Формируем агрегированные инсайты

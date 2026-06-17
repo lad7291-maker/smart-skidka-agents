@@ -25,14 +25,10 @@
 
 from __future__ import annotations
 
-import asyncio
-import json
 import os
-from datetime import datetime, timedelta
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import List, Optional
 
-import aiohttp
 from aiohttp import web
 import asyncpg
 import redis.asyncio as aioredis
@@ -91,7 +87,7 @@ async def _get_redis() -> aioredis.Redis:
 @web.middleware
 async def api_key_middleware(request: web.Request, handler) -> web.Response:
     """Проверка API ключа для POST/DELETE запросов и /metrics.
-    
+
     P1-5: API key только из заголовка X-API-Key (query params удалены).
     P1-6: /metrics требует авторизации.
     """
@@ -109,7 +105,7 @@ async def api_key_middleware(request: web.Request, handler) -> web.Response:
 @web.middleware
 async def cors_middleware(request: web.Request, handler) -> web.Response:
     """CORS headers с whitelist.
-    
+
     P1-4: Access-Control-Allow-Origin выставляется только для разрешённых origin.
     Если CORS_WHITELIST не задан — CORS заголовки не добавляются.
     """
@@ -523,7 +519,7 @@ def create_app() -> web.Application:
 
 async def cleanup(app: web.Application) -> None:
     """Закрытие соединений."""
-    global _db_pool, _redis
+    # global _db_pool, _redis  # noqa: F824 — not assigning here, only reading
     if _db_pool and not _db_pool._closed:
         await _db_pool.close()
     if _redis:

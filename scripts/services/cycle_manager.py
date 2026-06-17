@@ -14,6 +14,7 @@ P1-1: Выделен из Orchestrator.
 """
 
 from __future__ import annotations
+from scripts.services._shared import _get_agent_type
 
 import asyncio
 import os
@@ -23,13 +24,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+if False:  # noqa: F821 workaround — flake8 doesn't see nested imports
+    from scripts.orchestrator import AgentConfig, AgentRunner, LLMClient
+
 import structlog
 
 # P1-1: Избегаем циклических зависимостей — константы дублируем
 DEFAULT_CYCLE_INTERVAL: int = int(os.getenv("CYCLE_INTERVAL", "300"))
 DEFAULT_LLM_MODEL: str = os.getenv("DEFAULT_LLM_MODEL", "deepseek/deepseek-chat-v3.1")
-
-from scripts.services._shared import _get_agent_type
 
 
 class CycleManager:
@@ -68,7 +70,7 @@ class CycleManager:
     async def initialize(self) -> None:
         """Инициализирует все компоненты."""
         # P1-1: Ленивый импорт для избежания циклических зависимостей
-        from scripts.orchestrator import LLMClient, MemoryStore, ResultValidator
+        from scripts.orchestrator import LLMClient, MemoryStore, ResultValidator, AgentConfig, AgentRunner
 
         self.logger.info("Инициализация CycleManager")
 

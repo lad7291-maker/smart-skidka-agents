@@ -64,7 +64,7 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 class _RedisRateLimiter:
     """
     P1-14: Redis-based rate limiter для multi-instance.
-    
+
     Отслеживает:
     - last_post_time: время последнего поста (cooldown)
     - daily_posts: список постов за сегодня (sorted set)
@@ -217,7 +217,7 @@ _memory_limiter = _MemoryRateLimiter()
 
 async def get_telegram_rate_limit_status() -> Dict[str, any]:
     """Возвращает статус rate limiter для мониторинга."""
-        # P2-7 fix: Fallback на memory limiter если Redis недоступен
+    # P2-7 fix: Fallback на memory limiter если Redis недоступен
     try:
         return await _RedisRateLimiter.get_status()
     except Exception:
@@ -229,7 +229,7 @@ async def get_telegram_rate_limit_status() -> Dict[str, any]:
 async def post_to_channel(text: str, photo_url: Optional[str] = None) -> bool:
     """
     Публикует пост (текст + опционально фото) в Telegram.
-    
+
     P2-8: Rate limiting — не чаще 1 поста в N минут,
     не более M постов в сутки.
     """

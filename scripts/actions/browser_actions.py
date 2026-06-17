@@ -23,12 +23,11 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page
 
@@ -128,13 +127,13 @@ DEFAULT_BROWSER_DOMAIN_WHITELIST: List[str] = os.getenv(
 class BrowserManager:
     """
     Менеджер браузера — singleton для переиспользования BrowserContext.
-    
+
     P1-15: Добавлены лимиты:
     - max_pages: максимальное количество открытых страниц
     - screenshot_quota: лимит скриншотов за сессию
     - page_ttl: время жизни страницы (автоматическая очистка)
     - domain_whitelist: разрешённые домены
-    
+
     Использует паттерн async context manager для автоматического закрытия.
     """
 
@@ -211,7 +210,7 @@ class BrowserManager:
     async def new_page(self, url: Optional[str] = None) -> Page:
         """
         Создаёт новую страницу в контексте.
-        
+
         P1-15: Проверяет лимиты перед созданием.
         """
         # P1-15: Проверка домена

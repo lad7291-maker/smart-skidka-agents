@@ -27,14 +27,12 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import hashlib
 import json
 import os
 import secrets
 import structlog
-import time
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -75,7 +73,7 @@ class Role(str, Enum):
 
 class SecretLevel(str, Enum):
     STANDARD = "standard"   # Regular config values
-    SENSITIVE = "sensitive" # API keys, tokens
+    SENSITIVE = "sensitive"  # API keys, tokens
     CRITICAL = "critical"   # Master key, DB credentials
 
 
@@ -380,7 +378,7 @@ class SecretsManager:
         if entry.level not in allowed_levels:
             self._audit.record("read", key, role.value, False, "Insufficient role")
             logger.warning("Access denied", key=key, role=role.value,
-                          level=entry.level.value)
+                           level=entry.level.value)
             return default
 
         self._audit.record("read", key, role.value, True)
@@ -505,7 +503,7 @@ class SecretsManager:
             if value:
                 level = SecretLevel.CRITICAL if "URL" in key or "DB" in key else SecretLevel.SENSITIVE
                 success = self.set(key, value, role=Role.ADMIN, level=level,
-                                  description=f"Migrated from env on {datetime.now(timezone.utc).isoformat()}")
+                                   description=f"Migrated from env on {datetime.now(timezone.utc).isoformat()}")
                 results[key] = success
                 if success:
                     logger.info("Migrated secret from env", key=key)

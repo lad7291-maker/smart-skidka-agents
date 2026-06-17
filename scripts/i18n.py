@@ -30,7 +30,6 @@ from __future__ import annotations
 import json
 import os
 import re
-import structlog
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -78,6 +77,7 @@ PLURAL_RULES: Dict[str, Tuple[int, PluralFunc]] = {
 # ═══════════════════════════════════════════════════════════════════════════════
 # Lazy translation marker
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 @dataclass(frozen=True)
 class LazyString:
@@ -380,7 +380,7 @@ def get_locale() -> str:
 
 
 def add_translation(msgid: str, msgstr: str, locale: Optional[str] = None,
-                   context: Optional[str] = None) -> None:
+                    context: Optional[str] = None) -> None:
     """Add or update translation at runtime."""
     catalog = _get_catalog(locale)
     catalog.add_translation(msgid, msgstr, context)
@@ -427,7 +427,6 @@ class I18nProcessor:
 def install_structlog_processor() -> None:
     """Install i18n processor into structlog configuration."""
     # This is a no-op if structlog is not configured yet
-    pass
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -16,7 +16,7 @@ from .action_executor import ActionExecutor
 
 __all__ = [
     "CycleManager",
-    "TaskDispatcher", 
+    "TaskDispatcher",
     "ReportGenerator",
     "ActionExecutor",
 ]

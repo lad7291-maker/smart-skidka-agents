@@ -18,7 +18,6 @@ P3-7: Оптимизация памяти контекста
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import json
 import os
@@ -52,7 +51,7 @@ PROJECT_CONTEXT_KEY_FILES = ["index.html", "products.json", "app.js"]
 class ContextCache:
     """
     Центральный кэш для контекста агентов.
-    
+
     Работает с Redis (через MemoryStore) и локальным in-memory fallback.
     Ключевая логика:
     - last_results: кэшируется из Redis (уже пишется в save_result)
@@ -109,11 +108,11 @@ class ContextCache:
     async def get_last_results(self, agent_name: str, limit: int = 3) -> Optional[List[Dict[str, Any]]]:
         """
         Пытается получить last_results из Redis-кэша.
-        
+
         save_result() пишет в Redis ключ agent:last_result:{agent_name}
         Мы читаем его и формируем список (для limit=3 — один элемент повторяется
         как заглушка, реальный кэш для N результатов нужно добавить в save_result).
-        
+
         Returns:
             Список результатов или None если кэш промахнулся.
         """
@@ -195,7 +194,7 @@ class ContextCache:
     def _get_project_mtime_hash(self, project_root: str) -> str:
         """
         Вычисляет хэш по mtime ключевых файлов проекта.
-        
+
         Если файлы не менялись — хэш одинаковый, кэш валиден.
         """
         root = Path(project_root)
@@ -217,7 +216,7 @@ class ContextCache:
     async def get_project_context(self, agent_type: str, project_root: str) -> Optional[str]:
         """
         Пытается получить project_context из кэша.
-        
+
         Ключ кэша включает agent_type + хэш mtime файлов.
         Если файлы изменились — хэш другой, кэш промахивается.
         """

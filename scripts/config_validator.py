@@ -40,7 +40,6 @@ except ImportError:
 
 class ConfigError(Exception):
     """Ошибка валидации конфигурации агента."""
-    pass
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -198,11 +197,10 @@ def _minimal_validation(config: Dict[str, Any]) -> None:
         raise ConfigError(f"max_tokens must be >= 1, got {max_tokens}")
 
 
-
 def _semantic_validation(config: Dict[str, Any]) -> None:
     """Семантические проверки, не покрываемые JSON Schema."""
     agent_name = config.get("agent_name", "")
-    
+
     # Проверка: agent_name должен совпадать с именем файла (если известно)
     # Это проверяется на уровне AgentConfig
 
@@ -277,7 +275,6 @@ def validate_config_file(path: Path) -> List[str]:
 
 def main() -> int:
     """CLI: validate all configs in a directory."""
-    import sys
     import argparse
 
     parser = argparse.ArgumentParser(description="Validate agent configs")
