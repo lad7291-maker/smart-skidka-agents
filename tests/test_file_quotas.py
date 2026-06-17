@@ -27,9 +27,25 @@ class TestFileQuotas(unittest.TestCase):
     """Тесты квот на создание файлов."""
 
     def setUp(self):
-        """Чистим tracker перед каждым тестом."""
+        """Создаём временную директорию и чистим tracker перед каждым тестом."""
+        import os
+        import tempfile
+        self._orig_project_root = os.environ.get("PROJECT_ROOT")
+        self.test_root = Path(tempfile.mkdtemp(prefix="test_site_"))
+        os.environ["PROJECT_ROOT"] = str(self.test_root)
         tracker = {"created_pages": [], "updated_meta": [], "updated_products": []}
         _save_quota_tracker(tracker)
+
+    def tearDown(self):
+        """Чистим после теста."""
+        import os
+        import shutil
+        if self.test_root.exists():
+            shutil.rmtree(self.test_root)
+        if self._orig_project_root is not None:
+            os.environ["PROJECT_ROOT"] = self._orig_project_root
+        elif "PROJECT_ROOT" in os.environ:
+            del os.environ["PROJECT_ROOT"]
 
     def test_quota_allowed_when_empty(self):
         """Создание разрешено когда квота пустая."""

@@ -91,10 +91,15 @@ class TestAlembicSetup(unittest.TestCase):
 
     def test_alembic_history_shows_revision(self):
         """alembic history показывает revision 001."""
+        import shutil
         import subprocess
 
+        alembic_path = shutil.which("alembic")
+        if alembic_path is None:
+            self.skipTest("alembic CLI not found in PATH")
+
         result = subprocess.run(
-            ["alembic", "history"],
+            [alembic_path, "history"],
             capture_output=True,
             text=True,
             cwd="/opt/smart-skidka-agents",

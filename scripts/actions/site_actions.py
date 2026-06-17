@@ -285,6 +285,220 @@ def update_item_description(item_id: str, new_description: str) -> bool:
     return False
 
 
+# ─── Content: создание блог-поста ──────────────────────────────────────────
+
+
+@with_retry(max_retries=3, delay=0.5, backoff=2.0, exceptions=(Exception,))
+@register_action(
+    "create_blog_post",
+    agent_types=["content"],
+    description="Создаёт блог-пост на сайте",
+)
+def create_blog_post(
+    title: str,
+    subtitle: str,
+    introduction: str,
+    sections: list,
+    conclusion: str,
+    tags: list,
+    product_mentions: list,
+    cta_text: str,
+    featured_image_prompt: str = "",
+    reading_time_min: int = 0,
+) -> bool:
+    """
+    Создаёт блог-пост на сайте smart-skidka.ru.
+
+    Сохраняет HTML-файл в blog/ и обновляет blog/index.json.
+    """
+    site_root = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp"))
+    blog_dir = site_root / "blog"
+    blog_dir.mkdir(parents=True, exist_ok=True)
+
+    # Генерируем slug из заголовка
+    slug = generate_slug(title)
+    if not slug:
+        slug = f"post-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+
+    # Проверяем уникальность slug
+    post_path = blog_dir / f"{slug}.html"
+    counter = 1
+    original_slug = slug
+    while post_path.exists():
+        slug = f"{original_slug}-{counter}"
+        post_path = blog_dir / f"{slug}.html"
+        counter += 1
+
+    # Формируем HTML-контент
+    sections_html = ""
+    for section in sections:
+        heading = _h(section.get("heading", ""))
+        body = section.get("body", "")
+        # Конвертируем markdown-разделители в HTML
+        body_html = body.replace("\n\n", "</p><p>")
+        body_html = f"<p>{body_html}</p>"
+        sections_html += f"""
+        <section class="blog-section">
+            <h2>{heading}</h2>
+            {body_html}
+        </section>"""
+
+    # Теги
+    tags_html = ""
+    if tags:
+        tags_html = '<div class="tags">' + "".join(
+            f'<span class="tag">{_h(tag)}</span>' for tag in tags
+        ) + "</div>"
+
+    # Упоминания товаров
+    mentions_html = ""
+    if product_mentions:
+        mentions_html = '<div class="product-mentions"><h3>Товары в статье:</h3><ul>' + "".join(
+            f'<li>{_h(m)}</li>' for m in product_mentions
+        ) + "</ul></div>"
+
+    # CTA
+    cta_html = ""
+    if cta_text:
+        cta_html = f"""
+        <div class="cta-box">
+            <p>{_h(cta_text)}</p>
+            <a href="/" class="btn btn-primary">Перейти в каталог</a>
+        </div>"""
+
+    # Reading time badge
+    reading_time_html = ""
+    if reading_time_min:
+        reading_time_html = f'<span class="reading-time">⏱ {reading_time_min} мин чтения</span>'
+
+    # Дата публикации
+    pub_date = datetime.now().strftime("%d.%m.%Y")
+
+    html = f"""<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{_h(title)} | Блог Smart Skidka</title>
+    <meta name="description" content="{_h(subtitle)}">
+    <meta property="og:title" content="{_h(title)}">
+    <meta property="og:description" content="{_h(subtitle)}">
+    <link rel="canonical" href="/blog/{slug}.html">
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        .blog-post {{ max-width: 800px; margin: 0 auto; padding: 20px; }}
+        .blog-header {{ margin-bottom: 30px; }}
+        .blog-header h1 {{ font-size: 2.2em; margin-bottom: 10px; }}
+        .blog-subtitle {{ font-size: 1.2em; color: #666; margin-bottom: 15px; }}
+        .blog-meta {{ color: #999; font-size: 0.9em; margin-bottom: 20px; }}
+        .blog-meta span {{ margin-right: 15px; }}
+        .blog-section {{ margin: 30px 0; }}
+        .blog-section h2 {{ font-size: 1.5em; margin-bottom: 15px; color: #333; }}
+        .blog-section p {{ line-height: 1.7; margin-bottom: 15px; }}
+        .tags {{ margin: 20px 0; }}
+        .tag {{ display: inline-block; background: #f0f0f0; padding: 4px 12px; border-radius: 15px; margin: 0 5px 5px 0; font-size: 0.85em; }}
+        .product-mentions {{ background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; }}
+        .cta-box {{ background: #e8f5e9; padding: 20px; border-radius: 8px; text-align: center; margin: 30px 0; }}
+        .cta-box p {{ margin-bottom: 15px; font-size: 1.1em; }}
+        .reading-time {{ color: #666; }}
+    </style>
+</head>
+<body>
+    <header>
+        <h1><a href="/">Smart Skidka</a></h1>
+        <nav><a href="/">Главная</a> <a href="/blog/">Блог</a></nav>
+    </header>
+    <main class="blog-post">
+        <article>
+            <div class="blog-header">
+                <h1>{_h(title)}</h1>
+                <p class="blog-subtitle">{_h(subtitle)}</p>
+                <div class="blog-meta">
+                    <span>📅 {pub_date}</span>
+                    {reading_time_html}
+                </div>
+            </div>
+            <div class="blog-introduction">
+                <p><strong>{_h(introduction)}</strong></p>
+            </div>
+            {sections_html}
+            <div class="blog-conclusion">
+                <p>{_h(conclusion)}</p>
+            </div>
+            {mentions_html}
+            {cta_html}
+            {tags_html}
+        </article>
+    </main>
+    <footer>
+        <p>Smart Skidka © 2025 — Лучшие скидки с AliExpress</p>
+        <p><a href="/">← Вернуться в каталог</a></p>
+    </footer>
+</body>
+</html>"""
+
+    # Сохраняем HTML
+    if not safe_write(post_path, html):
+        return False
+
+    # Обновляем blog/index.json
+    _update_blog_index(
+        slug=slug,
+        title=title,
+        subtitle=subtitle,
+        tags=tags,
+        date=pub_date,
+        reading_time=reading_time_min,
+    )
+
+    print(f"[BLOG] Created: /blog/{slug}.html")
+    return True
+
+
+def _update_blog_index(
+    slug: str,
+    title: str,
+    subtitle: str,
+    tags: list,
+    date: str,
+    reading_time: int,
+) -> bool:
+    """Обновляет индекс блога."""
+    site_root = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp"))
+    index_path = site_root / "blog" / "index.json"
+
+    index = {"posts": []}
+    if index_path.exists():
+        try:
+            with open(index_path, "r", encoding="utf-8") as f:
+                index = json.load(f)
+        except Exception:
+            pass
+
+    # Добавляем новый пост в начало
+    index["posts"].insert(0, {
+        "slug": slug,
+        "title": title,
+        "subtitle": subtitle,
+        "tags": tags,
+        "date": date,
+        "reading_time": reading_time,
+        "url": f"/blog/{slug}.html",
+    })
+
+    # Ограничиваем историю
+    index["posts"] = index["posts"][:100]
+
+    try:
+        import json
+        with open(index_path, "w", encoding="utf-8") as f:
+            json.dump(index, f, ensure_ascii=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"[ERROR] Failed to update blog index: {e}")
+        return False
+
+
 # ─── SMM: добавление бейджа "Тренд" к товару ─────────────────────────────
 
 

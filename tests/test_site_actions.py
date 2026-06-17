@@ -33,6 +33,7 @@ from scripts.actions.site_actions import (
     add_to_sitemap,
     check_category_page_quota,
     check_page_http_status,
+    create_blog_post,
     create_category_page,
     generate_slug,
     get_quota_status,
@@ -71,9 +72,25 @@ class TestQuotaTracker(unittest.TestCase):
     """Тесты квотного трекера."""
 
     def setUp(self):
-        """Чистим tracker перед каждым тестом."""
+        """Создаём временную директорию и чистим tracker перед каждым тестом."""
+        import tempfile
+        import shutil
+        self._orig_project_root = os.environ.get("PROJECT_ROOT")
+        self.test_root = Path(tempfile.mkdtemp(prefix="test_site_"))
+        os.environ["PROJECT_ROOT"] = str(self.test_root)
+        # Reset tracker in the new location
         tracker = {"created_pages": [], "updated_meta": [], "updated_products": []}
         _save_quota_tracker(tracker)
+
+    def tearDown(self):
+        """Чистим после теста."""
+        import shutil
+        if self.test_root.exists():
+            shutil.rmtree(self.test_root)
+        if self._orig_project_root is not None:
+            os.environ["PROJECT_ROOT"] = self._orig_project_root
+        elif "PROJECT_ROOT" in os.environ:
+            del os.environ["PROJECT_ROOT"]
 
     def test_load_empty_tracker(self):
         tracker = _load_quota_tracker()
@@ -130,29 +147,40 @@ class TestUpdateMetaTags(unittest.TestCase):
     """Тесты update_meta_tags."""
 
     def setUp(self):
-        self.site_root = Path("/tmp/test_site")
-        self.site_root.mkdir(parents=True, exist_ok=True)
-        from scripts.actions.file_utils import INDEX_HTML
+        import tempfile
+        self._orig_project_root = os.environ.get("PROJECT_ROOT")
+        self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
+        os.environ["PROJECT_ROOT"] = str(self.site_root)
+        from scripts.actions.file_utils import _get_site_root
 
-        INDEX_HTML.write_text(
+        index_html = _get_site_root() / "index.html"
+        index_html.write_text(
             "<html><head><title>Old</title></head><body></body></html>",
             encoding="utf-8",
         )
 
     def tearDown(self):
-        from scripts.actions.file_utils import INDEX_HTML
+        import shutil
+        from scripts.actions.file_utils import _get_site_root
 
-        INDEX_HTML.unlink(missing_ok=True)
+        index_html = _get_site_root() / "index.html"
+        index_html.unlink(missing_ok=True)
         for f in self.site_root.glob("*.bak.*"):
             f.unlink(missing_ok=True)
+        if self.site_root.exists():
+            shutil.rmtree(self.site_root)
+        if self._orig_project_root is not None:
+            os.environ["PROJECT_ROOT"] = self._orig_project_root
+        elif "PROJECT_ROOT" in os.environ:
+            del os.environ["PROJECT_ROOT"]
 
     def test_update_title(self):
         result = update_meta_tags("New Title", "New Description")
         self.assertTrue(result)
 
-        from scripts.actions.file_utils import INDEX_HTML
+        from scripts.actions.file_utils import _get_site_root
 
-        html = INDEX_HTML.read_text(encoding="utf-8")
+        html = (_get_site_root() / "index.html").read_text(encoding="utf-8")
         self.assertIn("<title>New Title</title>", html)
         self.assertIn('<meta name="description" content="New Description">', html)
 
@@ -160,25 +188,26 @@ class TestUpdateMetaTags(unittest.TestCase):
         result = update_meta_tags("Title", "Desc", "kw1, kw2")
         self.assertTrue(result)
 
-        from scripts.actions.file_utils import INDEX_HTML
+        from scripts.actions.file_utils import _get_site_root
 
-        html = INDEX_HTML.read_text(encoding="utf-8")
+        html = (_get_site_root() / "index.html").read_text(encoding="utf-8")
         self.assertIn('<meta name="keywords" content="kw1, kw2">', html)
 
     def test_html_escape(self):
         result = update_meta_tags("<script>alert(1)</script>", "Desc")
         self.assertTrue(result)
 
-        from scripts.actions.file_utils import INDEX_HTML
+        from scripts.actions.file_utils import _get_site_root
 
-        html = INDEX_HTML.read_text(encoding="utf-8")
+        html = (_get_site_root() / "index.html").read_text(encoding="utf-8")
         self.assertIn("&lt;script&gt;", html)
         self.assertNotIn("<script>", html)
 
     def test_empty_html_returns_false(self):
-        from scripts.actions.file_utils import INDEX_HTML
+        from scripts.actions.file_utils import _get_site_root
 
-        INDEX_HTML.write_text("", encoding="utf-8")
+        index_html = _get_site_root() / "index.html"
+        index_html.write_text("", encoding="utf-8")
         result = update_meta_tags("Title", "Desc")
         self.assertFalse(result)
 
@@ -187,21 +216,26 @@ class TestCreateCategoryPage(unittest.TestCase):
     """Тесты create_category_page."""
 
     def setUp(self):
-        self.site_root = Path("/tmp/test_site")
-        self.site_root.mkdir(parents=True, exist_ok=True)
-        # Patch file_utils SITE_ROOT
-        self.patcher = patch("scripts.actions.file_utils.SITE_ROOT", self.site_root)
-        self.patcher.start()
+        import tempfile
+        self._orig_project_root = os.environ.get("PROJECT_ROOT")
+        self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
+        os.environ["PROJECT_ROOT"] = str(self.site_root)
         # Clear quota tracker
         tracker = {"created_pages": [], "updated_meta": [], "updated_products": []}
         _save_quota_tracker(tracker)
 
     def tearDown(self):
-        self.patcher.stop()
+        import shutil
         category_dir = self.site_root / "category"
         if category_dir.exists():
             for f in category_dir.glob("*.html"):
                 f.unlink(missing_ok=True)
+        if self.site_root.exists():
+            shutil.rmtree(self.site_root)
+        if self._orig_project_root is not None:
+            os.environ["PROJECT_ROOT"] = self._orig_project_root
+        elif "PROJECT_ROOT" in os.environ:
+            del os.environ["PROJECT_ROOT"]
 
     def test_create_category_page(self):
         items = [
@@ -251,27 +285,39 @@ class TestUpdateItemDescription(unittest.TestCase):
     """Тесты update_item_description."""
 
     def setUp(self):
-        self.site_root = Path("/tmp/test_site")
-        self.site_root.mkdir(parents=True, exist_ok=True)
-        from scripts.actions.file_utils import PRODUCTS_JSON
+        import tempfile
+        self._orig_project_root = os.environ.get("PROJECT_ROOT")
+        self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
+        os.environ["PROJECT_ROOT"] = str(self.site_root)
+        from scripts.actions.file_utils import _get_site_root
 
-        PRODUCTS_JSON.write_text(
+        products_json = _get_site_root() / "products.json"
+        products_json.write_text(
             '{"products": [{"id": "1", "name": "Test", "description": "Old"}]}',
             encoding="utf-8",
         )
 
     def tearDown(self):
-        from scripts.actions.file_utils import PRODUCTS_JSON
+        import shutil
+        from scripts.actions.file_utils import _get_site_root
 
-        PRODUCTS_JSON.unlink(missing_ok=True)
+        products_json = _get_site_root() / "products.json"
+        products_json.unlink(missing_ok=True)
+        if self.site_root.exists():
+            shutil.rmtree(self.site_root)
+        if self._orig_project_root is not None:
+            os.environ["PROJECT_ROOT"] = self._orig_project_root
+        elif "PROJECT_ROOT" in os.environ:
+            del os.environ["PROJECT_ROOT"]
 
     def test_update_description(self):
         result = update_item_description("1", "New Description")
         self.assertTrue(result)
 
-        from scripts.actions.file_utils import PRODUCTS_JSON
+        from scripts.actions.file_utils import _get_site_root
 
-        data = json.loads(PRODUCTS_JSON.read_text(encoding="utf-8"))
+        products_json = _get_site_root() / "products.json"
+        data = json.loads(products_json.read_text(encoding="utf-8"))
         # write_products writes list when dict has "products" key
         self.assertEqual(data[0]["description"], "New Description")
 
@@ -290,24 +336,36 @@ class TestAddBadge(unittest.TestCase):
     """Тесты add_badge."""
 
     def setUp(self):
-        self.site_root = Path("/tmp/test_site")
-        self.site_root.mkdir(parents=True, exist_ok=True)
-        from scripts.actions.file_utils import PRODUCTS_JSON
+        import tempfile
+        self._orig_project_root = os.environ.get("PROJECT_ROOT")
+        self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
+        os.environ["PROJECT_ROOT"] = str(self.site_root)
+        from scripts.actions.file_utils import _get_site_root
 
-        PRODUCTS_JSON.write_text('{"products": [{"id": "1", "name": "Test"}]}', encoding="utf-8")
+        products_json = _get_site_root() / "products.json"
+        products_json.write_text('{"products": [{"id": "1", "name": "Test"}]}', encoding="utf-8")
 
     def tearDown(self):
-        from scripts.actions.file_utils import PRODUCTS_JSON
+        import shutil
+        from scripts.actions.file_utils import _get_site_root
 
-        PRODUCTS_JSON.unlink(missing_ok=True)
+        products_json = _get_site_root() / "products.json"
+        products_json.unlink(missing_ok=True)
+        if self.site_root.exists():
+            shutil.rmtree(self.site_root)
+        if self._orig_project_root is not None:
+            os.environ["PROJECT_ROOT"] = self._orig_project_root
+        elif "PROJECT_ROOT" in os.environ:
+            del os.environ["PROJECT_ROOT"]
 
     def test_add_badge(self):
         result = add_badge("1", "🔥 Тренд")
         self.assertTrue(result)
 
-        from scripts.actions.file_utils import PRODUCTS_JSON
+        from scripts.actions.file_utils import _get_site_root
 
-        data = json.loads(PRODUCTS_JSON.read_text(encoding="utf-8"))
+        products_json = _get_site_root() / "products.json"
+        data = json.loads(products_json.read_text(encoding="utf-8"))
         self.assertEqual(data[0]["badge"], "🔥 Тренд")
 
     def test_item_not_found(self):
@@ -319,31 +377,44 @@ class TestPrioritizeProducts(unittest.TestCase):
     """Тесты prioritize_products."""
 
     def setUp(self):
-        self.site_root = Path("/tmp/test_site")
-        self.site_root.mkdir(parents=True, exist_ok=True)
-        from scripts.actions.file_utils import PRODUCTS_JSON
+        import tempfile
+        self._orig_project_root = os.environ.get("PROJECT_ROOT")
+        self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
+        os.environ["PROJECT_ROOT"] = str(self.site_root)
+        from scripts.actions.file_utils import _get_site_root
 
-        PRODUCTS_JSON.write_text('{"products": [{"id": "1"}, {"id": "2"}, {"id": "3"}]}', encoding="utf-8")
+        products_json = _get_site_root() / "products.json"
+        products_json.write_text('{"products": [{"id": "1"}, {"id": "2"}, {"id": "3"}]}', encoding="utf-8")
 
     def tearDown(self):
-        from scripts.actions.file_utils import PRODUCTS_JSON
+        import shutil
+        from scripts.actions.file_utils import _get_site_root
 
-        PRODUCTS_JSON.unlink(missing_ok=True)
+        products_json = _get_site_root() / "products.json"
+        products_json.unlink(missing_ok=True)
+        if self.site_root.exists():
+            shutil.rmtree(self.site_root)
+        if self._orig_project_root is not None:
+            os.environ["PROJECT_ROOT"] = self._orig_project_root
+        elif "PROJECT_ROOT" in os.environ:
+            del os.environ["PROJECT_ROOT"]
 
     def test_prioritize(self):
         result = prioritize_products(["2", "3"])
         self.assertTrue(result)
 
-        from scripts.actions.file_utils import PRODUCTS_JSON
+        from scripts.actions.file_utils import _get_site_root
 
-        data = json.loads(PRODUCTS_JSON.read_text(encoding="utf-8"))
+        products_json = _get_site_root() / "products.json"
+        data = json.loads(products_json.read_text(encoding="utf-8"))
         ids = [p["id"] for p in data]
         self.assertEqual(ids, ["2", "3", "1"])
 
     def test_empty_products(self):
-        from scripts.actions.file_utils import PRODUCTS_JSON
+        from scripts.actions.file_utils import _get_site_root
 
-        PRODUCTS_JSON.write_text("{}", encoding="utf-8")
+        products_json = _get_site_root() / "products.json"
+        products_json.write_text("{}", encoding="utf-8")
         result = prioritize_products(["1"])
         self.assertFalse(result)
 
@@ -352,24 +423,36 @@ class TestUpdateProductField(unittest.TestCase):
     """Тесты update_product_field."""
 
     def setUp(self):
-        self.site_root = Path("/tmp/test_site")
-        self.site_root.mkdir(parents=True, exist_ok=True)
-        from scripts.actions.file_utils import PRODUCTS_JSON
+        import tempfile
+        self._orig_project_root = os.environ.get("PROJECT_ROOT")
+        self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
+        os.environ["PROJECT_ROOT"] = str(self.site_root)
+        from scripts.actions.file_utils import _get_site_root
 
-        PRODUCTS_JSON.write_text('{"products": [{"id": "1", "name": "Test"}]}', encoding="utf-8")
+        products_json = _get_site_root() / "products.json"
+        products_json.write_text('{"products": [{"id": "1", "name": "Test"}]}', encoding="utf-8")
 
     def tearDown(self):
-        from scripts.actions.file_utils import PRODUCTS_JSON
+        import shutil
+        from scripts.actions.file_utils import _get_site_root
 
-        PRODUCTS_JSON.unlink(missing_ok=True)
+        products_json = _get_site_root() / "products.json"
+        products_json.unlink(missing_ok=True)
+        if self.site_root.exists():
+            shutil.rmtree(self.site_root)
+        if self._orig_project_root is not None:
+            os.environ["PROJECT_ROOT"] = self._orig_project_root
+        elif "PROJECT_ROOT" in os.environ:
+            del os.environ["PROJECT_ROOT"]
 
     def test_update_allowed_field(self):
         result = update_product_field("1", "discount", "50%")
         self.assertTrue(result)
 
-        from scripts.actions.file_utils import PRODUCTS_JSON
+        from scripts.actions.file_utils import _get_site_root
 
-        data = json.loads(PRODUCTS_JSON.read_text(encoding="utf-8"))
+        products_json = _get_site_root() / "products.json"
+        data = json.loads(products_json.read_text(encoding="utf-8"))
         self.assertEqual(data[0]["discount"], "50%")
 
     def test_update_protected_field(self):
@@ -389,15 +472,21 @@ class TestSitemap(unittest.TestCase):
     """Тесты sitemap.xml."""
 
     def setUp(self):
-        self.site_root = Path("/tmp/test_site")
-        self.site_root.mkdir(parents=True, exist_ok=True)
-        self.patcher = patch("scripts.actions.file_utils.SITE_ROOT", self.site_root)
-        self.patcher.start()
+        import tempfile
+        self._orig_project_root = os.environ.get("PROJECT_ROOT")
+        self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
+        os.environ["PROJECT_ROOT"] = str(self.site_root)
 
     def tearDown(self):
-        self.patcher.stop()
+        import shutil
         sitemap = self.site_root / "sitemap.xml"
         sitemap.unlink(missing_ok=True)
+        if self.site_root.exists():
+            shutil.rmtree(self.site_root)
+        if self._orig_project_root is not None:
+            os.environ["PROJECT_ROOT"] = self._orig_project_root
+        elif "PROJECT_ROOT" in os.environ:
+            del os.environ["PROJECT_ROOT"]
 
     def test_update_sitemap(self):
         pages = [
@@ -436,16 +525,22 @@ class TestCrossLinks(unittest.TestCase):
     """Тесты add_cross_links."""
 
     def setUp(self):
-        self.site_root = Path("/tmp/test_site")
-        self.site_root.mkdir(parents=True, exist_ok=True)
-        self.patcher = patch("scripts.actions.file_utils.SITE_ROOT", self.site_root)
-        self.patcher.start()
+        import tempfile
+        self._orig_project_root = os.environ.get("PROJECT_ROOT")
+        self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
+        os.environ["PROJECT_ROOT"] = str(self.site_root)
         self.page = self.site_root / "test.html"
         self.page.write_text("<html><body><h1>Test</h1></body></html>", encoding="utf-8")
 
     def tearDown(self):
-        self.patcher.stop()
+        import shutil
         self.page.unlink(missing_ok=True)
+        if self.site_root.exists():
+            shutil.rmtree(self.site_root)
+        if self._orig_project_root is not None:
+            os.environ["PROJECT_ROOT"] = self._orig_project_root
+        elif "PROJECT_ROOT" in os.environ:
+            del os.environ["PROJECT_ROOT"]
 
     def test_add_cross_links(self):
         related = [
@@ -545,6 +640,21 @@ class TestSuggestUniqueTitle(unittest.TestCase):
 class TestHttpCheck(unittest.IsolatedAsyncioTestCase):
     """Тесты async HTTP check."""
 
+    def setUp(self):
+        import tempfile
+        self._orig_project_root = os.environ.get("PROJECT_ROOT")
+        self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
+        os.environ["PROJECT_ROOT"] = str(self.site_root)
+
+    def tearDown(self):
+        import shutil
+        if self.site_root.exists():
+            shutil.rmtree(self.site_root)
+        if self._orig_project_root is not None:
+            os.environ["PROJECT_ROOT"] = self._orig_project_root
+        elif "PROJECT_ROOT" in os.environ:
+            del os.environ["PROJECT_ROOT"]
+
     @patch("aiohttp.ClientSession")
     async def test_success(self, mock_session_class):
         mock_session = MagicMock()
@@ -594,6 +704,21 @@ class TestHttpCheck(unittest.IsolatedAsyncioTestCase):
 
 class TestVerifyAndTrackPage(unittest.IsolatedAsyncioTestCase):
     """Тесты verify_and_track_page."""
+
+    def setUp(self):
+        import tempfile
+        self._orig_project_root = os.environ.get("PROJECT_ROOT")
+        self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
+        os.environ["PROJECT_ROOT"] = str(self.site_root)
+
+    def tearDown(self):
+        import shutil
+        if self.site_root.exists():
+            shutil.rmtree(self.site_root)
+        if self._orig_project_root is not None:
+            os.environ["PROJECT_ROOT"] = self._orig_project_root
+        elif "PROJECT_ROOT" in os.environ:
+            del os.environ["PROJECT_ROOT"]
 
     @patch("scripts.actions.site_actions.check_page_http_status")
     async def test_success_with_tracking(self, mock_check):
@@ -655,6 +780,161 @@ class TestVerifyAndTrackPage(unittest.IsolatedAsyncioTestCase):
 
         self.assertFalse(result["ok"])  # ok = http AND tracked
         self.assertFalse(result["tracked"])
+
+
+class TestCreateBlogPost(unittest.TestCase):
+    """Тесты create_blog_post."""
+
+    def setUp(self):
+        """Создаём временную директорию перед каждым тестом."""
+        import tempfile
+        import shutil
+        self._orig_project_root = os.environ.get("PROJECT_ROOT")
+        self.test_root = Path(tempfile.mkdtemp(prefix="test_site_"))
+        os.environ["PROJECT_ROOT"] = str(self.test_root)
+
+    def tearDown(self):
+        """Чистим после теста."""
+        import shutil
+        import os
+        if self.test_root.exists():
+            shutil.rmtree(self.test_root)
+        if self._orig_project_root is not None:
+            os.environ["PROJECT_ROOT"] = self._orig_project_root
+        elif "PROJECT_ROOT" in os.environ:
+            del os.environ["PROJECT_ROOT"]
+
+    def test_create_blog_post_basic(self):
+        result = create_blog_post(
+            title="Как я купил наушники",
+            subtitle="И не пожалел",
+            introduction="Всем привет! Расскажу о своём опыте.",
+            sections=[
+                {"heading": "Первые впечатления", "body": "Качество отличное."},
+                {"heading": "Лайфхаки", "body": "Совет №1: заряжайте ночью."},
+            ],
+            conclusion="Рекомендую всем!",
+            tags=["наушники", "aliexpress", "скидки"],
+            product_mentions=["Беспроводные наушники XY"],
+            cta_text="Хотите такие же? Смотрите на smart-skidka.ru!",
+            reading_time_min=5,
+        )
+        self.assertTrue(result)
+
+        # Проверяем что файл создан
+        blog_dir = self.test_root / "blog"
+        html_files = list(blog_dir.glob("*.html"))
+        self.assertEqual(len(html_files), 1)
+
+        # Проверяем содержимое
+        content = html_files[0].read_text(encoding="utf-8")
+        self.assertIn("Как я купил наушники", content)
+        self.assertIn("И не пожалел", content)
+        self.assertIn("Первые впечатления", content)
+        self.assertIn("Рекомендую всем!", content)
+        self.assertIn("наушники", content)
+        self.assertIn("smart-skidka.ru", content)
+        self.assertIn("5 мин чтения", content)
+
+    def test_create_blog_post_generates_slug(self):
+        create_blog_post(
+            title="Тестовый пост! Со спецсимволами?",
+            subtitle="S",
+            introduction="I",
+            sections=[],
+            conclusion="C",
+            tags=[],
+            product_mentions=[],
+            cta_text="",
+        )
+        blog_dir = self.test_root / "blog"
+        html_files = list(blog_dir.glob("*.html"))
+        self.assertTrue(len(html_files) > 0)
+        # slug должен быть очищен от спецсимволов (кириллица остаётся)
+        self.assertNotIn("!", html_files[0].name)
+        self.assertNotIn("?", html_files[0].name)
+        self.assertIn("тестовый-пост", html_files[0].name.lower())
+
+    def test_create_blog_post_unique_slug_on_duplicate(self):
+        # Создаём первый пост
+        create_blog_post(
+            title="Дубликат",
+            subtitle="S1",
+            introduction="I1",
+            sections=[],
+            conclusion="C1",
+            tags=[],
+            product_mentions=[],
+            cta_text="",
+        )
+        # Создаём второй с таким же заголовком
+        create_blog_post(
+            title="Дубликат",
+            subtitle="S2",
+            introduction="I2",
+            sections=[],
+            conclusion="C2",
+            tags=[],
+            product_mentions=[],
+            cta_text="",
+        )
+        blog_dir = self.test_root / "blog"
+        html_files = list(blog_dir.glob("*.html"))
+        self.assertEqual(len(html_files), 2)
+        names = {f.name for f in html_files}
+        self.assertEqual(len(names), 2)  # разные имена
+
+    def test_create_blog_post_updates_index(self):
+        create_blog_post(
+            title="Пост для индекса",
+            subtitle="Подзаголовок",
+            introduction="I",
+            sections=[],
+            conclusion="C",
+            tags=["тег1", "тег2"],
+            product_mentions=[],
+            cta_text="",
+            reading_time_min=3,
+        )
+        index_path = self.test_root / "blog" / "index.json"
+        self.assertTrue(index_path.exists())
+        with open(index_path, "r", encoding="utf-8") as f:
+            index = json.load(f)
+        self.assertEqual(len(index["posts"]), 1)
+        self.assertEqual(index["posts"][0]["title"], "Пост для индекса")
+        self.assertEqual(index["posts"][0]["reading_time"], 3)
+        self.assertEqual(index["posts"][0]["tags"], ["тег1", "тег2"])
+
+    def test_create_blog_post_empty_optional_fields(self):
+        result = create_blog_post(
+            title="Минимальный пост",
+            subtitle="",
+            introduction="I",
+            sections=[],
+            conclusion="C",
+            tags=[],
+            product_mentions=[],
+            cta_text="",
+            reading_time_min=0,
+        )
+        self.assertTrue(result)
+
+    def test_create_blog_post_html_escape(self):
+        create_blog_post(
+            title="<script>alert(1)</script>",
+            subtitle="S",
+            introduction="I",
+            sections=[{"heading": "<b>Жирный</b>", "body": "Текст"}],
+            conclusion="C",
+            tags=[],
+            product_mentions=[],
+            cta_text="",
+        )
+        blog_dir = self.test_root / "blog"
+        html_files = list(blog_dir.glob("*.html"))
+        content = html_files[0].read_text(encoding="utf-8")
+        self.assertNotIn("<script>", content)
+        self.assertIn("&lt;script&gt;", content)
 
 
 if __name__ == "__main__":

@@ -14,7 +14,12 @@ from pathlib import Path
 from typing import Optional
 
 # Пути к проекту
-SITE_ROOT = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp")).resolve()
+def _get_site_root() -> Path:
+    """Возвращает SITE_ROOT из env var (динамически, для тестов)."""
+    return Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp")).resolve()
+
+
+SITE_ROOT = _get_site_root()
 PRODUCTS_JSON = SITE_ROOT / "products.json"
 INDEX_HTML = SITE_ROOT / "index.html"
 ITEMS_DIR = SITE_ROOT / "item"
@@ -23,7 +28,7 @@ ITEMS_DIR = SITE_ROOT / "item"
 def _resolve_within_site_root(path: Path) -> Path:
     """Проверяет, что путь находится внутри SITE_ROOT (защита от path traversal)."""
     resolved = path.resolve()
-    site_root_resolved = SITE_ROOT.resolve()
+    site_root_resolved = _get_site_root().resolve()
     # Приводим к общему виду для сравнения
     try:
         resolved.relative_to(site_root_resolved)
@@ -100,15 +105,15 @@ def safe_write_json(path: Path, data: dict) -> bool:
 
 
 def read_site_html() -> str:
-    return safe_read(INDEX_HTML)
+    return safe_read(_get_site_root() / "index.html")
 
 
 def write_site_html(content: str) -> bool:
-    return safe_write(INDEX_HTML, content)
+    return safe_write(_get_site_root() / "index.html", content)
 
 
 def read_products() -> dict:
-    data = safe_read_json(PRODUCTS_JSON)
+    data = safe_read_json(_get_site_root() / "products.json")
     if isinstance(data, list):
         return {"products": data}
     return data if isinstance(data, dict) else {}
@@ -166,16 +171,18 @@ def write_products(data: dict, validate: bool = False) -> bool:
         validate: Если True, проверяет разрешённые поля (для агентов)
     """
     # Если data — dict с "products", сохраняем как list для совместимости с app.js
+    products_json = _get_site_root() / "products.json"
     if isinstance(data, dict) and "products" in data:
-        return safe_write_json(PRODUCTS_JSON, data["products"])
-    return safe_write_json(PRODUCTS_JSON, data)
+        return safe_write_json(products_json, data["products"])
+    return safe_write_json(products_json, data)
 
 
 def list_items() -> list:
     """Список всех HTML-страниц товаров."""
-    if not ITEMS_DIR.exists():
+    items_dir = _get_site_root() / "item"
+    if not items_dir.exists():
         return []
-    return sorted([f.name for f in ITEMS_DIR.glob("*.html")])
+    return sorted([f.name for f in items_dir.glob("*.html")])
 
 
 # ─── COS-1: Git versioning on file changes ───────────────────────────────

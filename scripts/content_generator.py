@@ -120,6 +120,22 @@ class Guide:
     reading_time_min: int = 0
 
 
+@dataclass
+class BlogArticle:
+    """Блог-статья о товаре / категории."""
+
+    title: str
+    subtitle: str
+    introduction: str
+    sections: List[Dict[str, str]]
+    conclusion: str
+    tags: List[str] = field(default_factory=list)
+    reading_time_min: int = 0
+    product_mentions: List[str] = field(default_factory=list)
+    cta_text: str = ""
+    featured_image_prompt: str = ""
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # ContentGenerator — Основной класс генератора
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -139,6 +155,9 @@ class ContentGenerator:
     Example:
         >>> gen = ContentGenerator(api_key="sk-...")
         >>> page = await gen.generate_seo_page("Ноутбуки", ["ноутбуки со скидкой"])
+        >>> blog = await gen.generate_blog_article(
+        ...     product={"title": "Беспроводные наушники", "category": "электроника"}
+        ... )
     """
 
     def __init__(
@@ -749,6 +768,197 @@ class ContentGenerator:
 
         return parsed
 
+    async def generate_blog_article(
+        self,
+        product: Dict[str, Any],
+        angle: str = "story",
+        tone: str = "friendly",
+    ) -> Dict[str, Any]:
+        """
+        Генерирует блог-статью о товаре — с историей, применением, лайфхаками.
+
+        Создаёт нарративный контент: рассказ о товаре, сценарии использования,
+        личный опыт, советы. Публикуется в блоге smart-skidka.ru/blog/
+
+        Args:
+            product: Данные о товаре:
+                - title: Название товара
+                - category: Категория
+                - price: Цена со скидкой
+                - original_price: Цена без скидки
+                - features: Список характеристик
+                - image_url: URL изображения (опционально)
+            angle: Угол статьи — "story" (история), "review" (обзор),
+                   "howto" (лайфхаки), "comparison" (vs конкуренты)
+            tone: Тон — "friendly" (дружелюбный), "expert" (экспертный),
+                  "humorous" (юмористический)
+
+        Returns:
+            Словарь с блог-статьёй:
+                - title: Заголовок
+                - subtitle: Подзаголовок
+                - introduction: Введение (150-300 символов)
+                - sections: Разделы статьи (3-5 шт.)
+                - conclusion: Заключение с CTA
+                - tags: Теги
+                - reading_time_min: Время чтения
+                - product_mentions: Упоминания товаров
+                - cta_text: Призыв к действию
+                - featured_image_prompt: Промпт для картинки
+        """
+        title = product.get("title", "Товар")
+        category = product.get("category", "")
+        price = product.get("price", 0)
+        original = product.get("original_price", 0)
+        discount = product.get("discount", 0)
+        features = product.get("features", [])
+        features_str = "\n".join([f"- {f}" for f in features]) if features else ""
+
+        angle_prompts = {
+            "story": "Расскажи историю: как этот товар появился в твоей жизни, что изменил, как используешь каждый день. Личный нарратив.",
+            "review": "Честный обзор: плюсы, минусы, кому подходит, кому нет. Экспертная оценка.",
+            "howto": "10 лайфхаков и неожиданных способов применения. Практические советы.",
+            "comparison": "Сравни с аналогами: почему этот товар выигрывает. Таблица сравнения.",
+        }
+        angle_desc = angle_prompts.get(angle, angle_prompts["story"])
+
+        tone_prompts = {
+            "friendly": "Пиши как другу: тёпло, просто, с эмодзи, без заумных слов.",
+            "expert": "Пиши как эксперт: факты, цифры, технические детали, профессиональный тон.",
+            "humorous": "Пиши с юмором: шутки, ирония, забавные ситуации, лёгкий тон.",
+        }
+        tone_desc = tone_prompts.get(tone, tone_prompts["friendly"])
+
+        system_prompt = (
+            "Ты — блогер и эксперт по товарам с AliExpress. "
+            "Пишешь увлекательные статьи для блога smart-skidka.ru. "
+            "Статьи читаются как рассказы, а не рекламу. Верни результат в JSON."
+        )
+
+        user_prompt = f"""Создай блог-статью о товаре: "{title}"
+
+Категория: {category}
+Цена со скидкой: {price}₽ (было {original}₽, скидка {discount}%)
+
+Характеристики:
+{features_str}
+
+Угол статьи: {angle_desc}
+
+Тон: {tone_desc}
+
+Требования:
+1. Заголовок: цепляющий, 50-90 символов, с цифрой или вопросом
+2. Подзаголовок: 1-2 предложения, раскрывает тему
+3. Введение: 200-400 символов — личная история или интригующий факт
+4. Разделы: 3-5 шт., каждый с заголовком и текстом (300-800 символов):
+   - "Как я открыл для себя..." (история открытия)
+   - "{angle} в деталях" (основная часть)
+   - "Лайфхаки и хитрости" (советы)
+   - "Стоит ли покупать?" (выводы)
+   - "Где купить дешевле" (упоминание smart-skidka.ru)
+5. Заключение: 150-300 символов, CTA — перейти на smart-skidka.ru
+6. Теги: 5-8 релевантных тегов
+7. Reading_time_min: оценочное время чтения
+8. Product_mentions: список упомянутых товаров
+9. Cta_text: короткий призыв к действию (1-2 предложения)
+10. Featured_image_prompt: описание для генерации картинки к статье
+
+Формат (JSON):
+{{
+    "title": "...",
+    "subtitle": "...",
+    "introduction": "...",
+    "sections": [
+        {{"heading": "...", "body": "..."}},
+        {{"heading": "...", "body": "..."}}
+    ],
+    "conclusion": "...",
+    "tags": ["..."],
+    "reading_time_min": 5,
+    "product_mentions": ["..."],
+    "cta_text": "...",
+    "featured_image_prompt": "..."
+}}"""
+
+        logger.info("Генерация блог-статьи", product=title, angle=angle, tone=tone)
+        llm_result = await self._call_llm(system_prompt, user_prompt, temperature=0.8, max_tokens=4096)
+
+        if llm_result.get("error"):
+            return self._fallback_blog_article(product, angle)
+
+        parsed = self._parse_json_response(llm_result["content"])
+
+        if parsed.get("parse_error"):
+            return self._fallback_blog_article(product, angle)
+
+        # Расчёт времени чтения
+        content_text = " ".join(
+            s.get("body", "") for s in parsed.get("sections", [])
+        )
+        word_count = len(content_text.split())
+        parsed["reading_time_min"] = max(1, round(word_count / 200))
+
+        parsed["_metadata"] = {
+            "generated_at": datetime.now().isoformat(),
+            "product": title,
+            "category": category,
+            "angle": angle,
+            "tone": tone,
+            "llm_model": self.model,
+            "elapsed_ms": llm_result.get("elapsed_ms", 0),
+            "word_count": word_count,
+            "content_type": "blog_article",
+        }
+
+        return parsed
+
+    def _fallback_blog_article(
+        self,
+        product: Dict[str, Any],
+        angle: str = "story",
+    ) -> Dict[str, Any]:
+        """Создаёт базовую блог-статью при ошибке LLM."""
+        title = product.get("title", "Товар")
+        category = product.get("category", "")
+        return {
+            "title": f"Как я купил {title} и не пожалел",
+            "subtitle": f"Личный опыт использования {title} из категории {category}",
+            "introduction": f"Всем привет! Сегодня расскажу о {title} — товаре, который полностью изменил мой подход к {category}. Нашёл его на smart-skidka.ru со скидкой и решил попробовать.",
+            "sections": [
+                {
+                    "heading": "Как я открыл для себя этот товар",
+                    "body": f"Искал что-то недорогое и функциональное. {title} привлёк внимание отзывами и ценой. Заказал через smart-skidka.ru — доставка быстрая, упаковка надёжная.",
+                },
+                {
+                    "heading": "Первые впечатления",
+                    "body": f"Качество материалов приятно удивило. {title} оказался удобнее, чем ожидал. Использую каждый день уже месяц — нареканий нет.",
+                },
+                {
+                    "heading": "Лайфхаки и хитрости",
+                    "body": "Совет №1: читайте инструкцию — там есть полезные функции. Совет №2: следите за акциями на smart-skidka.ru, цены меняются. Совет №3: сравнивайте аналоги перед покупкой.",
+                },
+                {
+                    "heading": "Стоит ли покупать?",
+                    "body": f"Однозначно да. {title} — отличное соотношение цены и качества. Особенно со скидкой на smart-skidka.ru.",
+                },
+            ],
+            "conclusion": f"Если ищете {category} — рекомендую {title}. Проверено лично. Скидки и актуальные цены всегда на smart-skidka.ru.",
+            "tags": [category, "обзор", "aliexpress", "скидки", "лайфхаки"],
+            "reading_time_min": 3,
+            "product_mentions": [title],
+            "cta_text": f"Хотите такой же {title}? Смотрите лучшие цены на smart-skidka.ru!",
+            "featured_image_prompt": f"Фото {title} в интерьере, тёплое освещение, уютная атмосфера",
+            "_metadata": {
+                "generated_at": datetime.now().isoformat(),
+                "product": title,
+                "category": category,
+                "angle": angle,
+                "content_type": "blog_article",
+                "fallback": True,
+            },
+        }
+
     def _fallback_guide(
         self,
         topic: str,
@@ -881,6 +1091,13 @@ class ContentGenerator:
                         topics = params.get("topics", [])
                         topic = topics[index % len(topics)] if topics else f"Тема {index + 1}"
                         return await self.generate_guide(topic)
+
+                    elif content_type == "blog_article":
+                        products = params.get("products", [])
+                        product = products[index % len(products)] if products else {"title": f"Товар {index + 1}"}
+                        angle = params.get("angle", "story")
+                        tone = params.get("tone", "friendly")
+                        return await self.generate_blog_article(product, angle=angle, tone=tone)
 
                     else:
                         return {
@@ -1103,6 +1320,29 @@ async def generate_guide(topic: str, steps: Optional[List[str]] = None) -> Dict[
     gen = ContentGenerator()
     try:
         return await gen.generate_guide(topic, steps)
+    finally:
+        await gen.close()
+
+
+async def generate_blog_article(
+    product: Dict[str, Any],
+    angle: str = "story",
+    tone: str = "friendly",
+) -> Dict[str, Any]:
+    """
+    Генерирует блог-статью о товаре (функция-обёртка).
+
+    Args:
+        product: Данные о товаре
+        angle: Угол статьи — "story", "review", "howto", "comparison"
+        tone: Тон — "friendly", "expert", "humorous"
+
+    Returns:
+        Словарь с блог-статьёй
+    """
+    gen = ContentGenerator()
+    try:
+        return await gen.generate_blog_article(product, angle=angle, tone=tone)
     finally:
         await gen.close()
 

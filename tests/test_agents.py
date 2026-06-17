@@ -30,22 +30,22 @@ class TestProjectContext(unittest.TestCase):
         self.assertGreater(len(tree["children"]), 0)
 
     def test_scan_has_index_html(self):
-        """В дереве есть index.html."""
+        """В дереве есть HTML-файл."""
         tree = self.ctx.scan(max_depth=1)
         names = [c["name"] for c in tree["children"] if c.get("type") == "file"]
-        self.assertIn("index.html", names)
+        self.assertIn("home.html", names)
 
     def test_read_file_index_html(self):
-        """Чтение index.html возвращает HTML."""
-        content = self.ctx.read_file("index.html", max_chars=1000)
+        """Чтение home.html возвращает HTML."""
+        content = self.ctx.read_file("home.html", max_chars=1000)
         self.assertIn("<!DOCTYPE html>", content)
-        self.assertIn("SmartSkidka", content)
+        self.assertIn("smart-skidka", content.lower())
 
     def test_read_file_products_json(self):
-        """Чтение products.json возвращает JSON-массив."""
-        content = self.ctx.read_file("products.json", max_chars=2000)
+        """Чтение all.json возвращает JSON-массив."""
+        content = self.ctx.read_file("all.json", max_chars=2000)
         self.assertIn('"id"', content)
-        self.assertIn('"itemId"', content)
+        self.assertIn('"title"', content)
 
     def test_read_file_not_found(self):
         """Чтение несуществующего файла возвращает ошибку."""

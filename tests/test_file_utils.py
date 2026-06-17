@@ -205,38 +205,44 @@ class TestSafeWriteJson(unittest.TestCase):
 class TestReadProducts(unittest.TestCase):
     """Тесты read_products."""
 
-    @patch("scripts.actions.file_utils.SITE_ROOT", Path("/tmp/test_site"))
+    def setUp(self):
+        import tempfile
+        self._orig_project_root = os.environ.get("PROJECT_ROOT")
+        self.site_root = Path(tempfile.mkdtemp(prefix="test_site_"))
+        os.environ["PROJECT_ROOT"] = str(self.site_root)
+
+    def tearDown(self):
+        import shutil
+        if self.site_root.exists():
+            shutil.rmtree(self.site_root)
+        if self._orig_project_root is not None:
+            os.environ["PROJECT_ROOT"] = self._orig_project_root
+        elif "PROJECT_ROOT" in os.environ:
+            del os.environ["PROJECT_ROOT"]
+
     def test_read_dict(self):
-        site_root = Path("/tmp/test_site")
-        site_root.mkdir(parents=True, exist_ok=True)
+        from scripts.actions.file_utils import _get_site_root
 
-        from scripts.actions.file_utils import PRODUCTS_JSON
-
-        PRODUCTS_JSON.write_text('{"products": [{"id": 1}]}', encoding="utf-8")
+        products_json = _get_site_root() / "products.json"
+        products_json.write_text('{"products": [{"id": 1}]}', encoding="utf-8")
 
         result = read_products()
         self.assertEqual(result, {"products": [{"id": 1}]})
 
-    @patch("scripts.actions.file_utils.SITE_ROOT", Path("/tmp/test_site"))
     def test_read_list(self):
-        site_root = Path("/tmp/test_site")
-        site_root.mkdir(parents=True, exist_ok=True)
+        from scripts.actions.file_utils import _get_site_root
 
-        from scripts.actions.file_utils import PRODUCTS_JSON
-
-        PRODUCTS_JSON.write_text('[{"id": 1}]', encoding="utf-8")
+        products_json = _get_site_root() / "products.json"
+        products_json.write_text('[{"id": 1}]', encoding="utf-8")
 
         result = read_products()
         self.assertEqual(result, {"products": [{"id": 1}]})
 
-    @patch("scripts.actions.file_utils.SITE_ROOT", Path("/tmp/test_site"))
     def test_read_invalid(self):
-        site_root = Path("/tmp/test_site")
-        site_root.mkdir(parents=True, exist_ok=True)
+        from scripts.actions.file_utils import _get_site_root
 
-        from scripts.actions.file_utils import PRODUCTS_JSON
-
-        PRODUCTS_JSON.write_text("not json", encoding="utf-8")
+        products_json = _get_site_root() / "products.json"
+        products_json.write_text("not json", encoding="utf-8")
 
         result = read_products()
         self.assertEqual(result, {})
