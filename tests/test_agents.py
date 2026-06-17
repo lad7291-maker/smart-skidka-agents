@@ -20,8 +20,8 @@ class TestProjectContext(unittest.TestCase):
     """Тесты для ProjectContext (глаза агентов)."""
 
     def setUp(self):
-        import tempfile
         import shutil
+        import tempfile
 
         self.test_dir = Path(tempfile.mkdtemp(prefix="dealshub_"))
         # Создаём файлы, которые ожидают тесты

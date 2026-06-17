@@ -5,11 +5,11 @@
 санитизация, rate limiter, circuit breaker).
 """
 
-import sys
-import json
 import asyncio
+import json
+import sys
 from datetime import datetime, timedelta, timezone
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 sys.path.insert(0, "/opt/smart-skidka-agents")
 sys.path.insert(0, "/opt/smart-skidka-agents/scripts")
@@ -17,21 +17,21 @@ sys.path.insert(0, "/opt/smart-skidka-agents/scripts")
 import pytest
 
 from scripts.orchestrator import (
-    AgentType,
-    ValidationStatus,
-    ValidationResult,
-    AgentResult,
-    _get_agent_type,
-    ResultValidator,
-    TokenBucketRateLimiter,
-    CircuitBreaker,
-    CircuitState,
-    AgentRunner,
-    AgentConfig,
-    LLMClient,
-    NON_RETRYABLE_ERRORS,
     AGENT_NAMES,
     DEFAULT_CYCLE_INTERVAL,
+    NON_RETRYABLE_ERRORS,
+    AgentConfig,
+    AgentResult,
+    AgentRunner,
+    AgentType,
+    CircuitBreaker,
+    CircuitState,
+    LLMClient,
+    ResultValidator,
+    TokenBucketRateLimiter,
+    ValidationResult,
+    ValidationStatus,
+    _get_agent_type,
 )
 from scripts.services.cycle_manager import CycleManager
 

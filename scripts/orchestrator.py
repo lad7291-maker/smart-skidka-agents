@@ -3245,9 +3245,9 @@ class Orchestrator:
         self.logger.info("Оркестратор остановлен")
 
     def _hash_file(self, path: Path) -> str:
-        """Возвращает MD5-хеш файла."""
+        """Возвращает MD5-хеш файла (не для безопасности, только для сравнения)."""
         try:
-            return hashlib.md5(path.read_bytes()).hexdigest()
+            return hashlib.md5(path.read_bytes(), usedforsecurity=False).hexdigest()  # nosec B324
         except Exception:
             return ""
 

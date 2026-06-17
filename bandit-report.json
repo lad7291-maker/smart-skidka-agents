@@ -1,17 +1,17 @@
 {
   "errors": [],
-  "generated_at": "2026-06-17T12:16:59Z",
+  "generated_at": "2026-06-17T20:50:50Z",
   "metrics": {
     "_totals": {
-      "CONFIDENCE.HIGH": 38,
+      "CONFIDENCE.HIGH": 37,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
       "CONFIDENCE.UNDEFINED": 0,
       "SEVERITY.HIGH": 0,
-      "SEVERITY.LOW": 38,
+      "SEVERITY.LOW": 37,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 13052,
+      "loc": 14012,
       "nosec": 0,
       "skipped_tests": 2
     },
@@ -50,7 +50,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 257,
+      "loc": 266,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -63,7 +63,7 @@
       "SEVERITY.LOW": 10,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 557,
+      "loc": 563,
       "nosec": 0,
       "skipped_tests": 1
     },
@@ -76,20 +76,20 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 231,
+      "loc": 230,
       "nosec": 0,
       "skipped_tests": 0
     },
     "scripts/actions/data_tools.py": {
-      "CONFIDENCE.HIGH": 4,
+      "CONFIDENCE.HIGH": 3,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
       "CONFIDENCE.UNDEFINED": 0,
       "SEVERITY.HIGH": 0,
-      "SEVERITY.LOW": 4,
+      "SEVERITY.LOW": 3,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 553,
+      "loc": 578,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -102,20 +102,20 @@
       "SEVERITY.LOW": 7,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 190,
+      "loc": 208,
       "nosec": 0,
       "skipped_tests": 0
     },
     "scripts/actions/site_actions.py": {
-      "CONFIDENCE.HIGH": 0,
+      "CONFIDENCE.HIGH": 1,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
       "CONFIDENCE.UNDEFINED": 0,
       "SEVERITY.HIGH": 0,
-      "SEVERITY.LOW": 0,
+      "SEVERITY.LOW": 1,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 484,
+      "loc": 698,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -128,7 +128,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 233,
+      "loc": 237,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -141,7 +141,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 231,
+      "loc": 229,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -154,7 +154,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 973,
+      "loc": 1204,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -167,7 +167,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 510,
+      "loc": 504,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -180,7 +180,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 427,
+      "loc": 424,
       "nosec": 0,
       "skipped_tests": 1
     },
@@ -193,7 +193,7 @@
       "SEVERITY.LOW": 1,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 449,
+      "loc": 452,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -206,7 +206,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 403,
+      "loc": 418,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -219,20 +219,20 @@
       "SEVERITY.LOW": 4,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 2648,
+      "loc": 2679,
       "nosec": 0,
       "skipped_tests": 0
     },
     "scripts/project_context.py": {
-      "CONFIDENCE.HIGH": 5,
+      "CONFIDENCE.HIGH": 4,
       "CONFIDENCE.LOW": 0,
       "CONFIDENCE.MEDIUM": 0,
       "CONFIDENCE.UNDEFINED": 0,
       "SEVERITY.HIGH": 0,
-      "SEVERITY.LOW": 5,
+      "SEVERITY.LOW": 4,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 266,
+      "loc": 277,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -245,7 +245,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 130,
+      "loc": 129,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -258,7 +258,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 465,
+      "loc": 493,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -297,7 +297,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 177,
+      "loc": 179,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -310,7 +310,7 @@
       "SEVERITY.LOW": 2,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 447,
+      "loc": 539,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -323,7 +323,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 242,
+      "loc": 285,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -336,7 +336,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 180,
+      "loc": 177,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -349,7 +349,7 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 582,
+      "loc": 820,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -362,7 +362,7 @@
       "SEVERITY.LOW": 1,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 397,
+      "loc": 408,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -375,7 +375,7 @@
       "SEVERITY.LOW": 2,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 219,
+      "loc": 222,
       "nosec": 0,
       "skipped_tests": 0
     },
@@ -388,36 +388,16 @@
       "SEVERITY.LOW": 0,
       "SEVERITY.MEDIUM": 0,
       "SEVERITY.UNDEFINED": 0,
-      "loc": 1383,
+      "loc": 1375,
       "nosec": 0,
       "skipped_tests": 0
     }
   },
   "results": [
     {
-      "code": "187             # 80% \u0448\u0430\u043d\u0441 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u044c \u043f\u043e\u0431\u0435\u0434\u0438\u0442\u0435\u043b\u044f, 20% \u2014 \u0438\u0441\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u0442\u044c \u0434\u0440\u0443\u0433\u0438\u0435\n188             if random.random() < 0.8:\n189                 return active\n",
+      "code": "191             # 80% \u0448\u0430\u043d\u0441 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u044c \u043f\u043e\u0431\u0435\u0434\u0438\u0442\u0435\u043b\u044f, 20% \u2014 \u0438\u0441\u0441\u043b\u0435\u0434\u043e\u0432\u0430\u0442\u044c \u0434\u0440\u0443\u0433\u0438\u0435\n192             if random.random() < 0.8:\n193                 return active\n",
       "col_offset": 15,
       "end_col_offset": 30,
-      "filename": "scripts/ab_testing.py",
-      "issue_confidence": "HIGH",
-      "issue_cwe": {
-        "id": 330,
-        "link": "https://cwe.mitre.org/data/definitions/330.html"
-      },
-      "issue_severity": "LOW",
-      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
-      "line_number": 188,
-      "line_range": [
-        188
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
-      "test_id": "B311",
-      "test_name": "blacklist"
-    },
-    {
-      "code": "191             if others:\n192                 return random.choice(others)\n193             return active\n",
-      "col_offset": 23,
-      "end_col_offset": 44,
       "filename": "scripts/ab_testing.py",
       "issue_confidence": "HIGH",
       "issue_cwe": {
@@ -435,237 +415,237 @@
       "test_name": "blacklist"
     },
     {
-      "code": "183                         await page.close()\n184                 except Exception:\n185                     pass\n186                 self._pages.pop(page, None)\n",
-      "col_offset": 16,
-      "end_col_offset": 24,
-      "filename": "scripts/actions/browser_actions.py",
+      "code": "195             if others:\n196                 return random.choice(others)\n197             return active\n",
+      "col_offset": 23,
+      "end_col_offset": 44,
+      "filename": "scripts/ab_testing.py",
       "issue_confidence": "HIGH",
       "issue_cwe": {
-        "id": 703,
-        "link": "https://cwe.mitre.org/data/definitions/703.html"
+        "id": 330,
+        "link": "https://cwe.mitre.org/data/definitions/330.html"
       },
       "issue_severity": "LOW",
-      "issue_text": "Try, Except, Pass detected.",
-      "line_number": 184,
+      "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
+      "line_number": 196,
       "line_range": [
-        184,
-        185
+        196
       ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
-      "test_id": "B110",
-      "test_name": "try_except_pass"
-    },
-    {
-      "code": "229                         await oldest_page.close()\n230                 except Exception:\n231                     pass\n232                 self._pages.pop(oldest_page, None)\n",
-      "col_offset": 16,
-      "end_col_offset": 24,
-      "filename": "scripts/actions/browser_actions.py",
-      "issue_confidence": "HIGH",
-      "issue_cwe": {
-        "id": 703,
-        "link": "https://cwe.mitre.org/data/definitions/703.html"
-      },
-      "issue_severity": "LOW",
-      "issue_text": "Try, Except, Pass detected.",
-      "line_number": 230,
-      "line_range": [
-        230,
-        231
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
-      "test_id": "B110",
-      "test_name": "try_except_pass"
-    },
-    {
-      "code": "262                     await page.close()\n263             except Exception:\n264                 pass\n265         self._pages.clear()\n",
-      "col_offset": 12,
-      "end_col_offset": 20,
-      "filename": "scripts/actions/browser_actions.py",
-      "issue_confidence": "HIGH",
-      "issue_cwe": {
-        "id": 703,
-        "link": "https://cwe.mitre.org/data/definitions/703.html"
-      },
-      "issue_severity": "LOW",
-      "issue_text": "Try, Except, Pass detected.",
-      "line_number": 263,
-      "line_range": [
-        263,
-        264
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
-      "test_id": "B110",
-      "test_name": "try_except_pass"
-    },
-    {
-      "code": "570                         break\n571                 except Exception:\n572                     continue\n573 \n",
-      "col_offset": 16,
-      "end_col_offset": 28,
-      "filename": "scripts/actions/browser_actions.py",
-      "issue_confidence": "HIGH",
-      "issue_cwe": {
-        "id": 703,
-        "link": "https://cwe.mitre.org/data/definitions/703.html"
-      },
-      "issue_severity": "LOW",
-      "issue_text": "Try, Except, Continue detected.",
-      "line_number": 571,
-      "line_range": [
-        571,
-        572
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b112_try_except_continue.html",
-      "test_id": "B112",
-      "test_name": "try_except_continue"
-    },
-    {
-      "code": "579                         break\n580                 except Exception:\n581                     continue\n582 \n",
-      "col_offset": 16,
-      "end_col_offset": 28,
-      "filename": "scripts/actions/browser_actions.py",
-      "issue_confidence": "HIGH",
-      "issue_cwe": {
-        "id": 703,
-        "link": "https://cwe.mitre.org/data/definitions/703.html"
-      },
-      "issue_severity": "LOW",
-      "issue_text": "Try, Except, Continue detected.",
-      "line_number": 580,
-      "line_range": [
-        580,
-        581
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b112_try_except_continue.html",
-      "test_id": "B112",
-      "test_name": "try_except_continue"
-    },
-    {
-      "code": "589                 data.price = price_text.strip()[:50]\n590             except Exception:\n591                 pass\n592 \n",
-      "col_offset": 12,
-      "end_col_offset": 20,
-      "filename": "scripts/actions/browser_actions.py",
-      "issue_confidence": "HIGH",
-      "issue_cwe": {
-        "id": 703,
-        "link": "https://cwe.mitre.org/data/definitions/703.html"
-      },
-      "issue_severity": "LOW",
-      "issue_text": "Try, Except, Pass detected.",
-      "line_number": 590,
-      "line_range": [
-        590,
-        591
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
-      "test_id": "B110",
-      "test_name": "try_except_pass"
-    },
-    {
-      "code": "597                 data.product_name = name_text.strip()[:200]\n598             except Exception:\n599                 pass\n600 \n",
-      "col_offset": 12,
-      "end_col_offset": 20,
-      "filename": "scripts/actions/browser_actions.py",
-      "issue_confidence": "HIGH",
-      "issue_cwe": {
-        "id": 703,
-        "link": "https://cwe.mitre.org/data/definitions/703.html"
-      },
-      "issue_severity": "LOW",
-      "issue_text": "Try, Except, Pass detected.",
-      "line_number": 598,
-      "line_range": [
-        598,
-        599
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
-      "test_id": "B110",
-      "test_name": "try_except_pass"
-    },
-    {
-      "code": "605                 data.availability = avail_text.strip()[:50]\n606             except Exception:\n607                 pass\n608 \n",
-      "col_offset": 12,
-      "end_col_offset": 20,
-      "filename": "scripts/actions/browser_actions.py",
-      "issue_confidence": "HIGH",
-      "issue_cwe": {
-        "id": 703,
-        "link": "https://cwe.mitre.org/data/definitions/703.html"
-      },
-      "issue_severity": "LOW",
-      "issue_text": "Try, Except, Pass detected.",
-      "line_number": 606,
-      "line_range": [
-        606,
-        607
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
-      "test_id": "B110",
-      "test_name": "try_except_pass"
-    },
-    {
-      "code": "611             data.meta_title = await page.title()\n612         except Exception:\n613             pass\n614 \n",
-      "col_offset": 8,
-      "end_col_offset": 16,
-      "filename": "scripts/actions/browser_actions.py",
-      "issue_confidence": "HIGH",
-      "issue_cwe": {
-        "id": 703,
-        "link": "https://cwe.mitre.org/data/definitions/703.html"
-      },
-      "issue_severity": "LOW",
-      "issue_text": "Try, Except, Pass detected.",
-      "line_number": 612,
-      "line_range": [
-        612,
-        613
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
-      "test_id": "B110",
-      "test_name": "try_except_pass"
-    },
-    {
-      "code": "618                 data.meta_description = await desc_el.first.get_attribute(\"content\")\n619         except Exception:\n620             pass\n621 \n",
-      "col_offset": 8,
-      "end_col_offset": 16,
-      "filename": "scripts/actions/browser_actions.py",
-      "issue_confidence": "HIGH",
-      "issue_cwe": {
-        "id": 703,
-        "link": "https://cwe.mitre.org/data/definitions/703.html"
-      },
-      "issue_severity": "LOW",
-      "issue_text": "Try, Except, Pass detected.",
-      "line_number": 619,
-      "line_range": [
-        619,
-        620
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
-      "test_id": "B110",
-      "test_name": "try_except_pass"
-    },
-    {
-      "code": "27 import re\n28 import xml.etree.ElementTree as ET\n29 from defusedxml import ElementTree as DefusedET\n",
-      "col_offset": 0,
-      "end_col_offset": 34,
-      "filename": "scripts/actions/data_tools.py",
-      "issue_confidence": "HIGH",
-      "issue_cwe": {
-        "id": 20,
-        "link": "https://cwe.mitre.org/data/definitions/20.html"
-      },
-      "issue_severity": "LOW",
-      "issue_text": "Using xml.etree.ElementTree to parse untrusted XML data is known to be vulnerable to XML attacks. Replace xml.etree.ElementTree with the equivalent defusedxml package, or make sure defusedxml.defuse_stdlib() is called.",
-      "line_number": 28,
-      "line_range": [
-        28
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b405-import-xml-etree",
-      "test_id": "B405",
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
+      "test_id": "B311",
       "test_name": "blacklist"
     },
     {
-      "code": "222                 text = await response.text()\n223         except Exception:\n224             continue\n225 \n",
+      "code": "180                         await page.close()\n181                 except Exception:\n182                     pass\n183                 self._pages.pop(page, None)\n",
+      "col_offset": 16,
+      "end_col_offset": 24,
+      "filename": "scripts/actions/browser_actions.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Try, Except, Pass detected.",
+      "line_number": 181,
+      "line_range": [
+        181,
+        182
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
+      "test_id": "B110",
+      "test_name": "try_except_pass"
+    },
+    {
+      "code": "224                         await oldest_page.close()\n225                 except Exception:\n226                     pass\n227                 self._pages.pop(oldest_page, None)\n",
+      "col_offset": 16,
+      "end_col_offset": 24,
+      "filename": "scripts/actions/browser_actions.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Try, Except, Pass detected.",
+      "line_number": 225,
+      "line_range": [
+        225,
+        226
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
+      "test_id": "B110",
+      "test_name": "try_except_pass"
+    },
+    {
+      "code": "255                     await page.close()\n256             except Exception:\n257                 pass\n258         self._pages.clear()\n",
+      "col_offset": 12,
+      "end_col_offset": 20,
+      "filename": "scripts/actions/browser_actions.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Try, Except, Pass detected.",
+      "line_number": 256,
+      "line_range": [
+        256,
+        257
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
+      "test_id": "B110",
+      "test_name": "try_except_pass"
+    },
+    {
+      "code": "576                         break\n577                 except Exception:\n578                     continue\n579 \n",
+      "col_offset": 16,
+      "end_col_offset": 28,
+      "filename": "scripts/actions/browser_actions.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Try, Except, Continue detected.",
+      "line_number": 577,
+      "line_range": [
+        577,
+        578
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b112_try_except_continue.html",
+      "test_id": "B112",
+      "test_name": "try_except_continue"
+    },
+    {
+      "code": "590                         break\n591                 except Exception:\n592                     continue\n593 \n",
+      "col_offset": 16,
+      "end_col_offset": 28,
+      "filename": "scripts/actions/browser_actions.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Try, Except, Continue detected.",
+      "line_number": 591,
+      "line_range": [
+        591,
+        592
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b112_try_except_continue.html",
+      "test_id": "B112",
+      "test_name": "try_except_continue"
+    },
+    {
+      "code": "600                 data.price = price_text.strip()[:50]\n601             except Exception:\n602                 pass\n603 \n",
+      "col_offset": 12,
+      "end_col_offset": 20,
+      "filename": "scripts/actions/browser_actions.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Try, Except, Pass detected.",
+      "line_number": 601,
+      "line_range": [
+        601,
+        602
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
+      "test_id": "B110",
+      "test_name": "try_except_pass"
+    },
+    {
+      "code": "608                 data.product_name = name_text.strip()[:200]\n609             except Exception:\n610                 pass\n611 \n",
+      "col_offset": 12,
+      "end_col_offset": 20,
+      "filename": "scripts/actions/browser_actions.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Try, Except, Pass detected.",
+      "line_number": 609,
+      "line_range": [
+        609,
+        610
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
+      "test_id": "B110",
+      "test_name": "try_except_pass"
+    },
+    {
+      "code": "616                 data.availability = avail_text.strip()[:50]\n617             except Exception:\n618                 pass\n619 \n",
+      "col_offset": 12,
+      "end_col_offset": 20,
+      "filename": "scripts/actions/browser_actions.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Try, Except, Pass detected.",
+      "line_number": 617,
+      "line_range": [
+        617,
+        618
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
+      "test_id": "B110",
+      "test_name": "try_except_pass"
+    },
+    {
+      "code": "622             data.meta_title = await page.title()\n623         except Exception:\n624             pass\n625 \n",
+      "col_offset": 8,
+      "end_col_offset": 16,
+      "filename": "scripts/actions/browser_actions.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Try, Except, Pass detected.",
+      "line_number": 623,
+      "line_range": [
+        623,
+        624
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
+      "test_id": "B110",
+      "test_name": "try_except_pass"
+    },
+    {
+      "code": "629                 data.meta_description = await desc_el.first.get_attribute(\"content\")\n630         except Exception:\n631             pass\n632 \n",
+      "col_offset": 8,
+      "end_col_offset": 16,
+      "filename": "scripts/actions/browser_actions.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Try, Except, Pass detected.",
+      "line_number": 630,
+      "line_range": [
+        630,
+        631
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
+      "test_id": "B110",
+      "test_name": "try_except_pass"
+    },
+    {
+      "code": "227                 text = await response.text()\n228         except Exception:\n229             continue\n230 \n",
       "col_offset": 8,
       "end_col_offset": 20,
       "filename": "scripts/actions/data_tools.py",
@@ -676,17 +656,17 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Continue detected.",
-      "line_number": 223,
+      "line_number": 228,
       "line_range": [
-        223,
-        224
+        228,
+        229
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b112_try_except_continue.html",
       "test_id": "B112",
       "test_name": "try_except_continue"
     },
     {
-      "code": "272                 all_articles.append(article)\n273         except Exception:\n274             continue\n275 \n",
+      "code": "281                 all_articles.append(article)\n282         except Exception:\n283             continue\n284 \n",
       "col_offset": 8,
       "end_col_offset": 20,
       "filename": "scripts/actions/data_tools.py",
@@ -697,17 +677,17 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Continue detected.",
-      "line_number": 273,
+      "line_number": 282,
       "line_range": [
-        273,
-        274
+        282,
+        283
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b112_try_except_continue.html",
       "test_id": "B112",
       "test_name": "try_except_continue"
     },
     {
-      "code": "544                 break\n545         except Exception:\n546             continue\n547 \n",
+      "code": "560                 break\n561         except Exception:\n562             continue\n563 \n",
       "col_offset": 8,
       "end_col_offset": 20,
       "filename": "scripts/actions/data_tools.py",
@@ -718,17 +698,17 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Continue detected.",
-      "line_number": 545,
+      "line_number": 561,
       "line_range": [
-        545,
-        546
+        561,
+        562
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b112_try_except_continue.html",
       "test_id": "B112",
       "test_name": "try_except_continue"
     },
     {
-      "code": "10 import json\n11 import subprocess\n12 from pathlib import Path\n",
+      "code": "10 import shutil\n11 import subprocess\n12 from datetime import datetime\n",
       "col_offset": 0,
       "end_col_offset": 17,
       "filename": "scripts/actions/file_utils.py",
@@ -748,7 +728,7 @@
       "test_name": "blacklist"
     },
     {
-      "code": "188         # \u041f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u043c, \u0435\u0441\u0442\u044c \u043b\u0438 \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f\n189         result = subprocess.run(\n190             [\"git\", \"-C\", str(repo_root), \"status\", \"--porcelain\", str(rel_path)],\n191             capture_output=True,\n192             text=True,\n193             timeout=10,\n194         )\n195         if result.returncode != 0:\n",
+      "code": "216         # \u041f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u043c, \u0435\u0441\u0442\u044c \u043b\u0438 \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f\n217         result = subprocess.run(\n218             [\"git\", \"-C\", str(repo_root), \"status\", \"--porcelain\", str(rel_path)],\n219             capture_output=True,\n220             text=True,\n221             timeout=10,\n222         )\n223         if result.returncode != 0:\n",
       "col_offset": 17,
       "end_col_offset": 9,
       "filename": "scripts/actions/file_utils.py",
@@ -759,21 +739,21 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Starting a process with a partial executable path",
-      "line_number": 189,
+      "line_number": 217,
       "line_range": [
-        189,
-        190,
-        191,
-        192,
-        193,
-        194
+        217,
+        218,
+        219,
+        220,
+        221,
+        222
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
       "test_id": "B607",
       "test_name": "start_process_with_partial_path"
     },
     {
-      "code": "188         # \u041f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u043c, \u0435\u0441\u0442\u044c \u043b\u0438 \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f\n189         result = subprocess.run(\n190             [\"git\", \"-C\", str(repo_root), \"status\", \"--porcelain\", str(rel_path)],\n191             capture_output=True,\n192             text=True,\n193             timeout=10,\n194         )\n195         if result.returncode != 0:\n",
+      "code": "216         # \u041f\u0440\u043e\u0432\u0435\u0440\u044f\u0435\u043c, \u0435\u0441\u0442\u044c \u043b\u0438 \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f\n217         result = subprocess.run(\n218             [\"git\", \"-C\", str(repo_root), \"status\", \"--porcelain\", str(rel_path)],\n219             capture_output=True,\n220             text=True,\n221             timeout=10,\n222         )\n223         if result.returncode != 0:\n",
       "col_offset": 17,
       "end_col_offset": 9,
       "filename": "scripts/actions/file_utils.py",
@@ -784,21 +764,21 @@
       },
       "issue_severity": "LOW",
       "issue_text": "subprocess call - check for execution of untrusted input.",
-      "line_number": 189,
+      "line_number": 217,
       "line_range": [
-        189,
-        190,
-        191,
-        192,
-        193,
-        194
+        217,
+        218,
+        219,
+        220,
+        221,
+        222
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
       "test_id": "B603",
       "test_name": "subprocess_without_shell_equals_true"
     },
     {
-      "code": "202         # \u0414\u043e\u0431\u0430\u0432\u043b\u044f\u0435\u043c \u0444\u0430\u0439\u043b\n203         add_result = subprocess.run(\n204             [\"git\", \"-C\", str(repo_root), \"add\", str(rel_path)],\n205             capture_output=True,\n206             timeout=10,\n207         )\n208         if add_result.returncode != 0:\n",
+      "code": "230         # \u0414\u043e\u0431\u0430\u0432\u043b\u044f\u0435\u043c \u0444\u0430\u0439\u043b\n231         add_result = subprocess.run(\n232             [\"git\", \"-C\", str(repo_root), \"add\", str(rel_path)],\n233             capture_output=True,\n234             timeout=10,\n235         )\n236         if add_result.returncode != 0:\n",
       "col_offset": 21,
       "end_col_offset": 9,
       "filename": "scripts/actions/file_utils.py",
@@ -809,20 +789,20 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Starting a process with a partial executable path",
-      "line_number": 203,
+      "line_number": 231,
       "line_range": [
-        203,
-        204,
-        205,
-        206,
-        207
+        231,
+        232,
+        233,
+        234,
+        235
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
       "test_id": "B607",
       "test_name": "start_process_with_partial_path"
     },
     {
-      "code": "202         # \u0414\u043e\u0431\u0430\u0432\u043b\u044f\u0435\u043c \u0444\u0430\u0439\u043b\n203         add_result = subprocess.run(\n204             [\"git\", \"-C\", str(repo_root), \"add\", str(rel_path)],\n205             capture_output=True,\n206             timeout=10,\n207         )\n208         if add_result.returncode != 0:\n",
+      "code": "230         # \u0414\u043e\u0431\u0430\u0432\u043b\u044f\u0435\u043c \u0444\u0430\u0439\u043b\n231         add_result = subprocess.run(\n232             [\"git\", \"-C\", str(repo_root), \"add\", str(rel_path)],\n233             capture_output=True,\n234             timeout=10,\n235         )\n236         if add_result.returncode != 0:\n",
       "col_offset": 21,
       "end_col_offset": 9,
       "filename": "scripts/actions/file_utils.py",
@@ -833,20 +813,20 @@
       },
       "issue_severity": "LOW",
       "issue_text": "subprocess call - check for execution of untrusted input.",
-      "line_number": 203,
+      "line_number": 231,
       "line_range": [
-        203,
-        204,
-        205,
-        206,
-        207
+        231,
+        232,
+        233,
+        234,
+        235
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
       "test_id": "B603",
       "test_name": "subprocess_without_shell_equals_true"
     },
     {
-      "code": "214 \n215         commit_result = subprocess.run(\n216             [\"git\", \"-C\", str(repo_root), \"commit\", \"-m\", message],\n217             capture_output=True,\n218             timeout=10,\n219         )\n220         return commit_result.returncode == 0\n",
+      "code": "242 \n243         commit_result = subprocess.run(\n244             [\"git\", \"-C\", str(repo_root), \"commit\", \"-m\", message],\n245             capture_output=True,\n246             timeout=10,\n247         )\n248         return commit_result.returncode == 0\n",
       "col_offset": 24,
       "end_col_offset": 9,
       "filename": "scripts/actions/file_utils.py",
@@ -857,20 +837,20 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Starting a process with a partial executable path",
-      "line_number": 215,
+      "line_number": 243,
       "line_range": [
-        215,
-        216,
-        217,
-        218,
-        219
+        243,
+        244,
+        245,
+        246,
+        247
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
       "test_id": "B607",
       "test_name": "start_process_with_partial_path"
     },
     {
-      "code": "214 \n215         commit_result = subprocess.run(\n216             [\"git\", \"-C\", str(repo_root), \"commit\", \"-m\", message],\n217             capture_output=True,\n218             timeout=10,\n219         )\n220         return commit_result.returncode == 0\n",
+      "code": "242 \n243         commit_result = subprocess.run(\n244             [\"git\", \"-C\", str(repo_root), \"commit\", \"-m\", message],\n245             capture_output=True,\n246             timeout=10,\n247         )\n248         return commit_result.returncode == 0\n",
       "col_offset": 24,
       "end_col_offset": 9,
       "filename": "scripts/actions/file_utils.py",
@@ -881,20 +861,41 @@
       },
       "issue_severity": "LOW",
       "issue_text": "subprocess call - check for execution of untrusted input.",
-      "line_number": 215,
+      "line_number": 243,
       "line_range": [
-        215,
-        216,
-        217,
-        218,
-        219
+        243,
+        244,
+        245,
+        246,
+        247
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
       "test_id": "B603",
       "test_name": "subprocess_without_shell_equals_true"
     },
     {
-      "code": "174                     self._messages[key] = value\n175         except Exception:\n176             pass\n177 \n",
+      "code": "475                 index = json.load(f)\n476         except Exception:\n477             pass\n478 \n",
+      "col_offset": 8,
+      "end_col_offset": 16,
+      "filename": "scripts/actions/site_actions.py",
+      "issue_confidence": "HIGH",
+      "issue_cwe": {
+        "id": 703,
+        "link": "https://cwe.mitre.org/data/definitions/703.html"
+      },
+      "issue_severity": "LOW",
+      "issue_text": "Try, Except, Pass detected.",
+      "line_number": 476,
+      "line_range": [
+        476,
+        477
+      ],
+      "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
+      "test_id": "B110",
+      "test_name": "try_except_pass"
+    },
+    {
+      "code": "177                     self._messages[key] = value\n178         except Exception:\n179             pass\n180 \n",
       "col_offset": 8,
       "end_col_offset": 16,
       "filename": "scripts/i18n.py",
@@ -905,17 +906,17 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Pass detected.",
-      "line_number": 175,
+      "line_number": 178,
       "line_range": [
-        175,
-        176
+        178,
+        179
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",
       "test_name": "try_except_pass"
     },
     {
-      "code": "1655                                     pass\n1656                             except Exception:\n1657                                 pass\n1658                     # \u0421\u0447\u0438\u0442\u0430\u0435\u043c \u043a\u043e\u0440\u043e\u0442\u043a\u0438\u0435 base64-like \u0441\u043b\u043e\u0432\u0430\n",
+      "code": "1656                                     pass\n1657                             except Exception:\n1658                                 pass\n1659                     # \u0421\u0447\u0438\u0442\u0430\u0435\u043c \u043a\u043e\u0440\u043e\u0442\u043a\u0438\u0435 base64-like \u0441\u043b\u043e\u0432\u0430\n",
       "col_offset": 28,
       "end_col_offset": 36,
       "filename": "scripts/orchestrator.py",
@@ -926,17 +927,17 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Pass detected.",
-      "line_number": 1656,
+      "line_number": 1657,
       "line_range": [
-        1656,
-        1657
+        1657,
+        1658
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",
       "test_name": "try_except_pass"
     },
     {
-      "code": "1902                     )\n1903                 except Exception:\n1904                     pass\n1905 \n",
+      "code": "1901                     )\n1902                 except Exception:\n1903                     pass\n1904 \n",
       "col_offset": 16,
       "end_col_offset": 24,
       "filename": "scripts/orchestrator.py",
@@ -947,17 +948,17 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Pass detected.",
-      "line_number": 1903,
+      "line_number": 1902,
       "line_range": [
-        1903,
-        1904
+        1902,
+        1903
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",
       "test_name": "try_except_pass"
     },
     {
-      "code": "1943                     ab_config.record_validation_score(score)\n1944                 except Exception:\n1945                     pass\n1946 \n",
+      "code": "1942                     ab_config.record_validation_score(score)\n1943                 except Exception:\n1944                     pass\n1945 \n",
       "col_offset": 16,
       "end_col_offset": 24,
       "filename": "scripts/orchestrator.py",
@@ -968,17 +969,17 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Pass detected.",
-      "line_number": 1944,
+      "line_number": 1943,
       "line_range": [
-        1944,
-        1945
+        1943,
+        1944
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",
       "test_name": "try_except_pass"
     },
     {
-      "code": "2074             base_delay = DEFAULT_RETRY_DELAY * (RETRY_BACKOFF_MULTIPLIER ** (attempt - 1))\n2075             jitter = random.uniform(0, 1)  # 0\u20131 \u0441\u0435\u043a\u0443\u043d\u0434\u0430 \u0441\u043b\u0443\u0447\u0430\u0439\u043d\u043e\u0433\u043e \u0434\u0436\u0438\u0442\u0442\u0435\u0440\u0430\n2076             delay = min(base_delay + jitter, MAX_RETRY_DELAY)\n",
+      "code": "2069             base_delay = DEFAULT_RETRY_DELAY * (RETRY_BACKOFF_MULTIPLIER ** (attempt - 1))\n2070             jitter = random.uniform(0, 1)  # 0\u20131 \u0441\u0435\u043a\u0443\u043d\u0434\u0430 \u0441\u043b\u0443\u0447\u0430\u0439\u043d\u043e\u0433\u043e \u0434\u0436\u0438\u0442\u0442\u0435\u0440\u0430\n2071             delay = min(base_delay + jitter, MAX_RETRY_DELAY)\n",
       "col_offset": 21,
       "end_col_offset": 41,
       "filename": "scripts/orchestrator.py",
@@ -989,16 +990,16 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
-      "line_number": 2075,
+      "line_number": 2070,
       "line_range": [
-        2075
+        2070
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
       "test_id": "B311",
       "test_name": "blacklist"
     },
     {
-      "code": "3 import shutil\n4 import subprocess\n5 import tempfile\n",
+      "code": "2 import os\n3 import subprocess\n4 from datetime import datetime\n",
       "col_offset": 0,
       "end_col_offset": 17,
       "filename": "scripts/project_context.py",
@@ -1009,36 +1010,16 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Consider possible security implications associated with the subprocess module.",
-      "line_number": 4,
+      "line_number": 3,
       "line_range": [
-        4
+        3
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b404-import-subprocess",
       "test_id": "B404",
       "test_name": "blacklist"
     },
     {
-      "code": "129         import tempfile\n130         import subprocess\n131         \n",
-      "col_offset": 8,
-      "end_col_offset": 25,
-      "filename": "scripts/project_context.py",
-      "issue_confidence": "HIGH",
-      "issue_cwe": {
-        "id": 78,
-        "link": "https://cwe.mitre.org/data/definitions/78.html"
-      },
-      "issue_severity": "LOW",
-      "issue_text": "Consider possible security implications associated with the subprocess module.",
-      "line_number": 130,
-      "line_range": [
-        130
-      ],
-      "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b404-import-subprocess",
-      "test_id": "B404",
-      "test_name": "blacklist"
-    },
-    {
-      "code": "216             url_path = rel_path.lstrip(\"/\")\n217             result = subprocess.run(\n218                 [\"curl\", \"-s\", \"-o\", \"/dev/null\", \"-w\", \"%{http_code}\", \n219                  f\"http://localhost/{url_path}\"],\n220                 capture_output=True,\n221                 text=True,\n222                 timeout=5,\n223             )\n224             if result.returncode == 0:\n",
+      "code": "219             url_path = rel_path.lstrip(\"/\")\n220             result = subprocess.run(\n221                 [\n222                     \"curl\",\n223                     \"-s\",\n224                     \"-o\",\n225                     \"/dev/null\",\n226                     \"-w\",\n227                     \"%{http_code}\",\n228                     f\"http://localhost/{url_path}\",\n229                 ],\n230                 capture_output=True,\n231                 text=True,\n232                 timeout=5,\n233             )\n234             if result.returncode == 0:\n",
       "col_offset": 21,
       "end_col_offset": 13,
       "filename": "scripts/project_context.py",
@@ -1049,22 +1030,29 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Starting a process with a partial executable path",
-      "line_number": 217,
+      "line_number": 220,
       "line_range": [
-        217,
-        218,
-        219,
         220,
         221,
         222,
-        223
+        223,
+        224,
+        225,
+        226,
+        227,
+        228,
+        229,
+        230,
+        231,
+        232,
+        233
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b607_start_process_with_partial_path.html",
       "test_id": "B607",
       "test_name": "start_process_with_partial_path"
     },
     {
-      "code": "216             url_path = rel_path.lstrip(\"/\")\n217             result = subprocess.run(\n218                 [\"curl\", \"-s\", \"-o\", \"/dev/null\", \"-w\", \"%{http_code}\", \n219                  f\"http://localhost/{url_path}\"],\n220                 capture_output=True,\n221                 text=True,\n222                 timeout=5,\n223             )\n224             if result.returncode == 0:\n",
+      "code": "219             url_path = rel_path.lstrip(\"/\")\n220             result = subprocess.run(\n221                 [\n222                     \"curl\",\n223                     \"-s\",\n224                     \"-o\",\n225                     \"/dev/null\",\n226                     \"-w\",\n227                     \"%{http_code}\",\n228                     f\"http://localhost/{url_path}\",\n229                 ],\n230                 capture_output=True,\n231                 text=True,\n232                 timeout=5,\n233             )\n234             if result.returncode == 0:\n",
       "col_offset": 21,
       "end_col_offset": 13,
       "filename": "scripts/project_context.py",
@@ -1075,22 +1063,29 @@
       },
       "issue_severity": "LOW",
       "issue_text": "subprocess call - check for execution of untrusted input.",
-      "line_number": 217,
+      "line_number": 220,
       "line_range": [
-        217,
-        218,
-        219,
         220,
         221,
         222,
-        223
+        223,
+        224,
+        225,
+        226,
+        227,
+        228,
+        229,
+        230,
+        231,
+        232,
+        233
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b603_subprocess_without_shell_equals_true.html",
       "test_id": "B603",
       "test_name": "subprocess_without_shell_equals_true"
     },
     {
-      "code": "226                 return status\n227         except Exception:\n228             pass\n229         return None\n",
+      "code": "236                 return status\n237         except Exception:\n238             pass\n239         return None\n",
       "col_offset": 8,
       "end_col_offset": 16,
       "filename": "scripts/project_context.py",
@@ -1101,17 +1096,17 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Pass detected.",
-      "line_number": 227,
+      "line_number": 237,
       "line_range": [
-        227,
-        228
+        237,
+        238
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",
       "test_name": "try_except_pass"
     },
     {
-      "code": "300                     }\n301             except Exception:\n302                 pass\n303 \n",
+      "code": "392                     }\n393             except Exception:\n394                 pass\n395 \n",
       "col_offset": 12,
       "end_col_offset": 20,
       "filename": "scripts/services/cycle_manager.py",
@@ -1122,17 +1117,17 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Pass detected.",
-      "line_number": 301,
+      "line_number": 393,
       "line_range": [
-        301,
-        302
+        393,
+        394
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",
       "test_name": "try_except_pass"
     },
     {
-      "code": "310                     self.logger.info(\"\u0421\u0440\u043e\u0447\u043d\u044b\u0439 \u0437\u0430\u043f\u0443\u0441\u043a \u0430\u0433\u0435\u043d\u0442\u0430\", agent=agent_name)\n311             except Exception:\n312                 pass\n313 \n",
+      "code": "402                     self.logger.info(\"\u0421\u0440\u043e\u0447\u043d\u044b\u0439 \u0437\u0430\u043f\u0443\u0441\u043a \u0430\u0433\u0435\u043d\u0442\u0430\", agent=agent_name)\n403             except Exception:\n404                 pass\n405 \n",
       "col_offset": 12,
       "end_col_offset": 20,
       "filename": "scripts/services/cycle_manager.py",
@@ -1143,17 +1138,17 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Try, Except, Pass detected.",
-      "line_number": 311,
+      "line_number": 403,
       "line_range": [
-        311,
-        312
+        403,
+        404
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/plugins/b110_try_except_pass.html",
       "test_id": "B110",
       "test_name": "try_except_pass"
     },
     {
-      "code": "14 import os\n15 import subprocess\n16 import sys\n",
+      "code": "13 import os\n14 import subprocess\n15 import sys\n",
       "col_offset": 0,
       "end_col_offset": 17,
       "filename": "scripts/telegram_bot.py",
@@ -1164,16 +1159,16 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Consider possible security implications associated with the subprocess module.",
-      "line_number": 15,
+      "line_number": 14,
       "line_range": [
-        15
+        14
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b404-import-subprocess",
       "test_id": "B404",
       "test_name": "blacklist"
     },
     {
-      "code": "121         # Epsilon-greedy\n122         if random.random() < self.epsilon:\n123             # Explore: \u0441\u043b\u0443\u0447\u0430\u0439\u043d\u044b\u0439 arm\n",
+      "code": "124         # Epsilon-greedy\n125         if random.random() < self.epsilon:\n126             # Explore: \u0441\u043b\u0443\u0447\u0430\u0439\u043d\u044b\u0439 arm\n",
       "col_offset": 11,
       "end_col_offset": 26,
       "filename": "scripts/temperature_calibration.py",
@@ -1184,16 +1179,16 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
-      "line_number": 122,
+      "line_number": 125,
       "line_range": [
-        122
+        125
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
       "test_id": "B311",
       "test_name": "blacklist"
     },
     {
-      "code": "123             # Explore: \u0441\u043b\u0443\u0447\u0430\u0439\u043d\u044b\u0439 arm\n124             return random.choice(self.arms).temperature\n125         else:\n",
+      "code": "126             # Explore: \u0441\u043b\u0443\u0447\u0430\u0439\u043d\u044b\u0439 arm\n127             return random.choice(self.arms).temperature\n128         else:\n",
       "col_offset": 19,
       "end_col_offset": 43,
       "filename": "scripts/temperature_calibration.py",
@@ -1204,9 +1199,9 @@
       },
       "issue_severity": "LOW",
       "issue_text": "Standard pseudo-random generators are not suitable for security/cryptographic purposes.",
-      "line_number": 124,
+      "line_number": 127,
       "line_range": [
-        124
+        127
       ],
       "more_info": "https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b311-random",
       "test_id": "B311",

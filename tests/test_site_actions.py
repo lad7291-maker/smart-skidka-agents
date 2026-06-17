@@ -73,8 +73,8 @@ class TestQuotaTracker(unittest.TestCase):
 
     def setUp(self):
         """Создаём временную директорию и чистим tracker перед каждым тестом."""
-        import tempfile
         import shutil
+        import tempfile
 
         self._orig_project_root = os.environ.get("PROJECT_ROOT")
         self.test_root = Path(tempfile.mkdtemp(prefix="test_site_"))
@@ -164,6 +164,7 @@ class TestUpdateMetaTags(unittest.TestCase):
 
     def tearDown(self):
         import shutil
+
         from scripts.actions.file_utils import _get_site_root
 
         index_html = _get_site_root() / "index.html"
@@ -305,6 +306,7 @@ class TestUpdateItemDescription(unittest.TestCase):
 
     def tearDown(self):
         import shutil
+
         from scripts.actions.file_utils import _get_site_root
 
         products_json = _get_site_root() / "products.json"
@@ -354,6 +356,7 @@ class TestAddBadge(unittest.TestCase):
 
     def tearDown(self):
         import shutil
+
         from scripts.actions.file_utils import _get_site_root
 
         products_json = _get_site_root() / "products.json"
@@ -396,6 +399,7 @@ class TestPrioritizeProducts(unittest.TestCase):
 
     def tearDown(self):
         import shutil
+
         from scripts.actions.file_utils import _get_site_root
 
         products_json = _get_site_root() / "products.json"
@@ -443,6 +447,7 @@ class TestUpdateProductField(unittest.TestCase):
 
     def tearDown(self):
         import shutil
+
         from scripts.actions.file_utils import _get_site_root
 
         products_json = _get_site_root() / "products.json"
@@ -804,8 +809,8 @@ class TestCreateBlogPost(unittest.TestCase):
 
     def setUp(self):
         """Создаём временную директорию перед каждым тестом."""
-        import tempfile
         import shutil
+        import tempfile
 
         self._orig_project_root = os.environ.get("PROJECT_ROOT")
         self.test_root = Path(tempfile.mkdtemp(prefix="test_site_"))
@@ -813,8 +818,8 @@ class TestCreateBlogPost(unittest.TestCase):
 
     def tearDown(self):
         """Чистим после теста."""
-        import shutil
         import os
+        import shutil
 
         if self.test_root.exists():
             shutil.rmtree(self.test_root)
