@@ -5,7 +5,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-logger = logging.getLogger("project_context")
+import structlog
+
+logger = structlog.get_logger("project_context")
 
 PROJECT_ROOT = os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp")
 
