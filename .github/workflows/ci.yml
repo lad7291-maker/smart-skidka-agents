@@ -74,10 +74,192 @@ jobs:
       - name: Create test project structure
         run: |
           mkdir -p /tmp/test_site
-          echo '<!DOCTYPE html><html><head><title>SmartSkidka</title></head><body></body></html>' > /tmp/test_site/index.html
-          echo '[{"id":1,"itemId":"item1","title":"Test"}]' > /tmp/test_site/products.json
+          cat > /tmp/test_site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="ru">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>SmartSkidka — лучшие скидки и промокоды на товары из Китая</title>
+            <meta name="description" content="Экономьте до 70% на покупках в AliExpress, TaoBao, 1688. Ежедневные скидки, купоны и промокоды на электронику, одежду, товары для дома.">
+            <link rel="stylesheet" href="styles.css">
+          </head>
+          <body>
+            <header>
+              <nav>
+                <a href="/">Главная</a>
+                <a href="/electronics">Электроника</a>
+                <a href="/clothing">Одежда</a>
+                <a href="/home">Товары для дома</a>
+                <a href="/beauty">Красота</a>
+                <a href="/auto">Авто</a>
+                <a href="/guides">Гайды</a>
+              </nav>
+            </header>
+            <main>
+              <section id="hero">
+                <h1>SmartSkidka — умные скидки каждый день</h1>
+                <p>Экономьте на покупках из Китая с нашими подборками лучших предложений.</p>
+              </section>
+              <section id="products">
+                <h2>Популярные товары</h2>
+                <div class="product-grid">
+                  <div class="product-card">
+                    <img src="img1.jpg" alt="Беспроводные наушники" loading="lazy">
+                    <h3>Беспроводные наушники TWS</h3>
+                    <p class="price">1 299 ₽</p>
+                    <a href="/item/1" class="btn">Купить со скидкой</a>
+                  </div>
+                  <div class="product-card">
+                    <img src="img2.jpg" alt="Смарт-часы" loading="lazy">
+                    <h3>Смарт-часы с пульсометром</h3>
+                    <p class="price">2 499 ₽</p>
+                    <a href="/item/2" class="btn">Купить со скидкой</a>
+                  </div>
+                  <div class="product-card">
+                    <img src="img3.jpg" alt="Портативная колонка" loading="lazy">
+                    <h3>Портативная колонка Bluetooth</h3>
+                    <p class="price">890 ₽</p>
+                    <a href="/item/3" class="btn">Купить со скидкой</a>
+                  </div>
+                  <div class="product-card">
+                    <img src="img4.jpg" alt="Робот-пылесос" loading="lazy">
+                    <h3>Робот-пылесос с мокрой уборкой</h3>
+                    <p class="price">8 990 ₽</p>
+                    <a href="/item/4" class="btn">Купить со скидкой</a>
+                  </div>
+                </div>
+              </section>
+              <section id="categories">
+                <h2>Категории</h2>
+                <ul class="category-list">
+                  <li><a href="/electronics">Электроника и гаджеты</a></li>
+                  <li><a href="/clothing">Одежда и аксессуары</a></li>
+                  <li><a href="/home">Товары для дома</a></li>
+                  <li><a href="/beauty">Красота и здоровье</a></li>
+                  <li><a href="/auto">Автотовары</a></li>
+                  <li><a href="/jewelry">Ювелирные изделия</a></li>
+                </ul>
+              </section>
+            </main>
+            <footer>
+              <p>© 2024 SmartSkidka. Все права защищены.</p>
+              <p><a href="/about">О проекте</a> | <a href="/contact">Контакты</a></p>
+            </footer>
+            <script src="app.js"></script>
+          </body>
+          </html>
+          EOF
+          python3 -c "
+          import json
+          products = []
+          for i in range(1, 21):
+              products.append({
+                  'id': i,
+                  'itemId': f'item{i}',
+                  'title': f'Товар номер {i} с длинным названием для SEO',
+                  'price': 1000 + i * 50,
+                  'image': f'img{i}.jpg',
+                  'category': 'electronics' if i % 3 == 0 else 'clothing' if i % 3 == 1 else 'home',
+                  'description': f'Подробное описание товара номер {i}. Это качественный товар из Китая с быстрой доставкой и гарантией. Отличные отзывы покупателей. Рекомендуем к покупке!',
+                  'rating': 4.5 + (i % 5) * 0.1,
+                  'reviews': 100 + i * 10,
+                  'url': f'/item/{i}',
+                  'badge': 'Хит' if i % 4 == 0 else '',
+              })
+          with open('/tmp/test_site/products.json', 'w', encoding='utf-8') as f:
+              json.dump(products, f, ensure_ascii=False, indent=2)
+          "
+          cat > /tmp/test_site/app.js << 'EOF'
+          // SmartSkidka App — основной JavaScript файл
+          document.addEventListener('DOMContentLoaded', function() {
+            console.log('SmartSkidka app loaded');
+            initSearch();
+            initFilters();
+            initLazyLoad();
+            initCart();
+            initAnalytics();
+          });
+          function initSearch() {
+            const searchInput = document.getElementById('search');
+            if (searchInput) {
+              searchInput.addEventListener('input', debounce(handleSearch, 300));
+            }
+          }
+          function handleSearch(e) {
+            const query = e.target.value.toLowerCase();
+            const cards = document.querySelectorAll('.product-card');
+            cards.forEach(card => {
+              const title = card.querySelector('h3').textContent.toLowerCase();
+              card.style.display = title.includes(query) ? '' : 'none';
+            });
+          }
+          function debounce(fn, ms) {
+            let timer;
+            return function(...args) {
+              clearTimeout(timer);
+              timer = setTimeout(() => fn.apply(this, args), ms);
+            };
+          }
+          function initFilters() {
+            const filterButtons = document.querySelectorAll('.filter-btn');
+            filterButtons.forEach(btn => {
+              btn.addEventListener('click', () => {
+                const category = btn.dataset.category;
+                filterProducts(category);
+              });
+            });
+          }
+          function filterProducts(category) {
+            const cards = document.querySelectorAll('.product-card');
+            cards.forEach(card => {
+              const cardCategory = card.dataset.category;
+              card.style.display = (category === 'all' || cardCategory === category) ? '' : 'none';
+            });
+          }
+          function initLazyLoad() {
+            const images = document.querySelectorAll('img[loading="lazy"]');
+            if ('IntersectionObserver' in window) {
+              const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                  if (entry.isIntersecting) {
+                    const img = entry.target;
+                    img.src = img.dataset.src || img.src;
+                    observer.unobserve(img);
+                  }
+                });
+              });
+              images.forEach(img => observer.observe(img));
+            }
+          }
+          function initCart() {
+            const cartButtons = document.querySelectorAll('.btn');
+            cartButtons.forEach(btn => {
+              btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const productId = btn.closest('.product-card').dataset.id;
+                addToCart(productId);
+              });
+            });
+          }
+          function addToCart(productId) {
+            let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+            cart.push(productId);
+            localStorage.setItem('cart', JSON.stringify(cart));
+            updateCartBadge();
+          }
+          function updateCartBadge() {
+            const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+            const badge = document.getElementById('cart-badge');
+            if (badge) badge.textContent = cart.length;
+          }
+          function initAnalytics() {
+            if (typeof gtag !== 'undefined') {
+              gtag('event', 'page_view', { page_title: document.title });
+            }
+          }
+          EOF
           echo '{"site_name":"Test"}' > /tmp/test_site/site.json
-          echo 'console.log("app")' > /tmp/test_site/app.js
           mkdir -p /tmp/test_site/guides
           echo '# Guide' > /tmp/test_site/guides/test.md
           sudo mkdir -p /var/www
