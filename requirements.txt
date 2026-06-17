@@ -22,10 +22,18 @@ python-dotenv>=1.0.0
 # apscheduler>=3.10.0
 
 # --- Тестирование ---
-# pytest>=7.4.0
-# pytest-asyncio>=0.21.0
-# pytest-aiohttp>=1.0.0
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-aiohttp>=1.0.0
+pytest-cov>=4.1.0
+
+# --- Миграции БД ---
+alembic>=1.12.0
+sqlalchemy>=2.0.0
+
+# --- Прочее ---
 Babel>=2.14.0
 cryptography>=42.0.0
 playwright>=1.40.0
 prometheus-client>=0.19.0
+defusedxml>=0.7.1
