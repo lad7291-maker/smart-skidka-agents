@@ -23,11 +23,12 @@ ITEMS_DIR = SITE_ROOT / "item"
 def _resolve_within_site_root(path: Path) -> Path:
     """Проверяет, что путь находится внутри SITE_ROOT (защита от path traversal)."""
     resolved = path.resolve()
+    site_root_resolved = SITE_ROOT.resolve()
     # Приводим к общему виду для сравнения
     try:
-        resolved.relative_to(SITE_ROOT)
+        resolved.relative_to(site_root_resolved)
     except ValueError:
-        raise ValueError(f"Path traversal detected: {resolved} is outside SITE_ROOT {SITE_ROOT}")
+        raise ValueError(f"Path traversal detected: {resolved} is outside SITE_ROOT {site_root_resolved}")
     return resolved
 
 
