@@ -79,6 +79,9 @@ jobs:
           echo '{"site_name":"Test"}' > /tmp/test-site/site.json
           mkdir -p /tmp/test-site/guides
           echo '# Guide' > /tmp/test-site/guides/test.md
+          sudo mkdir -p /var/www
+          sudo ln -s /tmp/test-site /var/www/dealshub-miniapp
+          sudo ln -s $PWD /opt/smart-skidka-agents
 
       - name: Run tests
         env:
