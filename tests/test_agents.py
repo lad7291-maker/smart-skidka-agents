@@ -20,7 +20,28 @@ class TestProjectContext(unittest.TestCase):
     """Тесты для ProjectContext (глаза агентов)."""
 
     def setUp(self):
-        self.ctx = ProjectContext("/var/www/dealshub-miniapp")
+        import tempfile
+        import shutil
+
+        self.test_dir = Path(tempfile.mkdtemp(prefix="dealshub_"))
+        # Создаём файлы, которые ожидают тесты
+        (self.test_dir / "home.html").write_text(
+            "<!DOCTYPE html><html><head><title>Smart Skidka</title></head><body></body></html>",
+            encoding="utf-8",
+        )
+        (self.test_dir / "all.json").write_text(
+            '[{"id": "1", "title": "Test"}]',
+            encoding="utf-8",
+        )
+        (self.test_dir / "app.js").write_text("console.log('app');", encoding="utf-8")
+        (self.test_dir / "products.json").write_text("{}", encoding="utf-8")
+        (self.test_dir / "site.json").write_text("{}", encoding="utf-8")
+        self.ctx = ProjectContext(str(self.test_dir))
+
+    def tearDown(self):
+        import shutil
+
+        shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def test_scan_returns_tree(self):
         """Сканирование возвращает дерево файлов."""
@@ -39,7 +60,7 @@ class TestProjectContext(unittest.TestCase):
         """Чтение home.html возвращает HTML."""
         content = self.ctx.read_file("home.html", max_chars=1000)
         self.assertIn("<!DOCTYPE html>", content)
-        self.assertIn("smart-skidka", content.lower())
+        self.assertIn("smart skidka", content.lower())
 
     def test_read_file_products_json(self):
         """Чтение all.json возвращает JSON-массив."""
@@ -86,7 +107,27 @@ class TestSafeProjectContext(unittest.TestCase):
     """Тесты для SafeProjectContext (защита от поломки)."""
 
     def setUp(self):
-        self.ctx = SafeProjectContext("/var/www/dealshub-miniapp")
+        import tempfile
+
+        self.test_dir = Path(tempfile.mkdtemp(prefix="dealshub_"))
+        (self.test_dir / "home.html").write_text("<!DOCTYPE html><html></html>", encoding="utf-8")
+        (self.test_dir / "app.js").write_text("console.log('app');", encoding="utf-8")
+        (self.test_dir / "products.json").write_text("{}", encoding="utf-8")
+        (self.test_dir / "site.json").write_text("{}", encoding="utf-8")
+        # safe zones
+        (self.test_dir / "guides").mkdir(exist_ok=True)
+        (self.test_dir / "landing").mkdir(exist_ok=True)
+        (self.test_dir / "blog").mkdir(exist_ok=True)
+        (self.test_dir / "reviews").mkdir(exist_ok=True)
+        (self.test_dir / "comparisons").mkdir(exist_ok=True)
+        (self.test_dir / "category").mkdir(exist_ok=True)
+        (self.test_dir / "category" / "Гайды и советы.html").write_text("<html></html>", encoding="utf-8")
+        self.ctx = SafeProjectContext(str(self.test_dir))
+
+    def tearDown(self):
+        import shutil
+
+        shutil.rmtree(self.test_dir, ignore_errors=True)
 
     def test_protected_index_html(self):
         """index.html защищён."""
@@ -175,7 +216,7 @@ class TestSafeProjectContext(unittest.TestCase):
         self.assertEqual(result["safe_zone"], "guides")
         # Чистим за собой
         try:
-            Path("/var/www/dealshub-miniapp/guides/test-safe-write.html").unlink()
+            (self.test_dir / "guides" / "test-safe-write.html").unlink()
         except:
             pass
 
@@ -213,20 +254,36 @@ class TestSafeProjectContext(unittest.TestCase):
 class TestIntegration(unittest.TestCase):
     """Интеграционные тесты."""
 
+    def setUp(self):
+        import tempfile
+
+        self.test_dir = Path(tempfile.mkdtemp(prefix="dealshub_"))
+        (self.test_dir / "home.html").write_text("<!DOCTYPE html><html></html>", encoding="utf-8")
+        (self.test_dir / "app.js").write_text("console.log('app');", encoding="utf-8")
+        (self.test_dir / "products.json").write_text("{}", encoding="utf-8")
+        (self.test_dir / "site.json").write_text("{}", encoding="utf-8")
+        (self.test_dir / "guides").mkdir(exist_ok=True)
+        (self.test_dir / "landing").mkdir(exist_ok=True)
+
+    def tearDown(self):
+        import shutil
+
+        shutil.rmtree(self.test_dir, ignore_errors=True)
+
     def test_end_to_end_content_creation(self):
         """Полный цикл: контекст → валидация → запись."""
         # 1. Получаем контекст
-        ctx = get_project_context()
+        ctx = ProjectContext(str(self.test_dir))
         context = ctx.get_context_for_agent("content")
-        self.assertGreater(len(context), 1000)
+        self.assertGreater(len(context), 100)
 
         # 2. Пытаемся записать в safe zone
-        safe = SafeProjectContext()
+        safe = SafeProjectContext(str(self.test_dir))
         result = safe.write_file("guides/test-integration.html", "<html><body>Integration Test</body></html>")
         self.assertTrue(result["success"])
 
         # 3. Проверяем, что файл создан
-        path = Path("/var/www/dealshub-miniapp/guides/test-integration.html")
+        path = self.test_dir / "guides" / "test-integration.html"
         self.assertTrue(path.exists())
 
         # 4. Чистим
@@ -234,7 +291,7 @@ class TestIntegration(unittest.TestCase):
 
     def test_multiple_safe_writes(self):
         """Множественные записи в safe zone."""
-        safe = SafeProjectContext()
+        safe = SafeProjectContext(str(self.test_dir))
         files = [
             "guides/test-1.html",
             "guides/test-2.html",
@@ -247,13 +304,13 @@ class TestIntegration(unittest.TestCase):
         # Чистим
         for f in files:
             try:
-                Path(f"/var/www/dealshub-miniapp/{f}").unlink()
+                (self.test_dir / f).unlink()
             except:
                 pass
 
     def test_mixed_valid_and_invalid(self):
         """Смешанные операции: valid + invalid."""
-        safe = SafeProjectContext()
+        safe = SafeProjectContext(str(self.test_dir))
 
         # Valid
         r1 = safe.write_file("guides/valid.html", "<html></body>Valid</body></html>")
@@ -271,7 +328,7 @@ class TestIntegration(unittest.TestCase):
         # Чистим
         for f in ["guides/valid.html", "landing/valid.html"]:
             try:
-                Path(f"/var/www/dealshub-miniapp/{f}").unlink()
+                (self.test_dir / f).unlink()
             except:
                 pass
 
