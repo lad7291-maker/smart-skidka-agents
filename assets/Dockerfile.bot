@@ -14,8 +14,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Приложение
-COPY scripts/telegram_reporter.py ./scripts/
-COPY scripts/validator.py ./scripts/
+COPY scripts/ ./scripts/
 
 # Запуск
-CMD ["python", "-m", "scripts.telegram_reporter"]
+CMD ["python", "-m", "scripts.telegram_bot"]
