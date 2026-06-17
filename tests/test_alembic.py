@@ -94,7 +94,7 @@ class TestAlembicSetup(unittest.TestCase):
         import subprocess
 
         result = subprocess.run(
-            [".venv/bin/alembic", "history"],
+            ["alembic", "history"],
             capture_output=True,
             text=True,
             cwd="/opt/smart-skidka-agents",
