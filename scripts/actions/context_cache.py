@@ -212,7 +212,7 @@ class ContextCache:
             if dpath.exists():
                 mtimes.append(f"{subdir}:{dpath.stat().st_mtime:.0f}")
         raw = "|".join(sorted(mtimes))
-        return hashlib.md5(raw.encode()).hexdigest()[:16]
+        return hashlib.md5(raw.encode(), usedforsecurity=False).hexdigest()[:16]
 
     async def get_project_context(self, agent_type: str, project_root: str) -> Optional[str]:
         """

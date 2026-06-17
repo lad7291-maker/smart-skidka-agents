@@ -1341,7 +1341,7 @@ def check_uniqueness(text: str, reference_texts: Optional[List[str]] = None) -> 
     shingles: Set[str] = set()
     for i in range(len(words) - 2):
         shingle = " ".join(words[i:i + 3])
-        shingles.add(hashlib.md5(shingle.encode()).hexdigest())
+        shingles.add(hashlib.md5(shingle.encode(), usedforsecurity=False).hexdigest())
 
     total_shingles = len(shingles)
     if total_shingles == 0:
@@ -1378,7 +1378,7 @@ def check_uniqueness(text: str, reference_texts: Optional[List[str]] = None) -> 
         ref_shingles: Set[str] = set()
         for i in range(len(ref_words) - 2):
             shingle = " ".join(ref_words[i:i + 3])
-            ref_shingles.add(hashlib.md5(shingle.encode()).hexdigest())
+            ref_shingles.add(hashlib.md5(shingle.encode(), usedforsecurity=False).hexdigest())
 
         if not ref_shingles:
             continue

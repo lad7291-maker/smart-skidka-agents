@@ -54,7 +54,7 @@ logger = structlog.get_logger("dashboard")
 # ═══════════════════════════════════════════════════════════════════════════════
 
 DASHBOARD_PORT = int(os.getenv("DASHBOARD_PORT", "8080"))
-DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "0.0.0.0")
+DASHBOARD_HOST = os.getenv("DASHBOARD_HOST", "0.0.0.0")  # nosec B104
 DASHBOARD_API_KEY = os.getenv("DASHBOARD_API_KEY", "")
 # P1-4: CORS whitelist — comma-separated list of allowed origins
 CORS_WHITELIST = os.getenv("CORS_WHITELIST", "")

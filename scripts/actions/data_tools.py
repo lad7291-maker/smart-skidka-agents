@@ -26,6 +26,7 @@ import json
 import os
 import re
 import xml.etree.ElementTree as ET
+from defusedxml import ElementTree as DefusedET
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote, urljoin
@@ -121,7 +122,7 @@ async def google_trends(
     # Парсим RSS
     trends = []
     try:
-        root = ET.fromstring(text.encode("utf-8"))
+        root = DefusedET.fromstring(text.encode("utf-8"))
         # RSS 2.0 namespace
         ns = {"rss": "http://purl.org/rss/1.0/", "dc": "http://purl.org/dc/elements/1.1/"}
 
@@ -223,7 +224,7 @@ async def news_monitor(
             continue
 
         try:
-            root = ET.fromstring(text.encode("utf-8"))
+            root = DefusedET.fromstring(text.encode("utf-8"))
             items = root.findall(".//item")
             if not items:
                 # Atom fallback

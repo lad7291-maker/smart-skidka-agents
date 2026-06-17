@@ -44,7 +44,7 @@ USER_AGENT = (
     "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
 )
 
-SCREENSHOT_DIR = Path(os.getenv("SCREENSHOT_DIR", "/tmp/agent_screenshots"))
+SCREENSHOT_DIR = Path(os.getenv("SCREENSHOT_DIR", "/tmp/agent_screenshots"))  # nosec B108
 SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
 
 
