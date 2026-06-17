@@ -310,18 +310,21 @@ class TestCriticAgent(unittest.TestCase):
         self.assertEqual(len(report.findings_for_agent("ag3")), 0)
 
     def test_report_to_dict(self):
-        report = audit_cycle("cycle-004", [
-            {
-                "agent_name": "seo-agent",
-                "success": True,
-                "data": {
-                    "title": "T",
-                    "meta_description": "M",
-                    "keywords": ["k"],
-                    "h1": "H",
-                },
-            }
-        ])
+        report = audit_cycle(
+            "cycle-004",
+            [
+                {
+                    "agent_name": "seo-agent",
+                    "success": True,
+                    "data": {
+                        "title": "T",
+                        "meta_description": "M",
+                        "keywords": ["k"],
+                        "h1": "H",
+                    },
+                }
+            ],
+        )
         d = report.to_dict()
         self.assertEqual(d["cycle_id"], "cycle-004")
         self.assertIn("overall_score", d)
@@ -346,13 +349,20 @@ class TestCriticAgent(unittest.TestCase):
                 "success": False,
                 "error": "Same error",
                 "retry_attempts": 0,
-                "data": {"title": "T", "meta_description": "M", "keywords": ["k"], "h1": "H"},
+                "data": {
+                    "title": "T",
+                    "meta_description": "M",
+                    "keywords": ["k"],
+                    "h1": "H",
+                },
             }
         ]
-        previous = [[
-            {"agent_name": "seo-agent", "error": "Same error"},
-            {"agent_name": "seo-agent", "error": "Same error again"},
-        ]]
+        previous = [
+            [
+                {"agent_name": "seo-agent", "error": "Same error"},
+                {"agent_name": "seo-agent", "error": "Same error again"},
+            ]
+        ]
         report = self.critic.audit_cycle("cycle-005", cycle_results, previous)
         repeated = [f for f in report.findings if "Повторяющаяся" in f.message]
         self.assertEqual(len(repeated), 1)

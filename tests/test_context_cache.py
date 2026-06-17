@@ -4,19 +4,20 @@
 Тесты для ContextCache (P3-7) — оптимизация памяти контекста.
 """
 
-import sys
-import unittest
 import asyncio
+import sys
 import time
+import unittest
 
-sys.path.insert(0, '/opt/smart-skidka-agents')
-sys.path.insert(0, '/opt/smart-skidka-agents/scripts')
+sys.path.insert(0, "/opt/smart-skidka-agents")
+sys.path.insert(0, "/opt/smart-skidka-agents/scripts")
 
 from scripts.actions.context_cache import ContextCache
 
 
 class MockRedis:
     """Мок Redis для тестирования без реального подключения."""
+
     def __init__(self):
         self._store = {}
 
@@ -38,6 +39,7 @@ class MockRedis:
 
 class MockMemoryStore:
     """Мок MemoryStore с Redis."""
+
     def __init__(self):
         self._redis = MockRedis()
 
@@ -95,28 +97,36 @@ class TestContextCache(unittest.TestCase):
 
     def test_redis_get_set(self):
         """Redis get/set работает через мок."""
+
         async def _test():
             memory = MockMemoryStore()
             cc = ContextCache(memory_store=memory)
             await cc._redis_set("test_key", {"recs": [1, 2, 3]}, ttl=60)
             result = await cc._redis_get("test_key")
             self.assertEqual(result, {"recs": [1, 2, 3]})
+
         self.loop.run_until_complete(_test())
 
     def test_trend_recs_cache_roundtrip(self):
         """Trend recommendations кэшируются и читаются."""
+
         async def _test():
             memory = MockMemoryStore()
             cc = ContextCache(memory_store=memory)
-            recs = [{"trend": "A", "priority": "high"}, {"trend": "B", "priority": "low"}]
+            recs = [
+                {"trend": "A", "priority": "high"},
+                {"trend": "B", "priority": "low"},
+            ]
             await cc.set_trend_recommendations("seo-agent", recs)
             result = await cc.get_trend_recommendations("seo-agent", limit=3)
             self.assertEqual(len(result), 2)
             self.assertEqual(result[0]["trend"], "A")
+
         self.loop.run_until_complete(_test())
 
     def test_analytics_tasks_cache_roundtrip(self):
         """Analytics tasks кэшируются и читаются."""
+
         async def _test():
             memory = MockMemoryStore()
             cc = ContextCache(memory_store=memory)
@@ -125,10 +135,12 @@ class TestContextCache(unittest.TestCase):
             result = await cc.get_analytics_tasks("smm-agent", limit=3)
             self.assertEqual(len(result), 2)
             self.assertEqual(result[0]["title"], "Task 1")
+
         self.loop.run_until_complete(_test())
 
     def test_project_context_cache_roundtrip(self):
         """Project context кэшируется по mtime хэшу."""
+
         async def _test():
             memory = MockMemoryStore()
             cc = ContextCache(memory_store=memory)
@@ -136,10 +148,12 @@ class TestContextCache(unittest.TestCase):
             await cc.set_project_context("seo", "/opt/smart-skidka-agents", ctx)
             result = await cc.get_project_context("seo", "/opt/smart-skidka-agents")
             self.assertEqual(result, ctx)
+
         self.loop.run_until_complete(_test())
 
     def test_invalidate_agent_cache(self):
         """Инвалидация кэша агента очищает его ключи."""
+
         async def _test():
             memory = MockMemoryStore()
             cc = ContextCache(memory_store=memory)
@@ -149,6 +163,7 @@ class TestContextCache(unittest.TestCase):
             # После инвалидации локальный кэш должен быть пуст
             self.assertIsNone(cc._local_get("cache:trend_recs:seo-agent", 60))
             self.assertIsNone(cc._local_get("cache:analytics_tasks:seo-agent", 60))
+
         self.loop.run_until_complete(_test())
 
     def test_clear_local_cache(self):
@@ -162,6 +177,7 @@ class TestContextCache(unittest.TestCase):
 
     def test_last_results_cache_format(self):
         """Кэш last_results возвращает правильный формат."""
+
         async def _test():
             memory = MockMemoryStore()
             cc = ContextCache(memory_store=memory)
@@ -170,13 +186,14 @@ class TestContextCache(unittest.TestCase):
             await redis.setex(
                 "agent:last_result:seo-agent",
                 3600,
-                '{"cycle_id": "c1", "timestamp": "2024-01-01T00:00:00", "data": {"title": "Test"}, "elapsed_ms": 100}'
+                '{"cycle_id": "c1", "timestamp": "2024-01-01T00:00:00", "data": {"title": "Test"}, "elapsed_ms": 100}',
             )
             result = await cc.get_last_results("seo-agent", limit=3)
             self.assertIsNotNone(result)
             self.assertEqual(len(result), 1)
             self.assertEqual(result[0]["agent_name"], "seo-agent")
             self.assertEqual(result[0]["cycle_id"], "c1")
+
         self.loop.run_until_complete(_test())
 
 

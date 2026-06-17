@@ -48,6 +48,7 @@ PROJECT_CONTEXT_KEY_FILES = ["index.html", "products.json", "app.js"]
 # ContextCache — центральный кэш контекста
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class ContextCache:
     """
     Центральный кэш для контекста агентов.

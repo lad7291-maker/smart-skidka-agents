@@ -28,6 +28,7 @@ logger = structlog.get_logger("config_validator")
 try:
     import jsonschema
     from jsonschema import ValidationError as SchemaValidationError
+
     _JSONSCHEMA_AVAILABLE = True
 except ImportError:
     _JSONSCHEMA_AVAILABLE = False
@@ -37,6 +38,7 @@ except ImportError:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Exceptions
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class ConfigError(Exception):
     """Ошибка валидации конфигурации агента."""
@@ -147,6 +149,7 @@ def _get_inline_schema() -> Dict[str, Any]:
 # Validation functions
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def validate_agent_config(config: Dict[str, Any]) -> None:
     """
     Валидирует конфигурацию агента по JSON Schema.
@@ -242,6 +245,7 @@ def _semantic_validation(config: Dict[str, Any]) -> None:
 # Integration with AgentConfig
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def validate_config_file(path: Path) -> List[str]:
     """
     Валидирует JSON-файл конфигурации.
@@ -272,6 +276,7 @@ def validate_config_file(path: Path) -> List[str]:
 # ═══════════════════════════════════════════════════════════════════════════════
 # CLI
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 def main() -> int:
     """CLI: validate all configs in a directory."""
@@ -308,4 +313,5 @@ def main() -> int:
 
 if __name__ == "__main__":
     import sys
+
     sys.exit(main())

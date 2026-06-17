@@ -29,10 +29,10 @@ import os
 from datetime import datetime
 from typing import List, Optional
 
-from aiohttp import web
 import asyncpg
 import redis.asyncio as aioredis
 import structlog
+from aiohttp import web
 
 structlog.configure(
     processors=[
@@ -84,6 +84,7 @@ async def _get_redis() -> aioredis.Redis:
 # Middleware
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @web.middleware
 async def api_key_middleware(request: web.Request, handler) -> web.Response:
     """Проверка API ключа для POST/DELETE запросов и /metrics.
@@ -91,10 +92,7 @@ async def api_key_middleware(request: web.Request, handler) -> web.Response:
     P1-5: API key только из заголовка X-API-Key (query params удалены).
     P1-6: /metrics требует авторизации.
     """
-    requires_auth = (
-        request.method in ("POST", "DELETE", "PUT", "PATCH")
-        or request.path == "/metrics"
-    )
+    requires_auth = request.method in ("POST", "DELETE", "PUT", "PATCH") or request.path == "/metrics"
     if requires_auth and DASHBOARD_API_KEY:
         header_key = request.headers.get("X-API-Key", "")
         if header_key != DASHBOARD_API_KEY:
@@ -122,9 +120,14 @@ async def cors_middleware(request: web.Request, handler) -> web.Response:
 # Handlers
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 async def health_handler(request: web.Request) -> web.Response:
     """GET /health — health status оркестратора и подключений."""
-    health = {"status": "healthy", "timestamp": datetime.now().isoformat(), "checks": {}}
+    health = {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "checks": {},
+    }
 
     # DB check
     try:
@@ -171,23 +174,19 @@ async def metrics_handler(request: web.Request) -> web.Response:
             lines.append(f"agent_errors_total {errors_total}")
 
             # agents by status
-            rows = await conn.fetch(
-                """SELECT agent_name, status, COUNT(*) as c
+            rows = await conn.fetch("""SELECT agent_name, status, COUNT(*) as c
                    FROM agent_results
                    WHERE created_at > NOW() - INTERVAL '24 hours'
-                   GROUP BY agent_name, status"""
-            )
+                   GROUP BY agent_name, status""")
             lines.append(f"# HELP agent_results_last_24h Results in last 24h by status")
             lines.append(f"# TYPE agent_results_last_24h gauge")
             for r in rows:
                 lines.append(f'agent_results_last_24h{{agent="{r["agent_name"]}",status="{r["status"]}"}} {r["c"]}')
 
             # avg validation score
-            row = await conn.fetchrow(
-                """SELECT AVG(validation_score) as avg
+            row = await conn.fetchrow("""SELECT AVG(validation_score) as avg
                    FROM agent_results
-                   WHERE created_at > NOW() - INTERVAL '24 hours' AND validation_score IS NOT NULL"""
-            )
+                   WHERE created_at > NOW() - INTERVAL '24 hours' AND validation_score IS NOT NULL""")
             avg_score = row["avg"] or 0.0
             lines.append(f"# HELP agent_avg_validation_score Average validation score (24h)")
             lines.append(f"# TYPE agent_avg_validation_score gauge")
@@ -207,14 +206,12 @@ async def agents_handler(request: web.Request) -> web.Response:
 
         async with db.acquire() as conn:
             # Последний результат каждого агента
-            rows = await conn.fetch(
-                """SELECT DISTINCT ON (agent_name)
+            rows = await conn.fetch("""SELECT DISTINCT ON (agent_name)
                           agent_name, status, validation_score,
                           execution_time_ms, created_at,
                           result->>'actions' as actions
                    FROM agent_results
-                   ORDER BY agent_name, created_at DESC"""
-            )
+                   ORDER BY agent_name, created_at DESC""")
 
         agents = []
         for r in rows:
@@ -223,15 +220,17 @@ async def agents_handler(request: web.Request) -> web.Response:
             is_paused = await redis.exists(f"agent:pause:{agent_name}")
             is_run_now = await redis.exists(f"agent:run_now:{agent_name}")
 
-            agents.append({
-                "name": agent_name,
-                "status": r["status"],
-                "validation_score": round(r["validation_score"], 3) if r["validation_score"] else None,
-                "execution_time_ms": r["execution_time_ms"],
-                "last_run": r["created_at"].isoformat() if r["created_at"] else None,
-                "paused": bool(is_paused),
-                "run_now": bool(is_run_now),
-            })
+            agents.append(
+                {
+                    "name": agent_name,
+                    "status": r["status"],
+                    "validation_score": (round(r["validation_score"], 3) if r["validation_score"] else None),
+                    "execution_time_ms": r["execution_time_ms"],
+                    "last_run": (r["created_at"].isoformat() if r["created_at"] else None),
+                    "paused": bool(is_paused),
+                    "run_now": bool(is_run_now),
+                }
+            )
 
         return web.json_response({"agents": agents, "count": len(agents)})
 
@@ -257,15 +256,17 @@ async def cycles_handler(request: web.Request) -> web.Response:
 
         cycles = []
         for r in rows:
-            cycles.append({
-                "id": str(r["id"]),
-                "started_at": r["started_at"].isoformat() if r["started_at"] else None,
-                "completed_at": r["completed_at"].isoformat() if r["completed_at"] else None,
-                "status": r["status"],
-                "agents_total": r["agents_total"],
-                "agents_success": r["agents_success"],
-                "agents_failed": r["agents_failed"],
-            })
+            cycles.append(
+                {
+                    "id": str(r["id"]),
+                    "started_at": (r["started_at"].isoformat() if r["started_at"] else None),
+                    "completed_at": (r["completed_at"].isoformat() if r["completed_at"] else None),
+                    "status": r["status"],
+                    "agents_total": r["agents_total"],
+                    "agents_success": r["agents_success"],
+                    "agents_failed": r["agents_failed"],
+                }
+            )
 
         return web.json_response({"cycles": cycles, "count": len(cycles)})
 
@@ -288,7 +289,8 @@ async def validations_handler(request: web.Request) -> web.Response:
                        WHERE agent_name = $1 AND validation_score IS NOT NULL
                        ORDER BY created_at DESC
                        LIMIT $2""",
-                    agent_name, limit,
+                    agent_name,
+                    limit,
                 )
             else:
                 rows = await conn.fetch(
@@ -302,32 +304,32 @@ async def validations_handler(request: web.Request) -> web.Response:
                 )
 
             # Summary
-            summary_row = await conn.fetchrow(
-                """SELECT
+            summary_row = await conn.fetchrow("""SELECT
                       COUNT(*) as total,
                       COUNT(*) FILTER (WHERE status = 'success') as passed,
                       COUNT(*) FILTER (WHERE status = 'failed') as failed,
                       AVG(validation_score) as avg_score
                    FROM agent_results
-                   WHERE created_at > NOW() - INTERVAL '24 hours'"""
-            )
+                   WHERE created_at > NOW() - INTERVAL '24 hours'""")
 
         results = []
         for r in rows:
-            results.append({
-                "agent_name": r["agent_name"],
-                "cycle_id": str(r["cycle_id"]) if r["cycle_id"] else None,
-                "status": r["status"],
-                "validation_score": round(r["validation_score"], 3) if r["validation_score"] else None,
-                "execution_time_ms": r["execution_time_ms"],
-                "created_at": r["created_at"].isoformat() if r["created_at"] else None,
-            })
+            results.append(
+                {
+                    "agent_name": r["agent_name"],
+                    "cycle_id": str(r["cycle_id"]) if r["cycle_id"] else None,
+                    "status": r["status"],
+                    "validation_score": (round(r["validation_score"], 3) if r["validation_score"] else None),
+                    "execution_time_ms": r["execution_time_ms"],
+                    "created_at": (r["created_at"].isoformat() if r["created_at"] else None),
+                }
+            )
 
         summary = {
             "total_24h": summary_row["total"] if summary_row else 0,
             "passed_24h": summary_row["passed"] if summary_row else 0,
             "failed_24h": summary_row["failed"] if summary_row else 0,
-            "avg_score_24h": round(summary_row["avg_score"], 3) if summary_row and summary_row["avg_score"] else 0.0,
+            "avg_score_24h": (round(summary_row["avg_score"], 3) if summary_row and summary_row["avg_score"] else 0.0),
         }
 
         return web.json_response({"results": results, "summary": summary})
@@ -353,13 +355,15 @@ async def errors_handler(request: web.Request) -> web.Response:
 
         errors = []
         for r in rows:
-            errors.append({
-                "agent_name": r["agent_name"],
-                "error_type": r["error_type"],
-                "error_message": r["error_message"],
-                "retry_count": r["retry_count"],
-                "created_at": r["created_at"].isoformat() if r["created_at"] else None,
-            })
+            errors.append(
+                {
+                    "agent_name": r["agent_name"],
+                    "error_type": r["error_type"],
+                    "error_message": r["error_message"],
+                    "retry_count": r["retry_count"],
+                    "created_at": (r["created_at"].isoformat() if r["created_at"] else None),
+                }
+            )
 
         return web.json_response({"errors": errors, "count": len(errors)})
 
@@ -372,43 +376,43 @@ async def trends_handler(request: web.Request) -> web.Response:
     try:
         db = await _get_db()
         async with db.acquire() as conn:
-            trends = await conn.fetch(
-                """SELECT trend_type, confidence, title, status,
+            trends = await conn.fetch("""SELECT trend_type, confidence, title, status,
                           competition_level, validated, created_at
                    FROM trend_detections
                    WHERE status IN ('rising', 'peak')
                    ORDER BY confidence DESC
-                   LIMIT 20"""
-            )
+                   LIMIT 20""")
 
-            sources = await conn.fetch(
-                """SELECT source_name, source_type, last_fetch_at,
+            sources = await conn.fetch("""SELECT source_name, source_type, last_fetch_at,
                           fetch_status, is_active
                    FROM trend_data_sources
-                   ORDER BY source_name"""
-            )
+                   ORDER BY source_name""")
 
         trend_list = []
         for r in trends:
-            trend_list.append({
-                "type": r["trend_type"],
-                "confidence": round(r["confidence"], 2) if r["confidence"] else None,
-                "title": r["title"],
-                "status": r["status"],
-                "competition": r["competition_level"],
-                "validated": r["validated"],
-                "created_at": r["created_at"].isoformat() if r["created_at"] else None,
-            })
+            trend_list.append(
+                {
+                    "type": r["trend_type"],
+                    "confidence": (round(r["confidence"], 2) if r["confidence"] else None),
+                    "title": r["title"],
+                    "status": r["status"],
+                    "competition": r["competition_level"],
+                    "validated": r["validated"],
+                    "created_at": (r["created_at"].isoformat() if r["created_at"] else None),
+                }
+            )
 
         source_list = []
         for r in sources:
-            source_list.append({
-                "name": r["source_name"],
-                "type": r["source_type"],
-                "last_fetch": r["last_fetch_at"].isoformat() if r["last_fetch_at"] else None,
-                "status": r["fetch_status"],
-                "active": r["is_active"],
-            })
+            source_list.append(
+                {
+                    "name": r["source_name"],
+                    "type": r["source_type"],
+                    "last_fetch": (r["last_fetch_at"].isoformat() if r["last_fetch_at"] else None),
+                    "status": r["fetch_status"],
+                    "active": r["is_active"],
+                }
+            )
 
         return web.json_response({"trends": trend_list, "sources": source_list})
 
@@ -497,6 +501,7 @@ async def index_handler(request: web.Request) -> web.Response:
 # ═══════════════════════════════════════════════════════════════════════════════
 # App factory
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 def create_app() -> web.Application:
     """Создаёт aiohttp приложение."""

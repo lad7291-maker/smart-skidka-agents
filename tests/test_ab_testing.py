@@ -4,19 +4,19 @@
 Тесты для A/B тестирования промптов (P3-3).
 """
 
+import shutil
 import sys
 import unittest
-import shutil
 from pathlib import Path
 
-sys.path.insert(0, '/opt/smart-skidka-agents')
-sys.path.insert(0, '/opt/smart-skidka-agents/scripts')
+sys.path.insert(0, "/opt/smart-skidka-agents")
+sys.path.insert(0, "/opt/smart-skidka-agents/scripts")
 
 from scripts.ab_testing import (
-    PromptVariant,
-    PromptVariantRegistry,
     ABTestEvaluator,
     ABTestResult,
+    PromptVariant,
+    PromptVariantRegistry,
 )
 
 
@@ -160,6 +160,7 @@ class TestABTestEvaluator(unittest.TestCase):
     def test_winner_selection(self):
         """Победитель выбирается по avg_score."""
         import scripts.ab_testing as ab
+
         original_min = ab.AB_TEST_MIN_RUNS
         ab.AB_TEST_MIN_RUNS = 2
         try:
@@ -186,6 +187,7 @@ class TestABTestEvaluator(unittest.TestCase):
     def test_no_winner_low_confidence(self):
         """При низкой уверенности победитель не выбирается."""
         import scripts.ab_testing as ab
+
         original_min = ab.AB_TEST_MIN_RUNS
         original_threshold = ab.AB_TEST_CONFIDENCE_THRESHOLD
         ab.AB_TEST_MIN_RUNS = 2
@@ -209,6 +211,7 @@ class TestABTestEvaluator(unittest.TestCase):
     def test_evaluate_all(self):
         """Оценка всех агентов."""
         import scripts.ab_testing as ab
+
         original_min = ab.AB_TEST_MIN_RUNS
         ab.AB_TEST_MIN_RUNS = 2
         try:

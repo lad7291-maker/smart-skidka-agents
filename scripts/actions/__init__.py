@@ -11,10 +11,10 @@
     - with_retry: декоратор для повторных попыток при ошибках
 """
 
-import functools
 import asyncio
+import functools
 import time
-from typing import Callable, Any, Optional
+from typing import Any, Callable, Optional
 
 
 def with_retry(
@@ -43,10 +43,12 @@ def with_retry(
         async def async_fragile_operation():
             ...
     """
+
     def decorator(func: Callable) -> Callable:
         is_async = asyncio.iscoroutinefunction(func)
 
         if is_async:
+
             @functools.wraps(func)
             async def async_wrapper(*args, **kwargs):
                 last_exception = None
@@ -70,6 +72,7 @@ def with_retry(
 
             return async_wrapper
         else:
+
             @functools.wraps(func)
             def sync_wrapper(*args, **kwargs):
                 last_exception = None

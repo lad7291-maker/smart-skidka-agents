@@ -25,12 +25,12 @@ import asyncio
 import json
 import os
 import re
-from defusedxml import ElementTree as DefusedET
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
 
 import aiohttp
+from defusedxml import ElementTree as DefusedET
 
 from . import with_retry
 
@@ -40,8 +40,7 @@ from . import with_retry
 
 DEFAULT_TIMEOUT = aiohttp.ClientTimeout(total=15)
 USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
 )
 
 # RSS-источники для news_monitor
@@ -81,6 +80,7 @@ async def close_session() -> None:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Google Trends (через трендовые RSS-ленты Google)
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 @with_retry(max_retries=2, delay=1.0, backoff=2.0, exceptions=(Exception,))
 async def google_trends(
@@ -123,7 +123,10 @@ async def google_trends(
     try:
         root = DefusedET.fromstring(text.encode("utf-8"))
         # RSS 2.0 namespace
-        ns = {"rss": "http://purl.org/rss/1.0/", "dc": "http://purl.org/dc/elements/1.1/"}
+        ns = {
+            "rss": "http://purl.org/rss/1.0/",
+            "dc": "http://purl.org/dc/elements/1.1/",
+        }
 
         # Пробуем без namespace
         items = root.findall(".//item")
@@ -149,12 +152,14 @@ async def google_trends(
                 if match:
                     traffic = match.group(1)
 
-            trends.append({
-                "title": title,
-                "traffic": traffic,
-                "date": pub_date,
-                "category": category,
-            })
+            trends.append(
+                {
+                    "title": title,
+                    "traffic": traffic,
+                    "date": pub_date,
+                    "category": category,
+                }
+            )
     except Exception as e:
         return {
             "success": False,
@@ -176,6 +181,7 @@ async def google_trends(
 # ═══════════════════════════════════════════════════════════════════════════════
 # News Monitor (RSS-агрегатор)
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 @with_retry(max_retries=2, delay=1.0, backoff=2.0, exceptions=(Exception,))
 async def news_monitor(
@@ -250,7 +256,11 @@ async def news_monitor(
 
                 # Парсим дату
                 pub_dt = None
-                for fmt in ("%a, %d %b %Y %H:%M:%S %z", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%SZ"):
+                for fmt in (
+                    "%a, %d %b %Y %H:%M:%S %z",
+                    "%Y-%m-%dT%H:%M:%S%z",
+                    "%Y-%m-%dT%H:%M:%SZ",
+                ):
                     try:
                         pub_dt = datetime.strptime(pub_date_str, fmt)
                         break
@@ -299,6 +309,7 @@ async def news_monitor(
 # ═══════════════════════════════════════════════════════════════════════════════
 # Marketplace Trends (Wildberries — базовый скрейпинг)
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 @with_retry(max_retries=2, delay=1.5, backoff=2.0, exceptions=(Exception,))
 async def marketplace_trends(
@@ -391,6 +402,7 @@ async def marketplace_trends(
 # Yandex Wordstat (подсказки — популярность запросов)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @with_retry(max_retries=2, delay=1.0, backoff=2.0, exceptions=(Exception,))
 async def yandex_wordstat(
     query: str,
@@ -438,10 +450,12 @@ async def yandex_wordstat(
                 if isinstance(item, str):
                     suggestions.append({"text": item, "type": "text"})
                 elif isinstance(item, list) and len(item) >= 2:
-                    suggestions.append({
-                        "text": item[1] if isinstance(item[1], str) else str(item[1]),
-                        "type": item[2] if len(item) > 2 and isinstance(item[2], str) else "text",
-                    })
+                    suggestions.append(
+                        {
+                            "text": (item[1] if isinstance(item[1], str) else str(item[1])),
+                            "type": (item[2] if len(item) > 2 and isinstance(item[2], str) else "text"),
+                        }
+                    )
     except Exception as e:
         return {
             "success": False,
@@ -461,6 +475,7 @@ async def yandex_wordstat(
 # ═══════════════════════════════════════════════════════════════════════════════
 # Forum Scanner (HackerNews + Reddit fallback)
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 @with_retry(max_retries=2, delay=1.0, backoff=2.0, exceptions=(Exception,))
 async def forum_scanner(
@@ -508,7 +523,7 @@ async def _hackernews_scanner(
         story_ids = await response.json()
 
     posts = []
-    for story_id in story_ids[:limit * 3]:
+    for story_id in story_ids[: limit * 3]:
         try:
             async with session.get(
                 f"https://hacker-news.firebaseio.com/v0/item/{story_id}.json",
@@ -530,14 +545,16 @@ async def _hackernews_scanner(
                 if not any(kw in text for kw in keywords_lower):
                     continue
 
-            posts.append({
-                "title": title,
-                "url": story.get("url", f"https://news.ycombinator.com/item?id={story_id}"),
-                "external_url": story.get("url", ""),
-                "score": story.get("score", 0),
-                "comments": story.get("descendants", 0),
-                "created_utc": story.get("time", 0),
-            })
+            posts.append(
+                {
+                    "title": title,
+                    "url": story.get("url", f"https://news.ycombinator.com/item?id={story_id}"),
+                    "external_url": story.get("url", ""),
+                    "score": story.get("score", 0),
+                    "comments": story.get("descendants", 0),
+                    "created_utc": story.get("time", 0),
+                }
+            )
 
             if len(posts) >= limit:
                 break
@@ -589,14 +606,16 @@ async def _reddit_scanner(
             if not any(kw in text for kw in keywords_lower):
                 continue
 
-        posts.append({
-            "title": title,
-            "url": urljoin("https://www.reddit.com", post.get("permalink", "")),
-            "external_url": post.get("url", ""),
-            "score": post.get("score", 0),
-            "comments": post.get("num_comments", 0),
-            "created_utc": post.get("created_utc", 0),
-        })
+        posts.append(
+            {
+                "title": title,
+                "url": urljoin("https://www.reddit.com", post.get("permalink", "")),
+                "external_url": post.get("url", ""),
+                "score": post.get("score", 0),
+                "comments": post.get("num_comments", 0),
+                "created_utc": post.get("created_utc", 0),
+            }
+        )
 
         if len(posts) >= limit:
             break
@@ -614,6 +633,7 @@ async def _reddit_scanner(
 # ═══════════════════════════════════════════════════════════════════════════════
 # Утилита: комплексный сбор трендов для Trend Agent
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 async def gather_trend_data(
     keywords: Optional[List[str]] = None,
@@ -646,11 +666,13 @@ async def gather_trend_data(
         return_exceptions=True,
     )
 
-    google_result = results[0] if not isinstance(results[0], Exception) else {
-        "success": False, "error": str(results[0])}
+    google_result = (
+        results[0] if not isinstance(results[0], Exception) else {"success": False, "error": str(results[0])}
+    )
     news_result = results[1] if not isinstance(results[1], Exception) else {"success": False, "error": str(results[1])}
-    marketplace_result = results[2] if not isinstance(results[2], Exception) else {
-        "success": False, "error": str(results[2])}
+    marketplace_result = (
+        results[2] if not isinstance(results[2], Exception) else {"success": False, "error": str(results[2])}
+    )
     forum_result = results[3] if not isinstance(results[3], Exception) else {"success": False, "error": str(results[3])}
 
     # Формируем агрегированные инсайты
@@ -658,40 +680,48 @@ async def gather_trend_data(
 
     if google_result.get("success"):
         for trend in google_result.get("trends", [])[:5]:
-            insights.append({
-                "type": "search_trend",
-                "title": trend.get("title", ""),
-                "traffic": trend.get("traffic", ""),
-                "source": "google_trends",
-            })
+            insights.append(
+                {
+                    "type": "search_trend",
+                    "title": trend.get("title", ""),
+                    "traffic": trend.get("traffic", ""),
+                    "source": "google_trends",
+                }
+            )
 
     if news_result.get("success"):
         for article in news_result.get("articles", [])[:5]:
-            insights.append({
-                "type": "news",
-                "title": article.get("title", ""),
-                "source": article.get("source", ""),
-                "link": article.get("link", ""),
-            })
+            insights.append(
+                {
+                    "type": "news",
+                    "title": article.get("title", ""),
+                    "source": article.get("source", ""),
+                    "link": article.get("link", ""),
+                }
+            )
 
     if marketplace_result.get("success"):
         for product in marketplace_result.get("products", [])[:5]:
-            insights.append({
-                "type": "product_trend",
-                "title": product.get("name", ""),
-                "price": product.get("price", 0),
-                "rating": product.get("rating", 0),
-                "source": "wildberries",
-            })
+            insights.append(
+                {
+                    "type": "product_trend",
+                    "title": product.get("name", ""),
+                    "price": product.get("price", 0),
+                    "rating": product.get("rating", 0),
+                    "source": "wildberries",
+                }
+            )
 
     if forum_result.get("success"):
         for post in forum_result.get("posts", [])[:5]:
-            insights.append({
-                "type": "forum_discussion",
-                "title": post.get("title", ""),
-                "score": post.get("score", 0),
-                "source": f"reddit/r/{forum_result.get('subreddit', '')}",
-            })
+            insights.append(
+                {
+                    "type": "forum_discussion",
+                    "title": post.get("title", ""),
+                    "score": post.get("score", 0),
+                    "source": f"reddit/r/{forum_result.get('subreddit', '')}",
+                }
+            )
 
     return {
         "success": True,

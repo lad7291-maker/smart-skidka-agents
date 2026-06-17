@@ -8,7 +8,7 @@ import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, '/opt/smart-skidka-agents')
+sys.path.insert(0, "/opt/smart-skidka-agents")
 
 
 class TestAlembicSetup(unittest.TestCase):
@@ -33,11 +33,10 @@ class TestAlembicSetup(unittest.TestCase):
         """Миграция импортируется без ошибок."""
         import importlib.util
         import sys
+
         # alembic.op needs to be importable
-        sys.path.insert(0, '/opt/smart-skidka-agents/.venv/lib/python3.12/site-packages')
-        spec = importlib.util.spec_from_file_location(
-            "migration", "alembic/versions/001_initial_schema.py"
-        )
+        sys.path.insert(0, "/opt/smart-skidka-agents/.venv/lib/python3.12/site-packages")
+        spec = importlib.util.spec_from_file_location("migration", "alembic/versions/001_initial_schema.py")
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         self.assertTrue(hasattr(mod, "upgrade"))
@@ -93,6 +92,7 @@ class TestAlembicSetup(unittest.TestCase):
     def test_alembic_history_shows_revision(self):
         """alembic history показывает revision 001."""
         import subprocess
+
         result = subprocess.run(
             [".venv/bin/alembic", "history"],
             capture_output=True,

@@ -4,29 +4,29 @@
 Тесты для Web UI дашборда (P3-2).
 """
 
+import asyncio
 import sys
 import unittest
-import asyncio
 
-sys.path.insert(0, '/opt/smart-skidka-agents')
-sys.path.insert(0, '/opt/smart-skidka-agents/scripts')
+sys.path.insert(0, "/opt/smart-skidka-agents")
+sys.path.insert(0, "/opt/smart-skidka-agents/scripts")
 
 from aiohttp import web
 from aiohttp.test_utils import AioHTTPTestCase, unittest_run_loop
 
 from scripts.dashboard import (
-    create_app,
-    index_handler,
-    health_handler,
-    metrics_handler,
-    agents_handler,
-    cycles_handler,
-    validations_handler,
-    errors_handler,
-    trends_handler,
     agent_pause_handler,
     agent_resume_handler,
     agent_run_now_handler,
+    agents_handler,
+    create_app,
+    cycles_handler,
+    errors_handler,
+    health_handler,
+    index_handler,
+    metrics_handler,
+    trends_handler,
+    validations_handler,
 )
 
 
@@ -99,6 +99,7 @@ class TestDashboardHandlers(AioHTTPTestCase):
         """POST /api/agents/{name}/pause без API ключа — 401."""
         # Set API key for test
         import scripts.dashboard as d
+
         d.DASHBOARD_API_KEY = "test_key"
         resp = await self.client.request("POST", "/api/agents/seo-agent/pause")
         self.assertEqual(resp.status, 401)
@@ -114,16 +115,13 @@ class TestDashboardHandlers(AioHTTPTestCase):
     async def test_cors_headers_with_whitelist(self):
         """P1-4: CORS заголовки только для разрешённого origin."""
         import scripts.dashboard as d
+
         d._CORS_ALLOWED_ORIGINS = {"https://example.com"}
-        resp = await self.client.request(
-            "GET", "/health", headers={"Origin": "https://example.com"}
-        )
+        resp = await self.client.request("GET", "/health", headers={"Origin": "https://example.com"})
         self.assertIn("Access-Control-Allow-Origin", resp.headers)
         self.assertEqual(resp.headers["Access-Control-Allow-Origin"], "https://example.com")
         # Неразрешённый origin — без CORS
-        resp2 = await self.client.request(
-            "GET", "/health", headers={"Origin": "https://evil.com"}
-        )
+        resp2 = await self.client.request("GET", "/health", headers={"Origin": "https://evil.com"})
         self.assertNotIn("Access-Control-Allow-Origin", resp2.headers)
         d._CORS_ALLOWED_ORIGINS = set()  # reset
 
@@ -131,14 +129,13 @@ class TestDashboardHandlers(AioHTTPTestCase):
     async def test_metrics_requires_auth(self):
         """P1-6: GET /metrics требует API key."""
         import scripts.dashboard as d
+
         d.DASHBOARD_API_KEY = "test_key"
         # Без ключа — 401
         resp = await self.client.request("GET", "/metrics")
         self.assertEqual(resp.status, 401)
         # С ключом в заголовке — 200
-        resp2 = await self.client.request(
-            "GET", "/metrics", headers={"X-API-Key": "test_key"}
-        )
+        resp2 = await self.client.request("GET", "/metrics", headers={"X-API-Key": "test_key"})
         self.assertEqual(resp2.status, 200)
         d.DASHBOARD_API_KEY = ""  # reset
 
@@ -146,11 +143,10 @@ class TestDashboardHandlers(AioHTTPTestCase):
     async def test_api_key_only_in_header(self):
         """P1-5: API key в query params не принимается."""
         import scripts.dashboard as d
+
         d.DASHBOARD_API_KEY = "test_key"
         # Query param не должен работать
-        resp = await self.client.request(
-            "POST", "/api/agents/seo-agent/pause?api_key=test_key"
-        )
+        resp = await self.client.request("POST", "/api/agents/seo-agent/pause?api_key=test_key")
         self.assertEqual(resp.status, 401)
         d.DASHBOARD_API_KEY = ""  # reset
 
@@ -166,18 +162,27 @@ class TestDashboardUnit(unittest.TestCase):
     def test_routes_registered(self):
         """Все маршруты зарегистрированы."""
         app = create_app()
-        routes = [r for r in app.router.routes() if r.method != 'HEAD']
+        routes = [r for r in app.router.routes() if r.method != "HEAD"]
         paths = set()
         for r in routes:
             resource = r.resource
-            if hasattr(resource, '_path'):
+            if hasattr(resource, "_path"):
                 paths.add(resource._path)
-            elif hasattr(resource, '_formatter'):
+            elif hasattr(resource, "_formatter"):
                 paths.add(resource._formatter)
-        expected = {'/', '/health', '/metrics', '/api/agents', '/api/cycles',
-                    '/api/validations', '/api/errors', '/api/trends',
-                    '/api/agents/{name}/pause', '/api/agents/{name}/resume',
-                    '/api/agents/{name}/run_now'}
+        expected = {
+            "/",
+            "/health",
+            "/metrics",
+            "/api/agents",
+            "/api/cycles",
+            "/api/validations",
+            "/api/errors",
+            "/api/trends",
+            "/api/agents/{name}/pause",
+            "/api/agents/{name}/resume",
+            "/api/agents/{name}/run_now",
+        }
         self.assertTrue(expected.issubset(paths) or len(paths) >= len(expected))
 
 

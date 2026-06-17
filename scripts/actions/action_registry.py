@@ -14,7 +14,7 @@
 Использование:
     # Регистрация action (в модуле actions)
     from actions.action_registry import register_action
-    
+
     @register_action("post_discount", agent_types=["smm"])
     async def post_discount(product: dict) -> bool:
         ...
@@ -43,9 +43,11 @@ logger = structlog.get_logger("action_registry")
 # Реестр действий
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class ActionDef:
     """Определение зарегистрированного action."""
+
     name: str
     func: Callable
     agent_types: List[str] = field(default_factory=list)
@@ -75,6 +77,7 @@ def register_action(
         def update_meta_tags(title: str, description: str, keywords: str = "") -> bool:
             ...
     """
+
     def decorator(func: Callable) -> Callable:
         is_async = asyncio.iscoroutinefunction(func)
         _REGISTRY[name] = ActionDef(
@@ -86,6 +89,7 @@ def register_action(
         )
         logger.debug("action_registered", name=name, agent_types=agent_types, is_async=is_async)
         return func
+
     return decorator
 
 
@@ -142,6 +146,7 @@ def discover_actions(modules: Optional[List[str]] = None) -> int:
 # ActionDispatcher — диспетчер выполнения actions
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class ActionDispatcher:
     """
     Диспетчер для выполнения actions по конфигурации агента.
@@ -176,8 +181,7 @@ class ActionDispatcher:
         """
         action_def = get_action(action_name)
         if action_def is None:
-            raise ValueError(f"Action '{action_name}' not found in registry. "
-                             f"Available: {list(_REGISTRY.keys())}")
+            raise ValueError(f"Action '{action_name}' not found in registry. " f"Available: {list(_REGISTRY.keys())}")
 
         # RBAC-проверка: агент должен быть в списке разрешённых типов
         if agent_type is not None and action_def.agent_types:
@@ -193,7 +197,12 @@ class ActionDispatcher:
                     f"Allowed types: {action_def.agent_types}"
                 )
 
-        self.logger.debug("executing_action", name=action_name, params_keys=list(params.keys()), agent_type=agent_type)
+        self.logger.debug(
+            "executing_action",
+            name=action_name,
+            params_keys=list(params.keys()),
+            agent_type=agent_type,
+        )
 
         # Фильтруем параметры — оставляем только те, что принимает функция
         sig = inspect.signature(action_def.func)
@@ -273,7 +282,12 @@ class ActionDispatcher:
                 action_log.append(f"{action_name}:{result}")
             except PermissionError as e:
                 action_log.append(f"{action_name}:RBAC_DENIED:{str(e)[:50]}")
-                self.logger.warning("action_execution_denied", name=action_name, agent_type=agent_type, error=str(e))
+                self.logger.warning(
+                    "action_execution_denied",
+                    name=action_name,
+                    agent_type=agent_type,
+                    error=str(e),
+                )
             except Exception as e:
                 action_log.append(f"{action_name}:ERROR:{str(e)[:50]}")
                 self.logger.error("action_execution_failed", name=action_name, error=str(e))
@@ -331,6 +345,7 @@ class ActionDispatcher:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Удобные функции
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 def get_registry_stats() -> Dict[str, Any]:
     """Возвращает статистику реестра."""

@@ -9,19 +9,18 @@
 
 from __future__ import annotations
 
-import os
 import asyncio
+import os
 import time
-from typing import Optional, Dict, Any
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any, Dict, Optional
 
 import aiohttp
+import structlog
 
 from . import with_retry
 from .action_registry import register_action
-
-import structlog
 
 _tg_logger = structlog.get_logger("telegram_actions")
 
@@ -33,6 +32,7 @@ _CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "1718706291")
 
 try:
     from ..secrets_manager import get_secret
+
     BOT_TOKEN = get_secret("TELEGRAM_BOT_TOKEN", allow_env_fallback=True) or _BOT_TOKEN
     CHANNEL_ID = get_secret("TELEGRAM_CHANNEL_ID", allow_env_fallback=True) or _CHANNEL_ID
     CHAT_ID = get_secret("TELEGRAM_CHAT_ID", allow_env_fallback=True) or _CHAT_ID
@@ -48,14 +48,10 @@ API_BASE = f"https://api.telegram.org/bot{BOT_TOKEN}"
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # Интервал между постами в секундах (default 30 минут)
-TELEGRAM_POST_COOLDOWN_SECONDS: int = int(
-    os.getenv("TELEGRAM_POST_COOLDOWN_MINUTES", "30")
-) * 60
+TELEGRAM_POST_COOLDOWN_SECONDS: int = int(os.getenv("TELEGRAM_POST_COOLDOWN_MINUTES", "30")) * 60
 
 # Максимум постов в сутки
-TELEGRAM_POST_DAILY_LIMIT: int = int(
-    os.getenv("TELEGRAM_POST_DAILY_LIMIT", "10")
-)
+TELEGRAM_POST_DAILY_LIMIT: int = int(os.getenv("TELEGRAM_POST_DAILY_LIMIT", "10"))
 
 # Redis URL для распределённого rate limiting (P1-14)
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
@@ -78,9 +74,8 @@ class _RedisRateLimiter:
         if cls._redis is None:
             try:
                 import redis.asyncio as aioredis
-                cls._redis = await aioredis.from_url(
-                    REDIS_URL, encoding="utf-8", decode_responses=True
-                )
+
+                cls._redis = await aioredis.from_url(REDIS_URL, encoding="utf-8", decode_responses=True)
             except Exception:
                 cls._redis = None
         return cls._redis
@@ -110,7 +105,10 @@ class _RedisRateLimiter:
         await redis.zremrangebyscore(day_key, 0, cutoff)
         count = await redis.zcard(day_key)
         if count >= TELEGRAM_POST_DAILY_LIMIT:
-            return False, f"Daily limit reached: {count}/{TELEGRAM_POST_DAILY_LIMIT} posts today"
+            return (
+                False,
+                f"Daily limit reached: {count}/{TELEGRAM_POST_DAILY_LIMIT} posts today",
+            )
 
         return True, ""
 
@@ -163,6 +161,7 @@ class _MemoryRateLimiter:
     In-memory fallback rate limiter.
     Используется когда Redis недоступен.
     """
+
     last_post_time: float = 0.0
     daily_posts: list = field(default_factory=list)
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
@@ -184,8 +183,7 @@ class _MemoryRateLimiter:
             self._cleanup_old_posts()
             if len(self.daily_posts) >= TELEGRAM_POST_DAILY_LIMIT:
                 return False, (
-                    f"Daily limit reached: {len(self.daily_posts)}/"
-                    f"{TELEGRAM_POST_DAILY_LIMIT} posts today"
+                    f"Daily limit reached: {len(self.daily_posts)}/" f"{TELEGRAM_POST_DAILY_LIMIT} posts today"
                 )
             return True, ""
 
@@ -225,7 +223,11 @@ async def get_telegram_rate_limit_status() -> Dict[str, any]:
 
 
 @with_retry(max_retries=3, delay=1.0, backoff=2.0, exceptions=(Exception,))
-@register_action("post_to_channel", agent_types=["smm"], description="Публикует пост в Telegram канал")
+@register_action(
+    "post_to_channel",
+    agent_types=["smm"],
+    description="Публикует пост в Telegram канал",
+)
 async def post_to_channel(text: str, photo_url: Optional[str] = None) -> bool:
     """
     Публикует пост (текст + опционально фото) в Telegram.
@@ -267,7 +269,7 @@ async def post_to_channel(text: str, photo_url: Optional[str] = None) -> bool:
             async with session.post(url, json=payload) as resp:
                 data = await resp.json()
                 if data.get("ok"):
-                    _tg_logger.info("Posted to Telegram", message_id=data['result']['message_id'])
+                    _tg_logger.info("Posted to Telegram", message_id=data["result"]["message_id"])
                     await _RedisRateLimiter.record_post()
                     return True
                 else:
@@ -279,7 +281,11 @@ async def post_to_channel(text: str, photo_url: Optional[str] = None) -> bool:
 
 
 @with_retry(max_retries=3, delay=1.0, backoff=2.0, exceptions=(Exception,))
-@register_action("post_discount", agent_types=["smm"], description="Форматирует и публикует пост о скидке в Telegram")
+@register_action(
+    "post_discount",
+    agent_types=["smm"],
+    description="Форматирует и публикует пост о скидке в Telegram",
+)
 async def post_discount(product: dict) -> bool:
     """Форматирует и публикует пост о скидке."""
     title = product.get("title", "Товар")

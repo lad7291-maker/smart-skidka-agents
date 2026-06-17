@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import os
 import random
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -43,9 +43,11 @@ AB_TEST_DEFAULT_VARIANTS_DIR = Path(os.getenv("AB_TEST_VARIANTS_DIR", "./configs
 # Data-классы
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class PromptVariant:
     """Вариант system_prompt для A/B тестирования."""
+
     agent_name: str
     variant_name: str
     system_prompt: str
@@ -68,6 +70,7 @@ class PromptVariant:
 @dataclass
 class ABTestResult:
     """Результат сравнения двух вариантов."""
+
     agent_name: str
     variant_a: str
     variant_b: str
@@ -81,6 +84,7 @@ class ABTestResult:
 # ═══════════════════════════════════════════════════════════════════════════════
 # PromptVariantRegistry — хранение вариантов
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class PromptVariantRegistry:
     """
@@ -225,6 +229,7 @@ class PromptVariantRegistry:
 # ABTestEvaluator — оценка и выбор победителя
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class ABTestEvaluator:
     """
     Оценивает результаты A/B тестов и выбирает победителя.
@@ -298,7 +303,7 @@ class ABTestEvaluator:
         """Делает вариант активным (победителем)."""
         variants = self.registry.load_variants(agent_name)
         for v in variants:
-            v.is_active = (v.variant_name == winner_name)
+            v.is_active = v.variant_name == winner_name
         self.registry.save_variants(agent_name, variants)
         self.logger.info("winner_promoted", agent=agent_name, winner=winner_name)
 
@@ -316,6 +321,7 @@ class ABTestEvaluator:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Integration with AgentConfig
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class ABTestEnabledConfig:
     """
@@ -380,6 +386,7 @@ class ABTestEnabledConfig:
 # ═══════════════════════════════════════════════════════════════════════════════
 # CLI / Utilities
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 def create_variant(agent_name: str, variant_name: str, system_prompt: str) -> PromptVariant:
     """CLI: создаёт новый вариант промпта."""

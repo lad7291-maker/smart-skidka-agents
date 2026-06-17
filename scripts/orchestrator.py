@@ -44,14 +44,15 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import aiohttp
-import redis.asyncio as aioredis
 import asyncpg
+import redis.asyncio as aioredis
 import structlog
 from dotenv import load_dotenv
 
 # P1-18: A/B testing integration
 try:
     from scripts.ab_testing import ABTestEnabledConfig
+
     _AB_TESTING_AVAILABLE = True
 except Exception:
     _AB_TESTING_AVAILABLE = False
@@ -59,30 +60,32 @@ except Exception:
 # P1-19: Temperature calibration
 try:
     from scripts.temperature_calibration import TemperatureCalibrator
+
     _TEMP_CALIBRATION_AVAILABLE = True
 except Exception:
     _TEMP_CALIBRATION_AVAILABLE = False
 # P1-10: Импорт внешнего валидатора для унификации
 try:
     from scripts.validator import (
-        validate_seo_result,
-        validate_smm_result,
-        validate_performance_result,
-        validate_email_result,
         validate_analytics_result,
         validate_content_result,
+        validate_email_result,
+        validate_performance_result,
+        validate_seo_result,
+        validate_smm_result,
         validate_trend_result,
     )
+
     _EXT_VALIDATOR_AVAILABLE = True
 except Exception:
     _EXT_VALIDATOR_AVAILABLE = False
 
 # P1-1: Сервисный слой
 from scripts.services import (
-    CycleManager,
-    TaskDispatcher,
-    ReportGenerator,
     ActionExecutor,
+    CycleManager,
+    ReportGenerator,
+    TaskDispatcher,
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -125,6 +128,7 @@ logger = structlog.get_logger("orchestrator")
 # ═══════════════════════════════════════════════════════════════════════════════
 class AgentType(str, Enum):
     """Типы агентов в системе."""
+
     SEO = "seo"
     SMM = "smm"
     PERFORMANCE = "performance"
@@ -141,6 +145,7 @@ def _get_agent_type(agent_name: str) -> str:
 
 class ValidationStatus(str, Enum):
     """Статусы валидации результата."""
+
     PASSED = "passed"
     FAILED = "failed"
     WARNING = "warning"
@@ -159,9 +164,15 @@ MAX_RETRY_DELAY: float = float(os.getenv("MAX_RETRY_DELAY", "60.0"))
 
 # Неретраибельные ошибки
 NON_RETRYABLE_ERRORS: Tuple[str, ...] = (
-    "permission", "unauthorized", "authentication", "invalid api key",
-    "bad request", "not found", "invalid_request_error",
-    "content_policy_violation", "model_not_found",
+    "permission",
+    "unauthorized",
+    "authentication",
+    "invalid api key",
+    "bad request",
+    "not found",
+    "invalid_request_error",
+    "content_policy_violation",
+    "model_not_found",
 )
 
 # Цикл оркестратора
@@ -174,8 +185,8 @@ DEFAULT_MAX_TOKENS: int = int(os.getenv("DEFAULT_MAX_TOKENS", "4096"))
 LLM_TIMEOUT: float = float(os.getenv("LLM_TIMEOUT", "120.0"))
 
 # P1-3: Token-bucket rate limiter для LLM API
-DEFAULT_LLM_RPM: int = int(os.getenv("LLM_RPM", "60"))          # requests per minute
-DEFAULT_LLM_TPM: int = int(os.getenv("LLM_TPM", "40000"))       # tokens per minute
+DEFAULT_LLM_RPM: int = int(os.getenv("LLM_RPM", "60"))  # requests per minute
+DEFAULT_LLM_TPM: int = int(os.getenv("LLM_TPM", "40000"))  # tokens per minute
 DEFAULT_LLM_RATE_LIMIT_WINDOW: float = float(os.getenv("LLM_RATE_LIMIT_WINDOW", "60.0"))  # seconds
 
 # Валидация — SEO
@@ -215,7 +226,7 @@ MAX_CONTEXT_VALUE_LENGTH: int = int(os.getenv("MAX_CONTEXT_VALUE_LENGTH", "2000"
 MAX_CONTEXT_LINE_LENGTH: int = int(os.getenv("MAX_CONTEXT_LINE_LENGTH", "500"))
 
 # P1-11: Prompt Injection Protection — Unicode и zero-width chars
-ZERO_WIDTH_CHARS: str = "\u200B\u200C\u200D\uFEFF\u2060\u2061\u2062\u2063\u2064"
+ZERO_WIDTH_CHARS: str = "\u200b\u200c\u200d\ufeff\u2060\u2061\u2062\u2063\u2064"
 MAX_BASE64_RATIO: float = float(os.getenv("MAX_BASE64_RATIO", "0.5"))  # Макс. доля base64 в строке
 
 # Rate Limiter (Token Bucket) для LLM API
@@ -262,6 +273,7 @@ class ValidationResult:
         warnings: Список предупреждений
         metadata: Дополнительные метаданные валидации
     """
+
     status: ValidationStatus
     score: float = 0.0
     errors: List[str] = field(default_factory=list)
@@ -289,6 +301,7 @@ class AgentResult:
         validation: Результат валидации
         execution_time_ms: Время выполнения в миллисекундах
     """
+
     agent_name: str
     agent_type: str
     cycle_id: str
@@ -366,7 +379,8 @@ class AgentConfig:
 
             # P2-3: JSON Schema валидация
             try:
-                from scripts.config_validator import validate_agent_config, ConfigError
+                from scripts.config_validator import ConfigError, validate_agent_config
+
                 validate_agent_config(self._config)
             except ConfigError as e:
                 self.logger.error("Config validation failed", error=str(e))
@@ -612,6 +626,7 @@ class TokenBucketRateLimiter:
 # Circuit Breaker для LLMClient
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class CircuitState(str, Enum):
     CLOSED = "closed"
     OPEN = "open"
@@ -664,8 +679,7 @@ class CircuitBreaker:
                 else:
                     self.logger.warning("circuit_breaker_open", reject=True)
                     raise RuntimeError(
-                        f"Circuit breaker is OPEN. Rejecting request. "
-                        f"Retry after {self.recovery_timeout}s."
+                        f"Circuit breaker is OPEN. Rejecting request. " f"Retry after {self.recovery_timeout}s."
                     )
 
         try:
@@ -738,9 +752,7 @@ class LLMClient:
         """
         self.api_key: str = api_key or os.getenv("LLM_API_KEY", "")
         if not self.api_key:
-            raise ValueError(
-                "API ключ не задан. Укажите LLM_API_KEY в .env или передайте в конструктор."
-            )
+            raise ValueError("API ключ не задан. Укажите LLM_API_KEY в .env или передайте в конструктор.")
 
         self.model: str = model
         self.timeout: aiohttp.ClientTimeout = aiohttp.ClientTimeout(total=timeout)
@@ -860,9 +872,7 @@ class LLMClient:
 
                     # Проверка на tool_calls
                     if "tool_calls" in message and message["tool_calls"]:
-                        content = json.dumps({
-                            "tool_calls": message["tool_calls"]
-                        }, ensure_ascii=False)
+                        content = json.dumps({"tool_calls": message["tool_calls"]}, ensure_ascii=False)
                     else:
                         content = message.get("content", "")
 
@@ -1120,7 +1130,8 @@ class ResultValidator:
         keywords = result.get("keywords", [])
         if isinstance(keywords, list) and len(keywords) < SEO_KEYWORDS_MIN:
             warnings.append(
-                f"Мало ключевых слов ({len(keywords)}, рекомендуется {SEO_KEYWORDS_MIN}-{SEO_KEYWORDS_MAX})")
+                f"Мало ключевых слов ({len(keywords)}, рекомендуется {SEO_KEYWORDS_MIN}-{SEO_KEYWORDS_MAX})"
+            )
             score -= 0.1
 
         # Проверка наличия H1
@@ -1301,8 +1312,14 @@ class ResultValidator:
                 score -= 0.05
 
         # Проверка на спам-триггеры
-        spam_keywords = ["БЕСПЛАТНО", "КУПИТЬ СЕЙЧАС", "ОГРАНИЧЕННОЕ ВРЕМЯ",
-                         "$$$", "100% бесплатно", "НЕ УДАЛЯЙТЕ"]
+        spam_keywords = [
+            "БЕСПЛАТНО",
+            "КУПИТЬ СЕЙЧАС",
+            "ОГРАНИЧЕННОЕ ВРЕМЯ",
+            "$$$",
+            "100% бесплатно",
+            "НЕ УДАЛЯЙТЕ",
+        ]
         body_lower = result.get("body", "").upper()
         found_spam = [kw for kw in spam_keywords if kw.upper() in body_lower]
         if found_spam:
@@ -1424,10 +1441,7 @@ class ResultValidator:
         min_len = CONTENT_MIN_LENGTHS.get(content_type, 500)
 
         if len(content) < min_len:
-            warnings.append(
-                f"Контент слишком короткий ({len(content)} симв., "
-                f"мин. для {content_type}: {min_len})"
-            )
+            warnings.append(f"Контент слишком короткий ({len(content)} симв., " f"мин. для {content_type}: {min_len})")
             score -= 0.15
 
         # Проверка структуры (наличие заголовков)
@@ -1482,10 +1496,7 @@ class ResultValidator:
             "min_data_sources": len(result.get("data_sources", [])) >= 2,
             "has_metrics": bool(result.get("metrics")),
             "has_recommendations": len(result.get("recommended_actions", [])) > 0,
-            "actions_have_agents": all(
-                a.get("agent") in AGENT_NAMES
-                for a in result.get("recommended_actions", [])
-            ),
+            "actions_have_agents": all(a.get("agent") in AGENT_NAMES for a in result.get("recommended_actions", [])),
             "status_valid": result.get("status") in ["rising", "peak", "declining"],
             "not_expired": self._check_trend_freshness(result),
         }
@@ -1561,9 +1572,7 @@ class AgentRunner:
         """
         self.config: AgentConfig = config
         self.llm: LLMClient = llm_client
-        self.logger = structlog.get_logger("agent_runner").bind(
-            agent=config.agent_name
-        )
+        self.logger = structlog.get_logger("agent_runner").bind(agent=config.agent_name)
 
     # ═══════════════════════════════════════════════════════════════════════
     # P2-11: Prompt Injection Protection
@@ -1580,7 +1589,7 @@ class AgentRunner:
         r"<\|user\|>",
         r"<\|assistant\|>",
         r"\{\{.*?\}\}",  # Jinja-like template injection
-        r"\$\{.*?\}",     # Shell-like variable injection
+        r"\$\{.*?\}",  # Shell-like variable injection
         r"`\s*rm\s+-rf",
         r"`\s*curl\s+.*\|\s*sh",
         r"`\s*wget\s+.*\|\s*sh",
@@ -1626,6 +1635,7 @@ class AgentRunner:
             # Ищем длинные base64-подстроки (>50 chars, >80% base64-alphabet)
             def _has_base64_obfuscation(s: str) -> bool:
                 import base64 as _b64
+
                 # Ищем подстроки длиной >50, состоящие преимущественно из base64-alphabet
                 words = s.split()
                 total_len = len(s) if s else 1
@@ -1672,7 +1682,7 @@ class AgentRunner:
 
             # Ограничение длины
             if len(value) > self._MAX_CONTEXT_VALUE_LENGTH:
-                value = value[:self._MAX_CONTEXT_VALUE_LENGTH] + "... [truncated]"
+                value = value[: self._MAX_CONTEXT_VALUE_LENGTH] + "... [truncated]"
 
             # Проверка на prompt injection паттерны
             value_lower = value.lower()
@@ -1696,7 +1706,7 @@ class AgentRunner:
             sanitized_lines = []
             for line in lines:
                 if len(line) > self._MAX_CONTEXT_LINE_LENGTH:
-                    line = line[:self._MAX_CONTEXT_LINE_LENGTH] + "... [line truncated]"
+                    line = line[: self._MAX_CONTEXT_LINE_LENGTH] + "... [line truncated]"
                 sanitized_lines.append(line)
             value = "\n".join(sanitized_lines)
 
@@ -1706,10 +1716,7 @@ class AgentRunner:
             return [self._sanitize_context_value(item) for item in value]
 
         elif isinstance(value, dict):
-            return {
-                k: self._sanitize_context_value(v)
-                for k, v in value.items()
-            }
+            return {k: self._sanitize_context_value(v) for k, v in value.items()}
 
         return value
 
@@ -1745,12 +1752,12 @@ class AgentRunner:
                         parts.append(f"\n**Рекомендация #{i}** (приоритет: {rec.get('priority', 'medium')})")
                         parts.append(f"- Тренд: {rec.get('trend_title', 'N/A')}")
                         parts.append(f"- Действие: {rec.get('action', 'N/A')}")
-                        if rec.get('deadline'):
+                        if rec.get("deadline"):
                             parts.append(f"- Дедлайн: {rec['deadline']}")
-                        if rec.get('confidence'):
+                        if rec.get("confidence"):
                             parts.append(f"- Уверенность: {rec['confidence']}")
-                        if rec.get('trend_description'):
-                            desc = rec['trend_description'][:200]
+                        if rec.get("trend_description"):
+                            desc = rec["trend_description"][:200]
                             parts.append(f"- Описание: {desc}")
                     parts.append("\n⚠️ Важно: при планировании действий учитывай эти рекомендации.")
 
@@ -1760,13 +1767,13 @@ class AgentRunner:
                     for i, task in enumerate(value[:3], 1):
                         parts.append(f"\n**Задача #{i}** (приоритет: {task.get('priority', 'medium')})")
                         parts.append(f"- Название: {task.get('title', 'N/A')}")
-                        if task.get('description'):
-                            desc = task['description'][:300]
+                        if task.get("description"):
+                            desc = task["description"][:300]
                             parts.append(f"- Описание: {desc}")
-                        if task.get('deadline'):
+                        if task.get("deadline"):
                             parts.append(f"- Дедлайн: {task['deadline']}")
-                        if task.get('metrics'):
-                            metrics = task['metrics']
+                        if task.get("metrics"):
+                            metrics = task["metrics"]
                             if isinstance(metrics, dict):
                                 for mk, mv in metrics.items():
                                     parts.append(f"  - {mk}: {mv}")
@@ -1780,8 +1787,8 @@ class AgentRunner:
                 elif key == "recent_summaries":
                     parts.append("- Последние запуски (ключи результатов):")
                     for s in value[:3]:
-                        ts = s.get('timestamp', '')[:16]
-                        keys = ', '.join(s.get('keys', [])[:5])
+                        ts = s.get("timestamp", "")[:16]
+                        keys = ", ".join(s.get("keys", [])[:5])
                         parts.append(f"  - {ts}: {keys}")
                 elif key == "latest_metrics" and isinstance(value, dict):
                     parts.append("- Последние метрики:")
@@ -1835,7 +1842,8 @@ class AgentRunner:
         except json.JSONDecodeError:
             # Если JSON невалидный, пробуем найти JSON-подстроку
             import re
-            json_match = re.search(r'\{[\s\S]*\}', content)
+
+            json_match = re.search(r"\{[\s\S]*\}", content)
             if json_match:
                 try:
                     return json.loads(json_match.group())
@@ -1987,23 +1995,19 @@ class AgentRunner:
         # 4. Empty / incomplete result
         if "empty" in error_lower or not previous_result.get("data"):
             corrections["completeness_fix"] = (
-                "Предыдущий результат был пустым или неполным. "
-                "Убедись, что все обязательные поля заполнены."
+                "Предыдущий результат был пустым или неполным. " "Убедись, что все обязательные поля заполнены."
             )
 
         # 5. LLM API error (rate limit, circuit breaker)
         if "rate limit" in error_lower or "circuit" in error_lower or "http" in error_lower:
-            corrections["api_fix"] = (
-                "Проблема с API. Попробуй упростить запрос."
-            )
+            corrections["api_fix"] = "Проблема с API. Попробуй упростить запрос."
 
         # 6. Если ошибка не распознана — общая рекомендация
         # Но completeness_fix уже сработал если data пустая — не затираем его
         has_specific_fix = any(k != "completeness_fix" for k in corrections.keys())
         if not has_specific_fix and not corrections:
             corrections["general_fix"] = (
-                "Предыдущая попытка завершилась ошибкой. "
-                "Внимательно проверь результат перед отправкой."
+                "Предыдущая попытка завершилась ошибкой. " "Внимательно проверь результат перед отправкой."
             )
 
         return corrections
@@ -2149,6 +2153,7 @@ class MemoryStore:
 
         # P3-7: ContextCache для оптимизации загрузки контекста
         from actions.context_cache import ContextCache
+
         self.context_cache = ContextCache(memory_store=self)
 
     async def _get_db_pool(self) -> asyncpg.Pool:
@@ -2289,12 +2294,15 @@ class MemoryStore:
         await redis.setex(
             cache_key,
             3600,  # TTL 1 час
-            json.dumps({
-                "cycle_id": cycle_id,
-                "timestamp": datetime.now().isoformat(),
-                "data": data,
-                "elapsed_ms": elapsed_ms,
-            }, ensure_ascii=False),
+            json.dumps(
+                {
+                    "cycle_id": cycle_id,
+                    "timestamp": datetime.now().isoformat(),
+                    "data": data,
+                    "elapsed_ms": elapsed_ms,
+                },
+                ensure_ascii=False,
+            ),
         )
 
         self.logger.info(
@@ -2340,17 +2348,19 @@ class MemoryStore:
 
         results = []
         for row in rows:
-            results.append({
-                "agent_name": row["agent_name"],
-                "cycle_id": row["cycle_id"],
-                "timestamp": row["timestamp"].isoformat() if row["timestamp"] else None,
-                "data": row["data"] if isinstance(row["data"], dict) else json.loads(row["data"]),
-                "metrics": row["metrics"] if isinstance(row["metrics"], dict) else json.loads(row["metrics"]),
-                "validation_status": row["validation_status"],
-                "validation_score": row["validation_score"],
-                "execution_time_ms": row["execution_time_ms"],
-                "model": row["model"],
-            })
+            results.append(
+                {
+                    "agent_name": row["agent_name"],
+                    "cycle_id": row["cycle_id"],
+                    "timestamp": (row["timestamp"].isoformat() if row["timestamp"] else None),
+                    "data": (row["data"] if isinstance(row["data"], dict) else json.loads(row["data"])),
+                    "metrics": (row["metrics"] if isinstance(row["metrics"], dict) else json.loads(row["metrics"])),
+                    "validation_status": row["validation_status"],
+                    "validation_score": row["validation_score"],
+                    "execution_time_ms": row["execution_time_ms"],
+                    "model": row["model"],
+                }
+            )
 
         return results
 
@@ -2365,7 +2375,7 @@ class MemoryStore:
 
         # ═══ LAST RESULTS: сначала пробуем кэш, потом БД ═══
         last_results = None
-        if hasattr(self, 'context_cache') and self.context_cache:
+        if hasattr(self, "context_cache") and self.context_cache:
             cached = await self.context_cache.get_last_results(agent_name, limit=3)
             if cached:
                 last_results = cached
@@ -2413,14 +2423,14 @@ class MemoryStore:
 
         # ═══ TREND RECOMMENDATIONS: кэш + fallback на БД ═══
         trend_recs = None
-        if hasattr(self, 'context_cache') and self.context_cache:
+        if hasattr(self, "context_cache") and self.context_cache:
             trend_recs = await self.context_cache.get_trend_recommendations(agent_name, limit=3)
             if trend_recs is not None:
                 self.logger.debug("trend_recs_cache_hit", agent=agent_name)
 
         if trend_recs is None:
             trend_recs = await self.get_trend_recommendations(agent_name, limit=3)
-            if trend_recs and hasattr(self, 'context_cache') and self.context_cache:
+            if trend_recs and hasattr(self, "context_cache") and self.context_cache:
                 await self.context_cache.set_trend_recommendations(agent_name, trend_recs)
 
         if trend_recs:
@@ -2429,14 +2439,14 @@ class MemoryStore:
 
         # ═══ ANALYTICS TASKS: кэш + fallback на БД ═══
         analytics_tasks = None
-        if hasattr(self, 'context_cache') and self.context_cache:
+        if hasattr(self, "context_cache") and self.context_cache:
             analytics_tasks = await self.context_cache.get_analytics_tasks(agent_name, limit=3)
             if analytics_tasks is not None:
                 self.logger.debug("analytics_tasks_cache_hit", agent=agent_name)
 
         if analytics_tasks is None:
             analytics_tasks = await self.get_analytics_tasks(agent_name, limit=3)
-            if analytics_tasks and hasattr(self, 'context_cache') and self.context_cache:
+            if analytics_tasks and hasattr(self, "context_cache") and self.context_cache:
                 await self.context_cache.set_analytics_tasks(agent_name, analytics_tasks)
 
         if analytics_tasks:
@@ -2445,11 +2455,15 @@ class MemoryStore:
 
         # ═══ PROJECT CONTEXT: кэш по mtime + fallback на файловое I/O ═══
         try:
-            from scripts.project_context import get_project_context_for_agent, PROJECT_ROOT
+            from scripts.project_context import (
+                PROJECT_ROOT,
+                get_project_context_for_agent,
+            )
+
             atype = _get_agent_type(agent_name)
 
             project_ctx = None
-            if hasattr(self, 'context_cache') and self.context_cache:
+            if hasattr(self, "context_cache") and self.context_cache:
                 project_ctx = await self.context_cache.get_project_context(atype, PROJECT_ROOT)
                 if project_ctx is not None:
                     self.logger.debug("project_context_cache_hit", agent=agent_name)
@@ -2457,7 +2471,7 @@ class MemoryStore:
             if project_ctx is None:
                 # P3-7: Запускаем sync I/O в отдельном thread
                 project_ctx = await asyncio.to_thread(get_project_context_for_agent, atype)
-                if project_ctx and hasattr(self, 'context_cache') and self.context_cache:
+                if project_ctx and hasattr(self, "context_cache") and self.context_cache:
                     await self.context_cache.set_project_context(atype, PROJECT_ROOT, project_ctx)
 
             if project_ctx:
@@ -2731,9 +2745,7 @@ class TelegramReporter:
         self.logger = structlog.get_logger("telegram_reporter")
 
         if not self.bot_token or not self.chat_id:
-            self.logger.warning(
-                "TeleReporter не полностью настроен — проверьте TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID"
-            )
+            self.logger.warning("TeleReporter не полностью настроен — проверьте TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID")
 
         self._session: Optional[aiohttp.ClientSession] = None
 
@@ -2914,6 +2926,7 @@ class TelegramReporter:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Orchestrator — Главный оркестратор
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Orchestrator — Главный оркестратор (фасад над сервисами)
@@ -3278,6 +3291,7 @@ class Orchestrator:
         """Обрабатывает ошибку агента."""
         await self._cycle.handle_failure(agent_name, error, result)
 
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Обработка сигналов для graceful shutdown
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -3304,6 +3318,7 @@ def setup_signal_handlers(orchestrator: Orchestrator, loop: asyncio.AbstractEven
         orchestrator: Экземпляр оркестратора
         loop: Event loop для регистрации обработчиков
     """
+
     def signal_handler() -> None:
         logger.info("Received shutdown signal")
         # Создаём задачу для graceful shutdown
@@ -3320,6 +3335,7 @@ def setup_signal_handlers(orchestrator: Orchestrator, loop: asyncio.AbstractEven
         def sync_handler(sig, frame):
             logger.info(f"Received signal {sig}")
             orchestrator.stop()
+
         signal.signal(signal.SIGINT, sync_handler)
         signal.signal(signal.SIGTERM, sync_handler)
 

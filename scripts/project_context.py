@@ -1,9 +1,9 @@
+import logging
 import os
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional
-import logging
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("project_context")
 
@@ -30,7 +30,11 @@ class ProjectContext:
         """
         Сканирует проект и возвращает дерево файлов.
         """
-        tree = {"name": self.root.name or "dealshub-miniapp", "type": "directory", "children": []}
+        tree = {
+            "name": self.root.name or "dealshub-miniapp",
+            "type": "directory",
+            "children": [],
+        }
 
         try:
             for item in sorted(self.root.iterdir()):
@@ -119,7 +123,7 @@ class ProjectContext:
             append: True — добавить в конец, False — перезаписать
 
         Returns:
-            {"success": bool, "path": str, "backup": str|None, "html_valid": bool, 
+            {"success": bool, "path": str, "backup": str|None, "html_valid": bool,
              "http_status": int|None, "error": str}
         """
         import shutil
@@ -151,11 +155,7 @@ class ProjectContext:
                     f.write(content)
             else:
                 # CRIT-2: Атомарная запись через временный файл
-                tmp_fd, tmp_path = tempfile.mkstemp(
-                    dir=real_path.parent,
-                    prefix=f".{real_path.name}.",
-                    suffix=".tmp"
-                )
+                tmp_fd, tmp_path = tempfile.mkstemp(dir=real_path.parent, prefix=f".{real_path.name}.", suffix=".tmp")
                 try:
                     with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
                         f.write(content)
@@ -189,7 +189,12 @@ class ProjectContext:
             if http_status:
                 result["http_status"] = http_status
 
-            logger.info("file_written: %s size=%d backup=%s", rel_path, len(content), backup_path)
+            logger.info(
+                "file_written: %s size=%d backup=%s",
+                rel_path,
+                len(content),
+                backup_path,
+            )
             return result
 
         except Exception as e:
@@ -211,8 +216,15 @@ class ProjectContext:
             # Пытаемся сделать HEAD запрос к localhost
             url_path = rel_path.lstrip("/")
             result = subprocess.run(
-                ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}",
-                 f"http://localhost/{url_path}"],
+                [
+                    "curl",
+                    "-s",
+                    "-o",
+                    "/dev/null",
+                    "-w",
+                    "%{http_code}",
+                    f"http://localhost/{url_path}",
+                ],
                 capture_output=True,
                 text=True,
                 timeout=5,
@@ -239,11 +251,13 @@ class ProjectContext:
                 if item.name.startswith("."):
                     continue
                 stat = item.stat()
-                items.append({
-                    "name": item.name,
-                    "type": "directory" if item.is_dir() else "file",
-                    "size": stat.st_size if item.is_file() else None,
-                })
+                items.append(
+                    {
+                        "name": item.name,
+                        "type": "directory" if item.is_dir() else "file",
+                        "size": stat.st_size if item.is_file() else None,
+                    }
+                )
             return items
         except Exception as e:
             return [{"error": str(e)}]

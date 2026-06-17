@@ -4,26 +4,26 @@
 Тесты для telegram_actions.py — публикация в Telegram с rate limiting.
 """
 
-import sys
-import os
-import unittest
 import asyncio
-from unittest.mock import patch, MagicMock, AsyncMock
+import os
+import sys
+import unittest
+from unittest.mock import AsyncMock, MagicMock, patch
 
-sys.path.insert(0, '/opt/smart-skidka-agents')
-sys.path.insert(0, '/opt/smart-skidka-agents/scripts')
+sys.path.insert(0, "/opt/smart-skidka-agents")
+sys.path.insert(0, "/opt/smart-skidka-agents/scripts")
 
 from scripts.actions.telegram_actions import (
-    _RedisRateLimiter,
-    _MemoryRateLimiter,
-    get_telegram_rate_limit_status,
-    post_to_channel,
-    post_discount,
-    TELEGRAM_POST_COOLDOWN_SECONDS,
-    TELEGRAM_POST_DAILY_LIMIT,
     BOT_TOKEN,
     CHANNEL_ID,
     CHAT_ID,
+    TELEGRAM_POST_COOLDOWN_SECONDS,
+    TELEGRAM_POST_DAILY_LIMIT,
+    _MemoryRateLimiter,
+    _RedisRateLimiter,
+    get_telegram_rate_limit_status,
+    post_discount,
+    post_to_channel,
 )
 
 
@@ -48,10 +48,11 @@ class TestMemoryRateLimiter(unittest.IsolatedAsyncioTestCase):
 
     async def test_daily_limit_blocks(self):
         import time
+
         now = time.time()
         self.limiter.daily_posts = [now - i for i in range(TELEGRAM_POST_DAILY_LIMIT)]
         self.limiter.last_post_time = now - TELEGRAM_POST_COOLDOWN_SECONDS - 1
-        
+
         allowed, reason = await self.limiter.can_post()
         self.assertFalse(allowed)
         self.assertIn("Daily limit", reason)
@@ -63,10 +64,11 @@ class TestMemoryRateLimiter(unittest.IsolatedAsyncioTestCase):
 
     async def test_cleanup_old_posts(self):
         import time
+
         now = time.time()
         self.limiter.daily_posts = [
             now - 25 * 3600,  # 25 hours ago
-            now - 1,           # 1 second ago
+            now - 1,  # 1 second ago
         ]
         self.limiter._cleanup_old_posts()
         self.assertEqual(len(self.limiter.daily_posts), 1)
@@ -82,6 +84,7 @@ class TestMemoryRateLimiter(unittest.IsolatedAsyncioTestCase):
 
     async def test_cooldown_expires(self):
         import time
+
         await self.limiter.record_post()
         # Simulate time passing
         self.limiter.last_post_time = time.time() - TELEGRAM_POST_COOLDOWN_SECONDS - 1
@@ -100,18 +103,18 @@ class TestRedisRateLimiter(unittest.IsolatedAsyncioTestCase):
     async def test_fallback_to_memory(self):
         # When Redis is unavailable, should fallback to memory limiter
         # But first we need to ensure Redis connection fails quickly
-        with patch('redis.asyncio.from_url', side_effect=Exception("No Redis")):
+        with patch("redis.asyncio.from_url", side_effect=Exception("No Redis")):
             allowed, reason = await _RedisRateLimiter.can_post()
             self.assertIsInstance(allowed, bool)
             self.assertIsInstance(reason, str)
 
     async def test_record_post_fallback(self):
         # Should not raise when Redis unavailable
-        with patch('redis.asyncio.from_url', side_effect=Exception("No Redis")):
+        with patch("redis.asyncio.from_url", side_effect=Exception("No Redis")):
             await _RedisRateLimiter.record_post()
 
     async def test_get_status_fallback(self):
-        with patch('redis.asyncio.from_url', side_effect=Exception("No Redis")):
+        with patch("redis.asyncio.from_url", side_effect=Exception("No Redis")):
             status = await _RedisRateLimiter.get_status()
             self.assertIsInstance(status, dict)
             self.assertIn("daily_posts_count", status)
@@ -135,12 +138,16 @@ class TestPostToChannel(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         # Reset memory limiter
         from scripts.actions.telegram_actions import _memory_limiter
+
         _memory_limiter.last_post_time = 0.0
         _memory_limiter.daily_posts = []
 
-    @patch('aiohttp.ClientSession')
-    @patch('scripts.actions.telegram_actions._RedisRateLimiter.can_post', return_value=(True, ""))
-    @patch('scripts.actions.telegram_actions._RedisRateLimiter.record_post')
+    @patch("aiohttp.ClientSession")
+    @patch(
+        "scripts.actions.telegram_actions._RedisRateLimiter.can_post",
+        return_value=(True, ""),
+    )
+    @patch("scripts.actions.telegram_actions._RedisRateLimiter.record_post")
     async def test_post_text_success(self, mock_record, mock_can_post, mock_session_class):
         mock_session = MagicMock()
         mock_response = MagicMock()
@@ -152,15 +159,21 @@ class TestPostToChannel(unittest.IsolatedAsyncioTestCase):
         mock_session.__aexit__ = AsyncMock(return_value=False)
         mock_session_class.return_value = mock_session
 
-        with patch('scripts.actions.telegram_actions.BOT_TOKEN', 'test_token'):
-            with patch('scripts.actions.telegram_actions.CHANNEL_ID', '-100123'):
-                with patch('scripts.actions.telegram_actions.API_BASE', 'https://api.telegram.org/bottest_token'):
+        with patch("scripts.actions.telegram_actions.BOT_TOKEN", "test_token"):
+            with patch("scripts.actions.telegram_actions.CHANNEL_ID", "-100123"):
+                with patch(
+                    "scripts.actions.telegram_actions.API_BASE",
+                    "https://api.telegram.org/bottest_token",
+                ):
                     result = await post_to_channel("Hello World")
                     self.assertTrue(result)
 
-    @patch('aiohttp.ClientSession')
-    @patch('scripts.actions.telegram_actions._RedisRateLimiter.can_post', return_value=(True, ""))
-    @patch('scripts.actions.telegram_actions._RedisRateLimiter.record_post')
+    @patch("aiohttp.ClientSession")
+    @patch(
+        "scripts.actions.telegram_actions._RedisRateLimiter.can_post",
+        return_value=(True, ""),
+    )
+    @patch("scripts.actions.telegram_actions._RedisRateLimiter.record_post")
     async def test_post_photo_success(self, mock_record, mock_can_post, mock_session_class):
         mock_session = MagicMock()
         mock_response = MagicMock()
@@ -172,15 +185,21 @@ class TestPostToChannel(unittest.IsolatedAsyncioTestCase):
         mock_session.__aexit__ = AsyncMock(return_value=False)
         mock_session_class.return_value = mock_session
 
-        with patch('scripts.actions.telegram_actions.BOT_TOKEN', 'test_token'):
-            with patch('scripts.actions.telegram_actions.CHANNEL_ID', '-100123'):
-                with patch('scripts.actions.telegram_actions.API_BASE', 'https://api.telegram.org/bottest_token'):
+        with patch("scripts.actions.telegram_actions.BOT_TOKEN", "test_token"):
+            with patch("scripts.actions.telegram_actions.CHANNEL_ID", "-100123"):
+                with patch(
+                    "scripts.actions.telegram_actions.API_BASE",
+                    "https://api.telegram.org/bottest_token",
+                ):
                     result = await post_to_channel("Caption text", photo_url="http://example.com/pic.jpg")
                     self.assertTrue(result)
 
-    @patch('aiohttp.ClientSession')
-    @patch('scripts.actions.telegram_actions._RedisRateLimiter.can_post', return_value=(True, ""))
-    @patch('scripts.actions.telegram_actions._RedisRateLimiter.record_post')
+    @patch("aiohttp.ClientSession")
+    @patch(
+        "scripts.actions.telegram_actions._RedisRateLimiter.can_post",
+        return_value=(True, ""),
+    )
+    @patch("scripts.actions.telegram_actions._RedisRateLimiter.record_post")
     async def test_api_error(self, mock_record, mock_can_post, mock_session_class):
         mock_session = MagicMock()
         mock_response = MagicMock()
@@ -192,33 +211,44 @@ class TestPostToChannel(unittest.IsolatedAsyncioTestCase):
         mock_session.__aexit__ = AsyncMock(return_value=False)
         mock_session_class.return_value = mock_session
 
-        with patch('scripts.actions.telegram_actions.BOT_TOKEN', 'test_token'):
-            with patch('scripts.actions.telegram_actions.CHANNEL_ID', '-100123'):
-                with patch('scripts.actions.telegram_actions.API_BASE', 'https://api.telegram.org/bottest_token'):
+        with patch("scripts.actions.telegram_actions.BOT_TOKEN", "test_token"):
+            with patch("scripts.actions.telegram_actions.CHANNEL_ID", "-100123"):
+                with patch(
+                    "scripts.actions.telegram_actions.API_BASE",
+                    "https://api.telegram.org/bottest_token",
+                ):
                     result = await post_to_channel("Hello")
                     self.assertFalse(result)
 
     async def test_no_token(self):
-        with patch('scripts.actions.telegram_actions.BOT_TOKEN', ''):
+        with patch("scripts.actions.telegram_actions.BOT_TOKEN", ""):
             result = await post_to_channel("Hello")
             self.assertFalse(result)
 
     async def test_rate_limit_blocks(self):
         # Fill the rate limiter
-        from scripts.actions.telegram_actions import _memory_limiter
         import time
+
+        from scripts.actions.telegram_actions import _memory_limiter
+
         now = time.time()
         _memory_limiter.last_post_time = now
         _memory_limiter.daily_posts = [now]
 
-        with patch('scripts.actions.telegram_actions.BOT_TOKEN', 'test_token'):
-            with patch('scripts.actions.telegram_actions._RedisRateLimiter.can_post', return_value=(False, "Rate limited")):
+        with patch("scripts.actions.telegram_actions.BOT_TOKEN", "test_token"):
+            with patch(
+                "scripts.actions.telegram_actions._RedisRateLimiter.can_post",
+                return_value=(False, "Rate limited"),
+            ):
                 result = await post_to_channel("Hello")
                 self.assertFalse(result)
 
-    @patch('aiohttp.ClientSession')
-    @patch('scripts.actions.telegram_actions._RedisRateLimiter.can_post', return_value=(True, ""))
-    @patch('scripts.actions.telegram_actions._RedisRateLimiter.record_post')
+    @patch("aiohttp.ClientSession")
+    @patch(
+        "scripts.actions.telegram_actions._RedisRateLimiter.can_post",
+        return_value=(True, ""),
+    )
+    @patch("scripts.actions.telegram_actions._RedisRateLimiter.record_post")
     async def test_long_text_truncated(self, mock_record, mock_can_post, mock_session_class):
         mock_session = MagicMock()
         mock_response = MagicMock()
@@ -230,20 +260,26 @@ class TestPostToChannel(unittest.IsolatedAsyncioTestCase):
         mock_session.__aexit__ = AsyncMock(return_value=False)
         mock_session_class.return_value = mock_session
 
-        with patch('scripts.actions.telegram_actions.BOT_TOKEN', 'test_token'):
-            with patch('scripts.actions.telegram_actions.CHANNEL_ID', '-100123'):
-                with patch('scripts.actions.telegram_actions.API_BASE', 'https://api.telegram.org/bottest_token'):
+        with patch("scripts.actions.telegram_actions.BOT_TOKEN", "test_token"):
+            with patch("scripts.actions.telegram_actions.CHANNEL_ID", "-100123"):
+                with patch(
+                    "scripts.actions.telegram_actions.API_BASE",
+                    "https://api.telegram.org/bottest_token",
+                ):
                     long_text = "A" * 5000
                     result = await post_to_channel(long_text)
                     self.assertTrue(result)
                     # Check that text was truncated
                     call_args = mock_session.post.call_args
-                    payload = call_args[1].get('json', {})
-                    self.assertLessEqual(len(payload.get('text', '')), 4096)
+                    payload = call_args[1].get("json", {})
+                    self.assertLessEqual(len(payload.get("text", "")), 4096)
 
-    @patch('aiohttp.ClientSession')
-    @patch('scripts.actions.telegram_actions._RedisRateLimiter.can_post', return_value=(True, ""))
-    @patch('scripts.actions.telegram_actions._RedisRateLimiter.record_post')
+    @patch("aiohttp.ClientSession")
+    @patch(
+        "scripts.actions.telegram_actions._RedisRateLimiter.can_post",
+        return_value=(True, ""),
+    )
+    @patch("scripts.actions.telegram_actions._RedisRateLimiter.record_post")
     async def test_long_caption_truncated(self, mock_record, mock_can_post, mock_session_class):
         mock_session = MagicMock()
         mock_response = MagicMock()
@@ -255,15 +291,18 @@ class TestPostToChannel(unittest.IsolatedAsyncioTestCase):
         mock_session.__aexit__ = AsyncMock(return_value=False)
         mock_session_class.return_value = mock_session
 
-        with patch('scripts.actions.telegram_actions.BOT_TOKEN', 'test_token'):
-            with patch('scripts.actions.telegram_actions.CHANNEL_ID', '-100123'):
-                with patch('scripts.actions.telegram_actions.API_BASE', 'https://api.telegram.org/bottest_token'):
+        with patch("scripts.actions.telegram_actions.BOT_TOKEN", "test_token"):
+            with patch("scripts.actions.telegram_actions.CHANNEL_ID", "-100123"):
+                with patch(
+                    "scripts.actions.telegram_actions.API_BASE",
+                    "https://api.telegram.org/bottest_token",
+                ):
                     long_caption = "A" * 1200
                     result = await post_to_channel(long_caption, photo_url="http://example.com/pic.jpg")
                     self.assertTrue(result)
                     call_args = mock_session.post.call_args
-                    payload = call_args[1].get('json', {})
-                    self.assertLessEqual(len(payload.get('caption', '')), 1024)
+                    payload = call_args[1].get("json", {})
+                    self.assertLessEqual(len(payload.get("caption", "")), 1024)
 
 
 class TestPostDiscount(unittest.IsolatedAsyncioTestCase):
@@ -271,12 +310,16 @@ class TestPostDiscount(unittest.IsolatedAsyncioTestCase):
 
     async def asyncSetUp(self):
         from scripts.actions.telegram_actions import _memory_limiter
+
         _memory_limiter.last_post_time = 0.0
         _memory_limiter.daily_posts = []
 
-    @patch('aiohttp.ClientSession')
-    @patch('scripts.actions.telegram_actions._RedisRateLimiter.can_post', return_value=(True, ""))
-    @patch('scripts.actions.telegram_actions._RedisRateLimiter.record_post')
+    @patch("aiohttp.ClientSession")
+    @patch(
+        "scripts.actions.telegram_actions._RedisRateLimiter.can_post",
+        return_value=(True, ""),
+    )
+    @patch("scripts.actions.telegram_actions._RedisRateLimiter.record_post")
     async def test_post_discount(self, mock_record, mock_can_post, mock_session_class):
         mock_session = MagicMock()
         mock_response = MagicMock()
@@ -297,15 +340,21 @@ class TestPostDiscount(unittest.IsolatedAsyncioTestCase):
             "aliLink": "http://example.com/product",
         }
 
-        with patch('scripts.actions.telegram_actions.BOT_TOKEN', 'test_token'):
-            with patch('scripts.actions.telegram_actions.CHANNEL_ID', '-100123'):
-                with patch('scripts.actions.telegram_actions.API_BASE', 'https://api.telegram.org/bottest_token'):
+        with patch("scripts.actions.telegram_actions.BOT_TOKEN", "test_token"):
+            with patch("scripts.actions.telegram_actions.CHANNEL_ID", "-100123"):
+                with patch(
+                    "scripts.actions.telegram_actions.API_BASE",
+                    "https://api.telegram.org/bottest_token",
+                ):
                     result = await post_discount(product)
                     self.assertTrue(result)
 
-    @patch('aiohttp.ClientSession')
-    @patch('scripts.actions.telegram_actions._RedisRateLimiter.can_post', return_value=(True, ""))
-    @patch('scripts.actions.telegram_actions._RedisRateLimiter.record_post')
+    @patch("aiohttp.ClientSession")
+    @patch(
+        "scripts.actions.telegram_actions._RedisRateLimiter.can_post",
+        return_value=(True, ""),
+    )
+    @patch("scripts.actions.telegram_actions._RedisRateLimiter.record_post")
     async def test_post_discount_no_image(self, mock_record, mock_can_post, mock_session_class):
         mock_session = MagicMock()
         mock_response = MagicMock()
@@ -326,9 +375,12 @@ class TestPostDiscount(unittest.IsolatedAsyncioTestCase):
             "aliLink": "http://example.com/product",
         }
 
-        with patch('scripts.actions.telegram_actions.BOT_TOKEN', 'test_token'):
-            with patch('scripts.actions.telegram_actions.CHANNEL_ID', '-100123'):
-                with patch('scripts.actions.telegram_actions.API_BASE', 'https://api.telegram.org/bottest_token'):
+        with patch("scripts.actions.telegram_actions.BOT_TOKEN", "test_token"):
+            with patch("scripts.actions.telegram_actions.CHANNEL_ID", "-100123"):
+                with patch(
+                    "scripts.actions.telegram_actions.API_BASE",
+                    "https://api.telegram.org/bottest_token",
+                ):
                     result = await post_discount(product)
                     self.assertTrue(result)
 

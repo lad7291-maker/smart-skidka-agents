@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
 # Reset singleton before importing
 import secrets_manager as _sm_module
+
 _sm_module._manager = None
 
 from secrets_manager import (
@@ -20,12 +21,12 @@ from secrets_manager import (
     Role,
     SecretLevel,
     SecretsManager,
-    get_secret,
-    set_secret,
     delete_secret,
+    get_audit_entries,
+    get_secret,
     list_secrets,
     migrate_env_secrets,
-    get_audit_entries,
+    set_secret,
 )
 
 
@@ -340,6 +341,7 @@ class TestConvenienceFunctions(unittest.TestCase):
 
         # Reset singleton AND remove any existing file from previous tests
         import secrets_manager
+
         secrets_manager._manager = None
         if self.secrets_file.exists():
             self.secrets_file.unlink()
@@ -350,6 +352,7 @@ class TestConvenienceFunctions(unittest.TestCase):
         os.environ.pop("SECRETS_MASTER_KEY", None)
         os.environ.pop("SECRETS_PBKDF2_ITERATIONS", None)
         import secrets_manager
+
         secrets_manager._manager = None
 
     def test_get_secret_from_manager(self):
@@ -399,7 +402,8 @@ class TestConvenienceFunctions(unittest.TestCase):
         """migrate_env_secrets переносит из env."""
         os.environ["TEST_MIGRATE_KEY"] = "migrate_value"
         # Need to pass explicit keys since TEST_MIGRATE_KEY is not in default list
-        from secrets_manager import get_manager, Role
+        from secrets_manager import Role, get_manager
+
         manager = get_manager()
         results = manager.migrate_from_env(keys=["TEST_MIGRATE_KEY"], role=Role.ADMIN)
         self.assertIn("TEST_MIGRATE_KEY", results)

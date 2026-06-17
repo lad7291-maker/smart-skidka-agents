@@ -4,23 +4,22 @@
 Тесты для плагинной системы actions (P3-1).
 """
 
+import asyncio
 import sys
 import unittest
-import asyncio
 
-sys.path.insert(0, '/opt/smart-skidka-agents')
-sys.path.insert(0, '/opt/smart-skidka-agents/scripts')
+sys.path.insert(0, "/opt/smart-skidka-agents")
+sys.path.insert(0, "/opt/smart-skidka-agents/scripts")
 
 from scripts.actions.action_registry import (
-    register_action,
-    get_action,
-    list_actions,
+    _REGISTRY,
     ActionDispatcher,
     discover_actions,
+    get_action,
     get_registry_stats,
-    _REGISTRY,
+    list_actions,
+    register_action,
 )
-
 
 # Очищаем реестр перед тестами
 _REGISTRY.clear()
@@ -142,22 +141,27 @@ class TestActionDispatcher(unittest.TestCase):
 
     def test_execute_sync_action(self):
         """Выполнение sync action."""
+
         async def _test():
             d = ActionDispatcher()
             result = await d.execute("test_action", {"value": "hello"})
             self.assertEqual(result, "result:hello")
+
         self.loop.run_until_complete(_test())
 
     def test_execute_async_action(self):
         """Выполнение async action."""
+
         async def _test():
             d = ActionDispatcher()
             result = await d.execute("test_async_action", {"value": "world"})
             self.assertEqual(result, "async_result:world")
+
         self.loop.run_until_complete(_test())
 
     def test_execute_agent_actions(self):
         """Выполнение actions по конфигу агента."""
+
         async def _test():
             d = ActionDispatcher()
             agent_config = {
@@ -168,7 +172,7 @@ class TestActionDispatcher(unittest.TestCase):
                         "input_map": {"value": "data_value"},
                         "condition": "has_data_value",
                     }
-                ]
+                ],
             }
             # С condition выполняется
             log = await d.execute_agent_actions(agent_config, {"data_value": "test"})
@@ -179,25 +183,28 @@ class TestActionDispatcher(unittest.TestCase):
             log2 = await d.execute_agent_actions(agent_config, {})
             self.assertEqual(len(log2), 1)
             self.assertEqual(log2[0], "test_action:SKIPPED")
+
         self.loop.run_until_complete(_test())
 
     def test_execute_agent_actions_no_config(self):
         """Агент без actions в конфиге."""
+
         async def _test():
             d = ActionDispatcher()
             log = await d.execute_agent_actions({"agent_name": "empty"}, {"x": 1})
             self.assertEqual(log, [])
+
         self.loop.run_until_complete(_test())
 
     def test_execute_not_found(self):
         """Action не найден в реестре."""
+
         async def _test():
             d = ActionDispatcher()
-            agent_config = {
-                "actions": [{"name": "missing_action", "input_map": {}}]
-            }
+            agent_config = {"actions": [{"name": "missing_action", "input_map": {}}]}
             log = await d.execute_agent_actions(agent_config, {})
             self.assertEqual(log, ["missing_action:NOT_FOUND"])
+
         self.loop.run_until_complete(_test())
 
 
@@ -208,10 +215,12 @@ class TestDiscoverActions(unittest.TestCase):
         """Обнаружение actions из модулей."""
         # Note: modules already imported at top level, so discover_actions
         # won't find new ones. Test that it runs without error.
-        count = discover_actions([
-            "actions.telegram_actions",
-            "actions.site_actions",
-        ])
+        count = discover_actions(
+            [
+                "actions.telegram_actions",
+                "actions.site_actions",
+            ]
+        )
         # count may be 0 if modules already imported — that's OK
         stats = get_registry_stats()
         # At minimum we have our test actions registered

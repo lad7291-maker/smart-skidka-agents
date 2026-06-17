@@ -75,15 +75,17 @@ class ReportGenerator:
             success_count = run_count - fail_count
             avg_score = row["avg_score"] or 0.0
 
-            agent_details.append({
-                "name": row["agent_name"],
-                "runs": run_count,
-                "successful": success_count,
-                "failed": fail_count,
-                "avg_score": round(avg_score, 3),
-                "status": "success" if fail_count == 0 else "partial" if success_count > 0 else "failed",
-                "validation_score": avg_score,
-            })
+            agent_details.append(
+                {
+                    "name": row["agent_name"],
+                    "runs": run_count,
+                    "successful": success_count,
+                    "failed": fail_count,
+                    "avg_score": round(avg_score, 3),
+                    "status": ("success" if fail_count == 0 else "partial" if success_count > 0 else "failed"),
+                    "validation_score": avg_score,
+                }
+            )
 
             total_success += success_count
             total_fail += fail_count
@@ -100,10 +102,7 @@ class ReportGenerator:
             "agent_details": agent_details,
             "cycle_count": cycle_count,
             "total_errors": total_errors,
-            "uptime_hours": (
-                (datetime.now() - start_time).total_seconds() / 3600
-                if start_time else 0
-            ),
+            "uptime_hours": ((datetime.now() - start_time).total_seconds() / 3600 if start_time else 0),
         }
 
         if self.reporter:
@@ -128,6 +127,7 @@ class ReportGenerator:
         status = "unhealthy"
         if running:
             from scripts.orchestrator import HEALTH_ERROR_THRESHOLD
+
             if total_errors > HEALTH_ERROR_THRESHOLD:
                 status = "degraded"
             else:
@@ -149,7 +149,11 @@ class ReportGenerator:
     ) -> Dict[str, Any]:
         """P2-6: Возвращает историю валидации агентов."""
         if not self.memory:
-            return {"total": 0, "results": [], "summary": {"passed": 0, "failed": 0, "avg_score": 0.0}}
+            return {
+                "total": 0,
+                "results": [],
+                "summary": {"passed": 0, "failed": 0, "avg_score": 0.0},
+            }
 
         pool = await self.memory._get_db_pool()
         async with pool.acquire() as conn:
@@ -157,15 +161,20 @@ class ReportGenerator:
                 rows = await conn.fetch(
                     """SELECT cycle_id, agent_name, status, validation_score, created_at
                        FROM agent_results WHERE agent_name = $1 ORDER BY created_at DESC LIMIT $2""",
-                    agent_name, limit,
+                    agent_name,
+                    limit,
                 )
-                total = (await conn.fetchrow(
-                    "SELECT COUNT(*) FROM agent_results WHERE agent_name = $1", agent_name
-                ))[0] or 0
+                total = (
+                    await conn.fetchrow(
+                        "SELECT COUNT(*) FROM agent_results WHERE agent_name = $1",
+                        agent_name,
+                    )
+                )[0] or 0
             else:
                 rows = await conn.fetch(
                     """SELECT cycle_id, agent_name, status, validation_score, created_at
-                       FROM agent_results ORDER BY created_at DESC LIMIT $1""", limit,
+                       FROM agent_results ORDER BY created_at DESC LIMIT $1""",
+                    limit,
                 )
                 total = (await conn.fetchrow("SELECT COUNT(*) FROM agent_results"))[0] or 0
 
@@ -181,13 +190,15 @@ class ReportGenerator:
                 failed += 1
             if score:
                 scores.append(score)
-            results.append({
-                "cycle_id": str(row["cycle_id"]),
-                "agent_name": row["agent_name"],
-                "status": status,
-                "validation_score": score,
-                "created_at": row["created_at"].isoformat() if row["created_at"] else None,
-            })
+            results.append(
+                {
+                    "cycle_id": str(row["cycle_id"]),
+                    "agent_name": row["agent_name"],
+                    "status": status,
+                    "validation_score": score,
+                    "created_at": (row["created_at"].isoformat() if row["created_at"] else None),
+                }
+            )
 
         avg_score = round(sum(scores) / len(scores), 3) if scores else 0.0
         return {
@@ -196,7 +207,13 @@ class ReportGenerator:
             "summary": {"passed": passed, "failed": failed, "avg_score": avg_score},
         }
 
-    async def get_metrics(self, cycle_count: int, total_errors: int = 0, agents_count: int = 0, paused_count: int = 0) -> Dict[str, Any]:
+    async def get_metrics(
+        self,
+        cycle_count: int,
+        total_errors: int = 0,
+        agents_count: int = 0,
+        paused_count: int = 0,
+    ) -> Dict[str, Any]:
         """P2-7 + COS-2: Возвращает метрики в формате Prometheus + контент-метрики."""
         content = await self._get_content_metrics()
         return {
@@ -211,8 +228,10 @@ class ReportGenerator:
         """COS-2: Контент-метрики из БД."""
         if not self.memory:
             return {
-                "pages_total": 0, "pages_today": 0,
-                "pages_this_week": 0, "pages_this_month": 0,
+                "pages_total": 0,
+                "pages_today": 0,
+                "pages_this_week": 0,
+                "pages_this_month": 0,
                 "avg_validation_score": 0.0,
                 "published_content_count": 0,
                 "by_agent": {},
@@ -226,23 +245,46 @@ class ReportGenerator:
                 month_start = today_start.replace(day=1)
 
                 pages_total = (await conn.fetchrow("SELECT COUNT(*) FROM agent_pages WHERE status = 'active'"))[0] or 0
-                pages_today = (await conn.fetchrow("SELECT COUNT(*) FROM agent_pages WHERE created_at >= $1", today_start))[0] or 0
-                pages_week = (await conn.fetchrow("SELECT COUNT(*) FROM agent_pages WHERE created_at >= $1", week_start))[0] or 0
-                pages_month = (await conn.fetchrow("SELECT COUNT(*) FROM agent_pages WHERE created_at >= $1", month_start))[0] or 0
-                avg_score_row = await conn.fetchrow("SELECT AVG(validation_score) FROM agent_results WHERE created_at >= $1 AND validation_score IS NOT NULL", today_start)
-                avg_score = avg_score_row[0] if avg_score_row and avg_score_row[0] else 0.0
-                published = (await conn.fetchrow("SELECT COUNT(*) FROM content_registry WHERE status = 'published'"))[0] or 0
-
-                rows = await conn.fetch(
-                    """SELECT agent_name, status, validation_score, created_at
-                       FROM agent_results ORDER BY created_at DESC LIMIT 100"""
+                pages_today = (
+                    await conn.fetchrow(
+                        "SELECT COUNT(*) FROM agent_pages WHERE created_at >= $1",
+                        today_start,
+                    )
+                )[0] or 0
+                pages_week = (
+                    await conn.fetchrow(
+                        "SELECT COUNT(*) FROM agent_pages WHERE created_at >= $1",
+                        week_start,
+                    )
+                )[0] or 0
+                pages_month = (
+                    await conn.fetchrow(
+                        "SELECT COUNT(*) FROM agent_pages WHERE created_at >= $1",
+                        month_start,
+                    )
+                )[0] or 0
+                avg_score_row = await conn.fetchrow(
+                    "SELECT AVG(validation_score) FROM agent_results WHERE created_at >= $1 AND validation_score IS NOT NULL",
+                    today_start,
                 )
+                avg_score = avg_score_row[0] if avg_score_row and avg_score_row[0] else 0.0
+                published = (await conn.fetchrow("SELECT COUNT(*) FROM content_registry WHERE status = 'published'"))[
+                    0
+                ] or 0
+
+                rows = await conn.fetch("""SELECT agent_name, status, validation_score, created_at
+                       FROM agent_results ORDER BY created_at DESC LIMIT 100""")
 
             by_agent: Dict[str, Any] = {}
             for row in rows:
                 agent = row["agent_name"]
                 if agent not in by_agent:
-                    by_agent[agent] = {"total": 0, "passed": 0, "failed": 0, "scores": []}
+                    by_agent[agent] = {
+                        "total": 0,
+                        "passed": 0,
+                        "failed": 0,
+                        "scores": [],
+                    }
                 by_agent[agent]["total"] += 1
                 if row["status"] == "completed":
                     by_agent[agent]["passed"] += 1
@@ -268,8 +310,10 @@ class ReportGenerator:
         except Exception as e:
             self.logger.error("content_metrics_failed", error=str(e))
             return {
-                "pages_total": 0, "pages_today": 0,
-                "pages_this_week": 0, "pages_this_month": 0,
+                "pages_total": 0,
+                "pages_today": 0,
+                "pages_this_week": 0,
+                "pages_this_month": 0,
                 "avg_validation_score": 0.0,
                 "published_content_count": 0,
                 "by_agent": {},

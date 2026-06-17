@@ -67,31 +67,31 @@ class TestCheckers(unittest.TestCase):
         self.assertFalse(ok)
 
     def test_fields_differ(self):
-        score, msg = Checkers.fields_differ(
-            {"t": "Best phones", "h1": "Top smartphones"}, "t", "h1"
-        )
+        score, msg = Checkers.fields_differ({"t": "Best phones", "h1": "Top smartphones"}, "t", "h1")
         self.assertEqual(score, 1.0)
 
     def test_fields_similar(self):
         score, msg = Checkers.fields_differ(
-            {"t": "one two three four five six seven eight nine ten",
-             "h1": "one two three four five six seven eight nine eleven"}, "t", "h1"
+            {
+                "t": "one two three four five six seven eight nine ten",
+                "h1": "one two three four five six seven eight nine eleven",
+            },
+            "t",
+            "h1",
         )
         self.assertLess(score, 1.0)
         self.assertGreater(score, 0.0)
 
     def test_has_structure_complete(self):
         score, msg = Checkers.has_structure(
-            {"og": {"og:title": "x", "og:description": "y", "og:image": "z"}}, "og",
-            ["og:title", "og:description", "og:image"]
+            {"og": {"og:title": "x", "og:description": "y", "og:image": "z"}},
+            "og",
+            ["og:title", "og:description", "og:image"],
         )
         self.assertEqual(score, 1.0)
 
     def test_has_structure_partial(self):
-        score, msg = Checkers.has_structure(
-            {"og": {"og:title": "x"}}, "og",
-            ["og:title", "og:description", "og:image"]
-        )
+        score, msg = Checkers.has_structure({"og": {"og:title": "x"}}, "og", ["og:title", "og:description", "og:image"])
         self.assertEqual(score, 1 / 3)
 
     def test_word_count_range_optimal(self):
@@ -225,8 +225,7 @@ class TestSubgoalEvaluatorEmail(unittest.TestCase):
     def test_email_perfect(self):
         data = {
             "subject": "Your weekly deals from smart-skidka",
-            "body": "Hello! Check out our latest deals. " + "word " * 150 +
-                    "<a href='#'>Отписаться от рассылки</a>",
+            "body": "Hello! Check out our latest deals. " + "word " * 150 + "<a href='#'>Отписаться от рассылки</a>",
         }
         result = evaluate_subgoals("email", data)
         self.assertGreaterEqual(result.overall_score, 0.7)
@@ -279,6 +278,7 @@ class TestSubgoalEvaluatorAnalytics(unittest.TestCase):
 
     def test_analytics_perfect(self):
         from datetime import datetime, timezone
+
         data = {
             "metrics": ["visits", "conversion", "bounce_rate"],
             "trend_direction": "up",
@@ -345,12 +345,15 @@ class TestSubgoalEvaluatorEdgeCases(unittest.TestCase):
 
     def test_add_subgoal_runtime(self):
         evaluator = SubgoalEvaluator()
-        evaluator.add_subgoal("custom", {
-            "name": "has_magic",
-            "weight": 1.0,
-            "check": lambda d: ("magic" in d, "magic check"),
-            "binary": True,
-        })
+        evaluator.add_subgoal(
+            "custom",
+            {
+                "name": "has_magic",
+                "weight": 1.0,
+                "check": lambda d: ("magic" in d, "magic check"),
+                "binary": True,
+            },
+        )
         result = evaluator.evaluate("custom", {"magic": True})
         self.assertEqual(len(result.subgoals), 1)
         self.assertEqual(result.subgoals[0].name, "has_magic")
@@ -370,10 +373,12 @@ class TestSubgoalEvaluatorEdgeCases(unittest.TestCase):
             "h1": "H1",
         }
         sg = evaluator.evaluate("seo", seo)
+
         # Mock validation result
         class MockVal:
             def to_dict(self):
                 return {"status": "passed", "score": 0.9}
+
         merged = evaluator.merge_with_validation(sg, MockVal())
         self.assertIn("combined_score", merged)
         self.assertIn("validation", merged)

@@ -7,17 +7,17 @@
 import sys
 import unittest
 
-sys.path.insert(0, '/opt/smart-skidka-agents')
-sys.path.insert(0, '/opt/smart-skidka-agents/scripts')
+sys.path.insert(0, "/opt/smart-skidka-agents")
+sys.path.insert(0, "/opt/smart-skidka-agents/scripts")
 
 from scripts.actions.data_tools import (
+    close_session,
+    forum_scanner,
+    gather_trend_data,
     google_trends,
+    marketplace_trends,
     news_monitor,
     yandex_wordstat,
-    forum_scanner,
-    marketplace_trends,
-    gather_trend_data,
-    close_session,
 )
 
 

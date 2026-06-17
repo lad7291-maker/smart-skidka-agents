@@ -52,9 +52,9 @@ from dotenv import load_dotenv
 _env_loaded = load_dotenv()
 if not _env_loaded and not os.getenv("LLM_API_KEY"):
     import warnings
+
     warnings.warn(
-        ".env файл не найден и переменные окружения не заданы. "
-        "Система может работать некорректно.",
+        ".env файл не найден и переменные окружения не заданы. " "Система может работать некорректно.",
         RuntimeWarning,
         stacklevel=2,
     )
@@ -71,6 +71,7 @@ logger = structlog.get_logger("content_generator")
 @dataclass
 class SEOPage:
     """SEO-страница для категории."""
+
     title: str
     meta_description: str
     h1: str
@@ -84,6 +85,7 @@ class SEOPage:
 @dataclass
 class ProductDescription:
     """Описание товара."""
+
     title: str
     description: str
     features: List[str]
@@ -96,6 +98,7 @@ class ProductDescription:
 @dataclass
 class Comparison:
     """Сравнение двух товаров."""
+
     title: str
     product_a_name: str
     product_b_name: str
@@ -108,6 +111,7 @@ class Comparison:
 @dataclass
 class Guide:
     """Гайд / инструкция."""
+
     title: str
     introduction: str
     steps: List[Dict[str, str]]
@@ -158,9 +162,7 @@ class ContentGenerator:
         if "rrouter" in model or "anthropic" in model:
             self.base_url = "https://api.rrouter.ai/v1/chat/completions"
         else:
-            self.base_url = base_url or os.getenv(
-                "LLM_BASE_URL", "https://api.deepseek.com/v1/chat/completions"
-            )
+            self.base_url = base_url or os.getenv("LLM_BASE_URL", "https://api.deepseek.com/v1/chat/completions")
 
         self._session: Optional[aiohttp.ClientSession] = None
         self._semaphore: asyncio.Semaphore = asyncio.Semaphore(3)
@@ -267,7 +269,8 @@ class ContentGenerator:
         except json.JSONDecodeError:
             # Пробуем найти JSON в тексте
             import re
-            match = re.search(r'\{[\s\S]*\}', content)
+
+            match = re.search(r"\{[\s\S]*\}", content)
             if match:
                 try:
                     return json.loads(match.group())
@@ -517,7 +520,7 @@ class ContentGenerator:
             ],
             "pros": ["Хорошее соотношение цена/качество", "Наличие гарантии"],
             "cons": ["Может быть недоступен в некоторых магазинах"],
-            "price_info": f"Цена: {price}, скидка: {discount}" if discount else f"Цена от {price}",
+            "price_info": (f"Цена: {price}, скидка: {discount}" if discount else f"Цена от {price}"),
             "_metadata": {
                 "generated_at": datetime.now().isoformat(),
                 "fallback": True,
@@ -753,14 +756,26 @@ class ContentGenerator:
     ) -> Dict[str, Any]:
         """Создаёт базовый гайд при ошибке LLM."""
         default_steps = [
-            {"title": "Определите свои потребности",
-                "description": "Подумайте, что именно вам нужно и какой бюджет вы готовы выделить."},
-            {"title": "Изучите рынок", "description": "Посмотрите актуальные предложения на smart-skidka.ru и сравните цены."},
-            {"title": "Сравните характеристики", "description": "Обратите внимание на ключевые параметры и отзывы покупателей."},
-            {"title": "Выберите лучшее предложение",
-                "description": "Используйте фильтры и сортировку для поиска оптимального варианта."},
-            {"title": "Оформите покупку со скидкой",
-                "description": "Не забудьте применить промокод или перейти по специальной ссылке."},
+            {
+                "title": "Определите свои потребности",
+                "description": "Подумайте, что именно вам нужно и какой бюджет вы готовы выделить.",
+            },
+            {
+                "title": "Изучите рынок",
+                "description": "Посмотрите актуальные предложения на smart-skidka.ru и сравните цены.",
+            },
+            {
+                "title": "Сравните характеристики",
+                "description": "Обратите внимание на ключевые параметры и отзывы покупателей.",
+            },
+            {
+                "title": "Выберите лучшее предложение",
+                "description": "Используйте фильтры и сортировку для поиска оптимального варианта.",
+            },
+            {
+                "title": "Оформите покупку со скидкой",
+                "description": "Не забудьте применить промокод или перейти по специальной ссылке.",
+            },
         ]
 
         return {
@@ -770,7 +785,7 @@ class ContentGenerator:
                 f"Следуйте нашим рекомендациям, чтобы найти лучшее предложение "
                 f"и сэкономить на покупке."
             ),
-            "steps": steps if steps else [s["title"] + ": " + s["description"] for s in default_steps],
+            "steps": (steps if steps else [s["title"] + ": " + s["description"] for s in default_steps]),
             "conclusion": (
                 f"Теперь вы знаете, как выбрать {topic}. "
                 f"Используйте smart-skidka.ru для поиска лучших скидок и выгодных предложений."
@@ -838,7 +853,7 @@ class ContentGenerator:
                                 "name": f"Товар {index + 1}",
                                 "brand": "Популярный бренд",
                                 "category": "Электроника",
-                                "specs": {"экран": "6.1\"", "память": "128 ГБ"},
+                                "specs": {"экран": '6.1"', "память": "128 ГБ"},
                                 "price": "29 990 ₽",
                                 "discount": "15%",
                             }
@@ -850,8 +865,16 @@ class ContentGenerator:
                             a = products[index * 2 % len(products)]
                             b = products[(index * 2 + 1) % len(products)]
                         else:
-                            a = {"name": f"Товар A-{index + 1}", "specs": {}, "price": "20 000 ₽"}
-                            b = {"name": f"Товар B-{index + 1}", "specs": {}, "price": "25 000 ₽"}
+                            a = {
+                                "name": f"Товар A-{index + 1}",
+                                "specs": {},
+                                "price": "20 000 ₽",
+                            }
+                            b = {
+                                "name": f"Товар B-{index + 1}",
+                                "specs": {},
+                                "price": "25 000 ₽",
+                            }
                         return await self.generate_comparison(a, b)
 
                     elif content_type == "guide":
@@ -880,10 +903,12 @@ class ContentGenerator:
         final_results = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                final_results.append({
-                    "error": str(result),
-                    "_metadata": {"content_type": content_type, "index": i},
-                })
+                final_results.append(
+                    {
+                        "error": str(result),
+                        "_metadata": {"content_type": content_type, "index": i},
+                    }
+                )
             else:
                 final_results.append(result)
 
@@ -913,10 +938,7 @@ class ContentGenerator:
         Returns:
             Словарь с title, meta_description, keywords
         """
-        system_prompt = (
-            "Ты — SEO-эксперт. Создай мета-теги для данного контента. "
-            "Верни результат в JSON."
-        )
+        system_prompt = "Ты — SEO-эксперт. Создай мета-теги для данного контента. " "Верни результат в JSON."
 
         content_preview = content[:2000] if len(content) > 2000 else content
 
@@ -943,7 +965,7 @@ class ContentGenerator:
             words = content.split()[:10]
             title_text = " ".join(words)
             return {
-                "title": title_text[:60] if len(title_text) > 60 else title_text + " — smart-skidka.ru",
+                "title": (title_text[:60] if len(title_text) > 60 else title_text + " — smart-skidka.ru"),
                 "meta_description": content[:160],
                 "keywords": [],
             }
@@ -1112,6 +1134,7 @@ async def batch_generate(
 # Точка входа для тестирования
 # ═══════════════════════════════════════════════════════════════════════════════
 if __name__ == "__main__":
+
     async def test():
         """Тестирование генератора контента."""
         gen = ContentGenerator()
@@ -1124,7 +1147,11 @@ if __name__ == "__main__":
         print("\n1. Генерация SEO-страницы...")
         seo = await gen.generate_seo_page(
             category="Смартфоны",
-            keywords=["смартфоны со скидкой", "купить смартфон дешево", "лучшие смартфоны 2024"],
+            keywords=[
+                "смартфоны со скидкой",
+                "купить смартфон дешево",
+                "лучшие смартфоны 2024",
+            ],
         )
         print(f"   Title: {seo.get('title', 'N/A')[:60]}...")
         print(f"   Meta: {seo.get('meta_description', 'N/A')[:80]}...")
@@ -1137,7 +1164,7 @@ if __name__ == "__main__":
             "brand": "Apple",
             "category": "Смартфоны",
             "specs": {
-                "экран": "6.1\" OLED",
+                "экран": '6.1" OLED',
                 "процессор": "A17 Pro",
                 "память": "128 ГБ",
                 "камера": "48 МП",
@@ -1155,12 +1182,16 @@ if __name__ == "__main__":
         print("\n3. Генерация сравнения...")
         product_a = {
             "name": "Samsung Galaxy S24",
-            "specs": {"экран": "6.2\"", "процессор": "Snapdragon 8 Gen 3", "память": "256 ГБ"},
+            "specs": {
+                "экран": '6.2"',
+                "процессор": "Snapdragon 8 Gen 3",
+                "память": "256 ГБ",
+            },
             "price": "74 990 ₽",
         }
         product_b = {
             "name": "iPhone 15",
-            "specs": {"экран": "6.1\"", "процессор": "A16 Bionic", "память": "128 ГБ"},
+            "specs": {"экран": '6.1"', "процессор": "A16 Bionic", "память": "128 ГБ"},
             "price": "79 990 ₽",
         }
         comp = await gen.generate_comparison(product_a, product_b)

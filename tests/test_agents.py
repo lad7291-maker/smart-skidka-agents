@@ -1,18 +1,18 @@
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, '/opt/smart-skidka-agents')
+sys.path.insert(0, "/opt/smart-skidka-agents")
 
 from scripts.project_context import ProjectContext, get_project_context
 from scripts.safe_project_context import (
-    SafeProjectContext, 
-    validate_write, 
-    get_safe_zones, 
+    SafeProjectContext,
     get_protected_files,
+    get_safe_zones,
     is_protected,
-    is_safe_zone
+    is_safe_zone,
+    validate_write,
 )
 
 
@@ -44,8 +44,8 @@ class TestProjectContext(unittest.TestCase):
     def test_read_file_products_json(self):
         """Чтение products.json возвращает JSON-массив."""
         content = self.ctx.read_file("products.json", max_chars=2000)
-        self.assertIn("\"id\"", content)
-        self.assertIn("\"itemId\"", content)
+        self.assertIn('"id"', content)
+        self.assertIn('"itemId"', content)
 
     def test_read_file_not_found(self):
         """Чтение несуществующего файла возвращает ошибку."""
@@ -219,19 +219,16 @@ class TestIntegration(unittest.TestCase):
         ctx = get_project_context()
         context = ctx.get_context_for_agent("content")
         self.assertGreater(len(context), 1000)
-        
+
         # 2. Пытаемся записать в safe zone
         safe = SafeProjectContext()
-        result = safe.write_file(
-            "guides/test-integration.html",
-            "<html><body>Integration Test</body></html>"
-        )
+        result = safe.write_file("guides/test-integration.html", "<html><body>Integration Test</body></html>")
         self.assertTrue(result["success"])
-        
+
         # 3. Проверяем, что файл создан
         path = Path("/var/www/dealshub-miniapp/guides/test-integration.html")
         self.assertTrue(path.exists())
-        
+
         # 4. Чистим
         path.unlink()
 
@@ -246,7 +243,7 @@ class TestIntegration(unittest.TestCase):
         for f in files:
             result = safe.write_file(f, "<html><body>Test</body></html>")
             self.assertTrue(result["success"])
-        
+
         # Чистим
         for f in files:
             try:
@@ -257,20 +254,20 @@ class TestIntegration(unittest.TestCase):
     def test_mixed_valid_and_invalid(self):
         """Смешанные операции: valid + invalid."""
         safe = SafeProjectContext()
-        
+
         # Valid
         r1 = safe.write_file("guides/valid.html", "<html></body>Valid</body></html>")
         self.assertTrue(r1["success"])
-        
+
         # Invalid
         r2 = safe.write_file("index.html", "<html></body>Invalid</body></html>")
         self.assertFalse(r2["success"])
         self.assertTrue(r2["blocked"])
-        
+
         # Valid
         r3 = safe.write_file("landing/valid.html", "<html></body>Valid</body></html>")
         self.assertTrue(r3["success"])
-        
+
         # Чистим
         for f in ["guides/valid.html", "landing/valid.html"]:
             try:

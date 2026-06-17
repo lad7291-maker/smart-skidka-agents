@@ -7,13 +7,13 @@
 import sys
 import unittest
 
-sys.path.insert(0, '/opt/smart-skidka-agents')
-sys.path.insert(0, '/opt/smart-skidka-agents/scripts')
+sys.path.insert(0, "/opt/smart-skidka-agents")
+sys.path.insert(0, "/opt/smart-skidka-agents/scripts")
 
 from scripts.actions.file_utils import (
-    validate_products_update,
     PRODUCTS_ALLOWED_FIELDS,
     PRODUCTS_PROTECTED_FIELDS,
+    validate_products_update,
 )
 
 

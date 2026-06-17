@@ -47,9 +47,11 @@ JUDGE_TIMEOUT = aiohttp.ClientTimeout(total=30)
 # Data-классы
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class JudgeResult:
     """Результат оценки LLM-as-a-Judge."""
+
     score: float = 0.0  # 0.0 – 1.0
     passed: bool = False
     feedback: str = ""
@@ -60,6 +62,7 @@ class JudgeResult:
 # ═══════════════════════════════════════════════════════════════════════════════
 # LLM Judge
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class LLMJudge:
     """
@@ -172,6 +175,7 @@ class LLMJudge:
         except (json.JSONDecodeError, ValueError) as e:
             # Fallback: пытаемся извлечь score из текста
             import re
+
             score_match = re.search(r'["\']?score["\']?\s*[:=]\s*([0-9.]+)', raw)
             score = float(score_match.group(1)) if score_match else 0.5
             return JudgeResult(
@@ -367,6 +371,7 @@ CTA: {result.get('cta', '')}
 # Fallback judge (без LLM — heuristic-based)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class HeuristicJudge:
     """
     Heuristic-based judge для случаев, когда LLM недоступен.
@@ -382,7 +387,15 @@ class HeuristicJudge:
         errors: List[str] = []
 
         # relevance: наличие ключевых слов скидок/промокодов
-        discount_keywords = ["скидк", "промокод", "распродаж", "дешев", "акци", "кешбэк", "эконом"]
+        discount_keywords = [
+            "скидк",
+            "промокод",
+            "распродаж",
+            "дешев",
+            "акци",
+            "кешбэк",
+            "эконом",
+        ]
         content_lower = content.lower()
         has_discount_kw = any(kw in content_lower for kw in discount_keywords)
         criteria["relevance"] = 0.8 if has_discount_kw else 0.3
@@ -417,7 +430,12 @@ class HeuristicJudge:
             errors.append("В контенте нет конкретных цифр, цен или процентов экономии")
 
         # no_hallucinations: эвристика — проверка на подозрительные фразы
-        suspicious = ["100% гарантия", "лучший в мире", "никогда не видели", "уникальная возможность"]
+        suspicious = [
+            "100% гарантия",
+            "лучший в мире",
+            "никогда не видели",
+            "уникальная возможность",
+        ]
         has_suspicious = any(s in content_lower for s in suspicious)
         criteria["no_hallucinations"] = 0.3 if has_suspicious else 0.85
         if has_suspicious:
@@ -441,6 +459,7 @@ class HeuristicJudge:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Утилита: комбинированная валидация (rule-based + LLM judge)
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 async def combined_validate(
     result: Dict[str, Any],
@@ -487,24 +506,26 @@ async def combined_validate(
     # Веса: rule-based 40%, LLM judge 60%
     final_score = rule_score * 0.4 + llm_score * 0.6
 
-    passed = (
-        rule_result.is_valid if hasattr(rule_result, "is_valid") else rule_score >= 0.6
-    ) and final_score >= 0.55
+    passed = (rule_result.is_valid if hasattr(rule_result, "is_valid") else rule_score >= 0.6) and final_score >= 0.55
 
     return {
         "rule_validation": {
-            "status": rule_result.status.value if hasattr(rule_result, "status") else "unknown",
+            "status": (rule_result.status.value if hasattr(rule_result, "status") else "unknown"),
             "score": rule_score,
             "errors": rule_result.errors if hasattr(rule_result, "errors") else [],
-            "warnings": rule_result.warnings if hasattr(rule_result, "warnings") else [],
+            "warnings": (rule_result.warnings if hasattr(rule_result, "warnings") else []),
         },
-        "llm_judge": {
-            "score": llm_result.score if llm_result else None,
-            "passed": llm_result.passed if llm_result else None,
-            "feedback": llm_result.feedback if llm_result else None,
-            "criteria": llm_result.criteria if llm_result else {},
-            "errors": llm_result.errors if llm_result else [],
-        } if llm_result else None,
+        "llm_judge": (
+            {
+                "score": llm_result.score if llm_result else None,
+                "passed": llm_result.passed if llm_result else None,
+                "feedback": llm_result.feedback if llm_result else None,
+                "criteria": llm_result.criteria if llm_result else {},
+                "errors": llm_result.errors if llm_result else [],
+            }
+            if llm_result
+            else None
+        ),
         "final_score": round(final_score, 3),
         "passed": passed,
         "agent_type": agent_type,

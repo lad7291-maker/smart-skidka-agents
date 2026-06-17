@@ -110,8 +110,12 @@ class TestI18NCore(unittest.TestCase):
 
     def test_context_plural_translation(self):
         """Контекстный plural перевод."""
-        i18n.add_translation("{count} file", "{count} файл|{count} файла|{count} файлов",
-                            locale="ru", context="document")
+        i18n.add_translation(
+            "{count} file",
+            "{count} файл|{count} файла|{count} файлов",
+            locale="ru",
+            context="document",
+        )
         result = i18n.np_("document", "{count} file", "{count} files", 1)
         self.assertEqual(result, "1 файл")
         result = i18n.np_("document", "{count} file", "{count} files", 3)
@@ -138,6 +142,7 @@ class TestI18NCore(unittest.TestCase):
         try:
             os.environ["AGENT_LOCALE"] = "en"
             import importlib
+
             importlib.reload(i18n)
             self.assertEqual(i18n.get_locale(), "en")
         finally:

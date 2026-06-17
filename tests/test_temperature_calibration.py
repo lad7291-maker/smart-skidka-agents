@@ -4,22 +4,22 @@
 Тесты для автокалибровки temperature (P3-4).
 """
 
+import shutil
 import sys
 import unittest
-import shutil
 from pathlib import Path
 
-sys.path.insert(0, '/opt/smart-skidka-agents')
-sys.path.insert(0, '/opt/smart-skidka-agents/scripts')
+sys.path.insert(0, "/opt/smart-skidka-agents")
+sys.path.insert(0, "/opt/smart-skidka-agents/scripts")
 
 from scripts.temperature_calibration import (
-    TemperatureArm,
-    AgentCalibration,
-    TemperatureCalibrator,
-    DEFAULT_TEMPERATURE_ARMS,
-    DEFAULT_EPSILON,
     DEFAULT_EMA_ALPHA,
+    DEFAULT_EPSILON,
     DEFAULT_MIN_RUNS_PER_ARM,
+    DEFAULT_TEMPERATURE_ARMS,
+    AgentCalibration,
+    TemperatureArm,
+    TemperatureCalibrator,
 )
 
 

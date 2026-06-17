@@ -7,22 +7,22 @@ Run:
     cd /opt/smart-skidka-agents && PYTHONPATH=scripts:$PYTHONPATH python3 -m unittest tests.test_orchestrator -v
 """
 
+import asyncio
 import sys
 import unittest
-import asyncio
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
-sys.path.insert(0, '/opt/smart-skidka-agents')
-sys.path.insert(0, '/opt/smart-skidka-agents/scripts')
+sys.path.insert(0, "/opt/smart-skidka-agents")
+sys.path.insert(0, "/opt/smart-skidka-agents/scripts")
 
 from scripts.orchestrator import (
-    Orchestrator,
-    ValidationResult,
-    ValidationStatus,
     AgentConfig,
     AgentRunner,
     LLMClient,
+    Orchestrator,
+    ValidationResult,
+    ValidationStatus,
 )
 
 
@@ -41,11 +41,13 @@ class MockMemoryStore:
         pass
 
     async def save_result(self, agent_name, result, cycle_id):
-        self.results.append({
-            "agent_name": agent_name,
-            "result": result,
-            "cycle_id": cycle_id,
-        })
+        self.results.append(
+            {
+                "agent_name": agent_name,
+                "result": result,
+                "cycle_id": cycle_id,
+            }
+        )
 
     async def get_context(self, agent_name):
         return {"fresh_start": True}
@@ -90,16 +92,25 @@ class MockMemoryStore:
         return self._redis
 
     # CRIT-4: Page tracking
-    async def track_page(self, path, agent_name, page_type="", title="",
-                         html_valid=None, http_status=None):
-        self.pages.append({
-            "path": path,
-            "agent_name": agent_name,
-            "page_type": page_type,
-            "title": title,
-            "html_valid": html_valid,
-            "http_status": http_status,
-        })
+    async def track_page(
+        self,
+        path,
+        agent_name,
+        page_type="",
+        title="",
+        html_valid=None,
+        http_status=None,
+    ):
+        self.pages.append(
+            {
+                "path": path,
+                "agent_name": agent_name,
+                "page_type": page_type,
+                "title": title,
+                "html_valid": html_valid,
+                "http_status": http_status,
+            }
+        )
 
     async def get_agent_pages(self, agent_name=None, status="active", limit=100):
         pages = [p for p in self.pages if p.get("status", "active") == status]
@@ -108,15 +119,25 @@ class MockMemoryStore:
         return pages[:limit]
 
     # IMP-6: Content registry
-    async def register_content(self, content_type, title, slug, path,
-                               agent_name, keywords=None, related_slugs=None):
-        self.content_registry.append({
-            "content_type": content_type,
-            "title": title,
-            "slug": slug,
-            "path": path,
-            "agent_name": agent_name,
-        })
+    async def register_content(
+        self,
+        content_type,
+        title,
+        slug,
+        path,
+        agent_name,
+        keywords=None,
+        related_slugs=None,
+    ):
+        self.content_registry.append(
+            {
+                "content_type": content_type,
+                "title": title,
+                "slug": slug,
+                "path": path,
+                "agent_name": agent_name,
+            }
+        )
 
     async def find_similar_content(self, title, threshold=0.7):
         return []
@@ -264,15 +285,19 @@ class TestOrchestratorCycle(unittest.IsolatedAsyncioTestCase):
 
         # Мок раннера, который возвращает успешный результат
         self.mock_runner = MagicMock()
-        self.mock_runner.run = AsyncMock(return_value={
-            "success": True,
-            "data": {"title": "Test", "description": "Test desc"},
-            "task_type": "content",
-        })
-        self.mock_runner.retry = AsyncMock(return_value={
-            "success": True,
-            "data": {"title": "Test", "description": "Test desc"},
-        })
+        self.mock_runner.run = AsyncMock(
+            return_value={
+                "success": True,
+                "data": {"title": "Test", "description": "Test desc"},
+                "task_type": "content",
+            }
+        )
+        self.mock_runner.retry = AsyncMock(
+            return_value={
+                "success": True,
+                "data": {"title": "Test", "description": "Test desc"},
+            }
+        )
         self.orch.agent_runners = {"content_agent": self.mock_runner}
 
     async def test_run_cycle_empty_agents(self):
@@ -303,16 +328,20 @@ class TestOrchestratorCycle(unittest.IsolatedAsyncioTestCase):
 
     async def test_run_cycle_agent_failure(self):
         """Цикл продолжается даже если агент упал."""
-        self.mock_runner.run = AsyncMock(return_value={
-            "success": False,
-            "error": "LLM timeout",
-            "data": {},
-        })
-        self.mock_runner.retry = AsyncMock(return_value={
-            "success": False,
-            "error": "LLM timeout",
-            "data": {},
-        })
+        self.mock_runner.run = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "LLM timeout",
+                "data": {},
+            }
+        )
+        self.mock_runner.retry = AsyncMock(
+            return_value={
+                "success": False,
+                "error": "LLM timeout",
+                "data": {},
+            }
+        )
 
         result = await self.orch.run_cycle()
         self.assertEqual(len(result["results"]), 1)
@@ -349,16 +378,24 @@ class TestOrchestratorValidation(unittest.IsolatedAsyncioTestCase):
         validation = await self.orch.validate_and_store("seo_agent", result)
         # validate_by_type returns validator.ValidationResult, not orchestrator.ValidationResult
         from scripts.validator import ValidationResult as ValidatorResult
+
         self.assertIsInstance(validation, (ValidationResult, ValidatorResult))
-        self.assertIn(validation.status.value, [
-            "passed", "warning", "failed", "skipped",
-        ])
+        self.assertIn(
+            validation.status.value,
+            [
+                "passed",
+                "warning",
+                "failed",
+                "skipped",
+            ],
+        )
 
     async def test_validate_unknown_agent_type(self):
         """Валидация неизвестного типа агента не падает."""
         result = {"data": {"foo": "bar"}}
         validation = await self.orch.validate_and_store("unknown_agent", result)
         from scripts.validator import ValidationResult as ValidatorResult
+
         self.assertIsInstance(validation, (ValidationResult, ValidatorResult))
 
 
@@ -394,8 +431,12 @@ class TestOrchestratorContentMetrics(unittest.IsolatedAsyncioTestCase):
         """Структура метрик контента корректна."""
         metrics = await self.orch._reports._get_content_metrics()
         required_keys = [
-            "pages_total", "pages_today", "pages_this_week",
-            "pages_this_month", "avg_validation_score", "published_content_count",
+            "pages_total",
+            "pages_today",
+            "pages_this_week",
+            "pages_this_month",
+            "avg_validation_score",
+            "published_content_count",
         ]
         for key in required_keys:
             self.assertIn(key, metrics)
@@ -492,6 +533,7 @@ class TestOrchestratorGitVersioning(unittest.IsolatedAsyncioTestCase):
     async def test_git_commit_file_not_repo(self):
         """git_commit_file возвращает True (skip) если не git-репозиторий."""
         from scripts.actions.file_utils import git_commit_file
+
         result = git_commit_file("/tmp/nonexistent.txt", message="test")
         self.assertTrue(result)
 

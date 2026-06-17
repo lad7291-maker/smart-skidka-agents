@@ -16,14 +16,14 @@ from typing import Any, Dict, List, Optional
 
 import structlog
 
-from scripts.actions.telegram_actions import post_discount, post_to_channel
 from scripts.actions.site_actions import (
     add_badge,
     create_category_page,
+    prioritize_products,
     update_item_description,
     update_meta_tags,
 )
-from scripts.actions.site_actions import prioritize_products
+from scripts.actions.telegram_actions import post_discount, post_to_channel
 
 
 class ActionExecutor:
@@ -131,7 +131,11 @@ class ActionExecutor:
         action_log: List[str] = []
 
         try:
-            from scripts.actions.action_registry import ActionDispatcher, discover_actions
+            from scripts.actions.action_registry import (
+                ActionDispatcher,
+                discover_actions,
+            )
+
             discover_actions()
             dispatcher = ActionDispatcher()
             plugin_log = await dispatcher.execute_agent_actions(agent_config, data)

@@ -5,12 +5,12 @@
 Каждая операция делает бэкап перед изменением.
 """
 
+import json
 import os
 import shutil
-import json
 import subprocess
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
 
 # Пути к проекту
@@ -27,9 +27,7 @@ def _resolve_within_site_root(path: Path) -> Path:
     try:
         resolved.relative_to(SITE_ROOT)
     except ValueError:
-        raise ValueError(
-            f"Path traversal detected: {resolved} is outside SITE_ROOT {SITE_ROOT}"
-        )
+        raise ValueError(f"Path traversal detected: {resolved} is outside SITE_ROOT {SITE_ROOT}")
     return resolved
 
 
@@ -114,23 +112,31 @@ def read_products() -> dict:
         return {"products": data}
     return data if isinstance(data, dict) else {}
 
+
 # ─── P1-9: Защита products.json — whitelist операций ─────────────────────
 
 
 # Разрешённые поля для обновления через агентов
 PRODUCTS_ALLOWED_FIELDS = {
-    "description",    # Описание товара
-    "badge",          # Бейдж (Тренд, ХИТ, NEW)
-    "priority",       # Приоритет сортировки
-    "discount",       # Размер скидки
-    "promo_code",     # Промокод
-    "expires_at",     # Срок действия акции
+    "description",  # Описание товара
+    "badge",  # Бейдж (Тренд, ХИТ, NEW)
+    "priority",  # Приоритет сортировки
+    "discount",  # Размер скидки
+    "promo_code",  # Промокод
+    "expires_at",  # Срок действия акции
 }
 
 # Поля, которые НЕЛЬЗЯ менять через агентов
 PRODUCTS_PROTECTED_FIELDS = {
-    "id", "name", "price", "original_price", "image",
-    "category", "link", "rating", "reviews",
+    "id",
+    "name",
+    "price",
+    "original_price",
+    "image",
+    "category",
+    "link",
+    "rating",
+    "reviews",
 }
 
 
@@ -143,7 +149,10 @@ def validate_products_update(item_id: str, field: str, value) -> tuple[bool, str
     if field in PRODUCTS_PROTECTED_FIELDS:
         return False, f"Field '{field}' is protected and cannot be modified by agents"
     if field not in PRODUCTS_ALLOWED_FIELDS:
-        return False, f"Field '{field}' is not in allowed fields list: {PRODUCTS_ALLOWED_FIELDS}"
+        return (
+            False,
+            f"Field '{field}' is not in allowed fields list: {PRODUCTS_ALLOWED_FIELDS}",
+        )
     return True, ""
 
 
@@ -169,6 +178,7 @@ def list_items() -> list:
 
 
 # ─── COS-1: Git versioning on file changes ───────────────────────────────
+
 
 def git_commit_file(path: Path, message: Optional[str] = None) -> bool:
     """
@@ -238,8 +248,12 @@ def git_commit_file(path: Path, message: Optional[str] = None) -> bool:
         return False
 
 
-def safe_write_with_git(path: Path, content: str, make_backup: bool = True,
-                        git_message: Optional[str] = None) -> bool:
+def safe_write_with_git(
+    path: Path,
+    content: str,
+    make_backup: bool = True,
+    git_message: Optional[str] = None,
+) -> bool:
     """
     Атомарная запись + автоматический git-коммит.
 

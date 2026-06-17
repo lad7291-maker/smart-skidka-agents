@@ -4,18 +4,18 @@
 Тесты для rate limiting Telegram-постинга (P2-8).
 """
 
-import sys
 import asyncio
+import sys
 import unittest
 
-sys.path.insert(0, '/opt/smart-skidka-agents')
-sys.path.insert(0, '/opt/smart-skidka-agents/scripts')
+sys.path.insert(0, "/opt/smart-skidka-agents")
+sys.path.insert(0, "/opt/smart-skidka-agents/scripts")
 
 from scripts.actions.telegram_actions import (
-    _MemoryRateLimiter,
-    get_telegram_rate_limit_status,
     TELEGRAM_POST_COOLDOWN_SECONDS,
     TELEGRAM_POST_DAILY_LIMIT,
+    _MemoryRateLimiter,
+    get_telegram_rate_limit_status,
 )
 
 
@@ -43,11 +43,12 @@ class TestRateLimiter(unittest.IsolatedAsyncioTestCase):
     async def test_daily_limit_blocks(self):
         """Превышение дневного лимита блокируется."""
         import time
+
         now = time.time()
         # Заполняем лимит
         self.limiter.daily_posts = [now - i for i in range(TELEGRAM_POST_DAILY_LIMIT)]
         self.limiter.last_post_time = now - TELEGRAM_POST_COOLDOWN_SECONDS - 1
-        
+
         allowed, reason = await self.limiter.can_post()
         self.assertFalse(allowed)
         self.assertIn("Daily limit", reason)
@@ -61,10 +62,11 @@ class TestRateLimiter(unittest.IsolatedAsyncioTestCase):
     async def test_cleanup_old_posts(self):
         """Старые посты (>24ч) удаляются."""
         import time
+
         now = time.time()
         self.limiter.daily_posts = [
             now - 25 * 3600,  # 25 часов назад — старый
-            now - 1,           # 1 секунду назад — свежий
+            now - 1,  # 1 секунду назад — свежий
         ]
         self.limiter._cleanup_old_posts()
         self.assertEqual(len(self.limiter.daily_posts), 1)
@@ -86,6 +88,7 @@ class TestGlobalRateLimitStatus(unittest.IsolatedAsyncioTestCase):
         """get_telegram_rate_limit_status возвращает словарь."""
         # P2-7 fix: Мокаем Redis для теста без подключения
         import os
+
         os.environ["REDIS_URL"] = "redis://localhost:9999/1"  # Несуществующий порт
         status = await get_telegram_rate_limit_status()
         self.assertIsInstance(status, dict)

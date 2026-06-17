@@ -44,9 +44,11 @@ DEFAULT_CALIBRATION_DIR: Path = Path(os.getenv("TEMP_CALIBRATION_DIR", "./config
 # Data-классы
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class TemperatureArm:
     """Один arm multi-arm bandit."""
+
     temperature: float
     ema_score: float = 0.0
     run_count: int = 0
@@ -82,6 +84,7 @@ class TemperatureArm:
 @dataclass
 class AgentCalibration:
     """Калибровка temperature для одного агента (multi-arm bandit)."""
+
     agent_name: str
     arms: List[TemperatureArm] = field(default_factory=list)
     enabled: bool = True
@@ -171,6 +174,7 @@ class AgentCalibration:
 # ═══════════════════════════════════════════════════════════════════════════════
 # TemperatureCalibrator
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class TemperatureCalibrator:
     """
@@ -274,17 +278,21 @@ class TemperatureCalibrator:
 # CLI / Utilities
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def get_calibrator(calibration_dir: Optional[Path] = None) -> TemperatureCalibrator:
     return TemperatureCalibrator(calibration_dir)
 
 
-def record_run(agent_name: str, temperature: float, score: float,
-               calibration_dir: Optional[Path] = None) -> None:
+def record_run(
+    agent_name: str,
+    temperature: float,
+    score: float,
+    calibration_dir: Optional[Path] = None,
+) -> None:
     calibrator = TemperatureCalibrator(calibration_dir)
     calibrator.record_result(agent_name, temperature, score)
 
 
-def get_stats(agent_name: Optional[str] = None,
-              calibration_dir: Optional[Path] = None) -> Dict[str, Any]:
+def get_stats(agent_name: Optional[str] = None, calibration_dir: Optional[Path] = None) -> Dict[str, Any]:
     calibrator = TemperatureCalibrator(calibration_dir)
     return calibrator.get_stats(agent_name)

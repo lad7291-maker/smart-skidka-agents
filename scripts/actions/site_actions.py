@@ -5,24 +5,32 @@
 Все операции через file_utils (с бэкапом).
 """
 
+import asyncio
 import html as html_module
 import os
 import re
-import asyncio
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 import aiohttp
 
-from .file_utils import read_site_html, write_site_html, read_products, write_products, safe_read, safe_write
 from . import with_retry
 from .action_registry import register_action
+from .file_utils import (
+    read_products,
+    read_site_html,
+    safe_read,
+    safe_write,
+    write_products,
+    write_site_html,
+)
 
 
 def _h(value: str) -> str:
     """HTML/XML-escape строки для безопасной вставки в разметку."""
     return html_module.escape(str(value) if value is not None else "")
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # P2-9: Квоты на создание файлов
@@ -49,6 +57,7 @@ def _load_quota_tracker() -> Dict[str, Any]:
         return {"created_pages": [], "updated_meta": [], "updated_products": []}
     try:
         import json
+
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception:
@@ -60,6 +69,7 @@ def _save_quota_tracker(data: Dict[str, Any]) -> bool:
     path = _get_quota_tracker_path()
     try:
         import json
+
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         return True
@@ -76,7 +86,8 @@ def _cleanup_old_entries(data: Dict[str, Any]) -> Dict[str, Any]:
     for key in data:
         if isinstance(data[key], list):
             data[key] = [
-                entry for entry in data[key]
+                entry
+                for entry in data[key]
                 if isinstance(entry, dict) and _parse_time(entry.get("timestamp", "")) > cutoff
             ]
     return data
@@ -102,10 +113,14 @@ def check_category_page_quota() -> tuple[bool, str, Dict[str, Any]]:
     created_today = len(tracker.get("created_pages", []))
 
     if created_today >= DAILY_CATEGORY_PAGE_LIMIT:
-        return False, (
-            f"Daily category page limit reached: {created_today}/"
-            f"{DAILY_CATEGORY_PAGE_LIMIT}. Try again tomorrow."
-        ), tracker
+        return (
+            False,
+            (
+                f"Daily category page limit reached: {created_today}/"
+                f"{DAILY_CATEGORY_PAGE_LIMIT}. Try again tomorrow."
+            ),
+            tracker,
+        )
 
     return True, "", tracker
 
@@ -115,10 +130,12 @@ def record_category_page_creation(page_name: str) -> bool:
     tracker = _load_quota_tracker()
     tracker = _cleanup_old_entries(tracker)
 
-    tracker.setdefault("created_pages", []).append({
-        "page": page_name,
-        "timestamp": datetime.now().isoformat(),
-    })
+    tracker.setdefault("created_pages", []).append(
+        {
+            "page": page_name,
+            "timestamp": datetime.now().isoformat(),
+        }
+    )
 
     return _save_quota_tracker(tracker)
 
@@ -136,6 +153,7 @@ def get_quota_status() -> Dict[str, Any]:
         "remaining_category_pages": max(0, DAILY_CATEGORY_PAGE_LIMIT - len(tracker.get("created_pages", []))),
     }
 
+
 # ─── SEO: обновление meta-тегов в index.html ─────────────────────────────
 
 
@@ -151,7 +169,7 @@ def update_meta_tags(title: str, description: str, keywords: str = "") -> bool:
         return False
 
     # title
-    html = re.sub(r'<title>.*?</title>', f'<title>{_h(title)}</title>', html, flags=re.DOTALL)
+    html = re.sub(r"<title>.*?</title>", f"<title>{_h(title)}</title>", html, flags=re.DOTALL)
 
     # meta description
     pattern = r'<meta\s+name="description"\s+content=".*?">'
@@ -160,7 +178,7 @@ def update_meta_tags(title: str, description: str, keywords: str = "") -> bool:
         html = re.sub(pattern, replacement, html, flags=re.DOTALL)
     else:
         # Вставляем после <title>
-        html = html.replace('</title>', f'</title>\n    {replacement}')
+        html = html.replace("</title>", f"</title>\n    {replacement}")
 
     # meta keywords (опционально)
     if keywords:
@@ -169,15 +187,20 @@ def update_meta_tags(title: str, description: str, keywords: str = "") -> bool:
         if re.search(kw_pattern, html):
             html = re.sub(kw_pattern, kw_replacement, html, flags=re.DOTALL)
         else:
-            html = html.replace('</title>', f'</title>\n    {kw_replacement}')
+            html = html.replace("</title>", f"</title>\n    {kw_replacement}")
 
     return write_site_html(html)
 
 
 # ─── Контент: создание категории ─────────────────────────────────────────
 
+
 @with_retry(max_retries=3, delay=0.5, backoff=2.0, exceptions=(Exception,))
-@register_action("create_category_page", agent_types=["content"], description="Создаёт страницу категории")
+@register_action(
+    "create_category_page",
+    agent_types=["content"],
+    description="Создаёт страницу категории",
+)
 def create_category_page(category_name: str, items: list) -> bool:
     """
     Создаёт страницу категории (например, category/naushniki.html).
@@ -192,21 +215,21 @@ def create_category_page(category_name: str, items: list) -> bool:
         return False
 
     site_root = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp"))
-    slug = re.sub(r'[^a-z0-9\-]', '', category_name.lower().replace(' ', '-'))
+    slug = re.sub(r"[^a-z0-9\-]", "", category_name.lower().replace(" ", "-"))
     path = site_root / "category" / f"{slug}.html"
     path.parent.mkdir(parents=True, exist_ok=True)
 
     cards = ""
     for item in items:
-        cards += f'''
+        cards += f"""
         <div class="product-card">
             <img src="{_h(item.get('image', ''))}" alt="{_h(item.get('title', ''))}" loading="lazy">
             <h3>{_h(item.get('title', ''))}</h3>
             <p class="price">{_h(item.get('price', ''))}</p>
             <a href="{_h(item.get('link', '#'))}" class="btn" target="_blank">Купить со скидкой</a>
-        </div>'''
+        </div>"""
 
-    html = f'''<!DOCTYPE html>
+    html = f"""<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -223,7 +246,7 @@ def create_category_page(category_name: str, items: list) -> bool:
     </main>
     <footer>Smart Skidka © 2025</footer>
 </body>
-</html>'''
+</html>"""
 
     # Записываем факт создания для квоты
     record_category_page_creation(f"category/{slug}.html")
@@ -233,14 +256,20 @@ def create_category_page(category_name: str, items: list) -> bool:
 
 # ─── Контент: обновление описания товара ─────────────────────────────────
 
+
 @with_retry(max_retries=3, delay=0.5, backoff=2.0, exceptions=(Exception,))
-@register_action("update_item_description", agent_types=["content"], description="Обновляет описание товара")
+@register_action(
+    "update_item_description",
+    agent_types=["content"],
+    description="Обновляет описание товара",
+)
 def update_item_description(item_id: str, new_description: str) -> bool:
     """
     Обновляет description товара в products.json.
     Поле 'description' разрешено для изменения (P1-9).
     """
     from .file_utils import validate_products_update
+
     allowed, reason = validate_products_update(item_id, "description", new_description)
     if not allowed:
         print(f"[BLOCKED] update_item_description: {reason}")
@@ -258,6 +287,7 @@ def update_item_description(item_id: str, new_description: str) -> bool:
 
 # ─── SMM: добавление бейджа "Тренд" к товару ─────────────────────────────
 
+
 @with_retry(max_retries=3, delay=0.5, backoff=2.0, exceptions=(Exception,))
 @register_action("add_badge", agent_types=["performance"], description="Добавляет бейдж к товару")
 def add_badge(item_id: str, badge_text: str = "🔥 Тренд") -> bool:
@@ -266,6 +296,7 @@ def add_badge(item_id: str, badge_text: str = "🔥 Тренд") -> bool:
     Поле 'badge' разрешено для изменения (P1-9).
     """
     from .file_utils import validate_products_update
+
     allowed, reason = validate_products_update(item_id, "badge", badge_text)
     if not allowed:
         print(f"[BLOCKED] add_badge: {reason}")
@@ -275,8 +306,13 @@ def add_badge(item_id: str, badge_text: str = "🔥 Тренд") -> bool:
 
 # ─── Performance: приоритизация товаров ──────────────────────────────────
 
+
 @with_retry(max_retries=3, delay=0.5, backoff=2.0, exceptions=(Exception,))
-@register_action("prioritize_products", agent_types=["performance"], description="Устанавливает приоритет товаров")
+@register_action(
+    "prioritize_products",
+    agent_types=["performance"],
+    description="Устанавливает приоритет товаров",
+)
 def prioritize_products(product_ids: list) -> bool:
     """
     Перемещает указанные товары в начало products.json.
@@ -295,14 +331,20 @@ def prioritize_products(product_ids: list) -> bool:
 
 # ─── Email: обновление поля товара ───────────────────────────────────────
 
+
 @with_retry(max_retries=3, delay=0.5, backoff=2.0, exceptions=(Exception,))
-@register_action("update_product_field", agent_types=["performance", "seo"], description="Обновляет поле товара")
+@register_action(
+    "update_product_field",
+    agent_types=["performance", "seo"],
+    description="Обновляет поле товара",
+)
 def update_product_field(item_id: str, field: str, value) -> bool:
     """
     Обновляет разрешённое поле товара.
     Проверяет whitelist полей (P1-9).
     """
     from .file_utils import validate_products_update
+
     allowed, reason = validate_products_update(item_id, field, value)
     if not allowed:
         print(f"[BLOCKED] update_product_field: {reason}")
@@ -331,6 +373,7 @@ def _add_badge_to_index(item_id: str, badge_text: str) -> bool:
 
 
 # ─── IMP-7: Авто-обновление sitemap.xml ──────────────────────────────────
+
 
 def update_sitemap(pages: list) -> bool:
     """
@@ -395,8 +438,8 @@ def add_to_sitemap(path: str, priority: str = "0.5", changefreq: str = "weekly")
         # Проверяем, есть ли уже такой URL
         if f"<loc>{url}</loc>" in existing:
             # Обновляем lastmod для существующего URL
-            pattern = rf'(<loc>{re.escape(url)}</loc>\s+<lastmod>)[^<]+(</lastmod>)'
-            updated = re.sub(pattern, rf'\g<1>{today}\g<2>', existing)
+            pattern = rf"(<loc>{re.escape(url)}</loc>\s+<lastmod>)[^<]+(</lastmod>)"
+            updated = re.sub(pattern, rf"\g<1>{today}\g<2>", existing)
             if updated != existing:
                 return safe_write(sitemap_path, updated)
             return True  # already up to date
@@ -413,14 +456,19 @@ def add_to_sitemap(path: str, priority: str = "0.5", changefreq: str = "weekly")
         return safe_write(sitemap_path, updated)
     else:
         # Создаём новый sitemap
-        return update_sitemap([{
-            "path": path,
-            "priority": priority,
-            "changefreq": changefreq,
-        }])
+        return update_sitemap(
+            [
+                {
+                    "path": path,
+                    "priority": priority,
+                    "changefreq": changefreq,
+                }
+            ]
+        )
 
 
 # ─── IMP-8: Перелинковка ─────────────────────────────────────────────────
+
 
 def add_cross_links(page_path: str, related_pages: list) -> bool:
     """
@@ -443,7 +491,7 @@ def add_cross_links(page_path: str, related_pages: list) -> bool:
     # Удаляем старый блок если есть
     html = re.sub(
         r'<div class="related-links">.*?</ul>\s*</div>\s*',
-        '',
+        "",
         html,
         flags=re.DOTALL,
     )
@@ -460,7 +508,7 @@ def add_cross_links(page_path: str, related_pages: list) -> bool:
         path = page.get("path", "")
         url = f"/{path.lstrip('/')}"
         links_html += f'  <li><a href="{_h(url)}">{_h(title)}</a></li>\n'
-    links_html += '</ul></div>'
+    links_html += "</ul></div>"
 
     # Вставляем перед </body>
     if "</body>" in html:
@@ -472,6 +520,7 @@ def add_cross_links(page_path: str, related_pages: list) -> bool:
 
 
 # ─── IMP-9: Telegram постинг о новых страницах ───────────────────────────
+
 
 async def post_new_page_to_telegram(page_path: str, title: str, description: str = "") -> bool:
     """
@@ -530,7 +579,7 @@ async def check_page_http_status(
                     "ok": ok,
                     "status": resp.status,
                     "url": url,
-                    "error": None if ok else f"Expected {expected_status}, got {resp.status}",
+                    "error": (None if ok else f"Expected {expected_status}, got {resp.status}"),
                 }
                 if not ok:
                     print(f"[HTTP CHECK FAIL] {url} -> {resp.status}")
@@ -595,11 +644,12 @@ async def verify_and_track_page(
 
 # ─── IMP-6: Content registry helpers (deduplication) ─────────────────────
 
+
 def generate_slug(title: str) -> str:
     """Генерирует URL-friendly slug из заголовка."""
-    slug = re.sub(r'[^\w\s-]', '', title.lower())
-    slug = re.sub(r'[-\s]+', '-', slug)
-    return slug.strip('-')
+    slug = re.sub(r"[^\w\s-]", "", title.lower())
+    slug = re.sub(r"[-\s]+", "-", slug)
+    return slug.strip("-")
 
 
 def is_duplicate_title(new_title: str, existing_titles: list, threshold: float = 0.7) -> bool:

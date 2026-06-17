@@ -16,8 +16,8 @@ import sys
 from datetime import datetime
 
 import aiohttp
-import redis.asyncio as aioredis
 import asyncpg
+import redis.asyncio as aioredis
 
 # ═══ Настройки ════════════════════════════════════════════════════════
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
@@ -46,6 +46,7 @@ def is_allowed(user_id: str) -> bool:
 
 # ═══ Telegram API helpers ═════════════════════════════════════════════
 
+
 async def api_post(method: str, payload: dict) -> dict:
     url = f"{API_BASE}/{method}"
     async with aiohttp.ClientSession() as session:
@@ -62,7 +63,12 @@ async def send_message(chat_id: str, text: str, parse_mode: str = "Markdown", re
 
 
 async def edit_message_text(chat_id: str, message_id: int, text: str, reply_markup: dict = None) -> bool:
-    payload = {"chat_id": chat_id, "message_id": message_id, "text": text[:4096], "parse_mode": "Markdown"}
+    payload = {
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "text": text[:4096],
+        "parse_mode": "Markdown",
+    }
     if reply_markup:
         payload["reply_markup"] = reply_markup
     data = await api_post("editMessageText", payload)
@@ -74,6 +80,7 @@ async def send_typing(chat_id: str):
 
 
 # ═══ Keyboards ════════════════════════════════════════════════════════
+
 
 def main_menu_keyboard() -> dict:
     """Главное меню — 2 кнопки в ряд"""
@@ -99,10 +106,12 @@ def agents_menu_keyboard() -> dict:
     """Меню управления отдельными агентами"""
     keyboard = []
     for name, label in AGENTS:
-        keyboard.append([
-            {"text": f"▶ {label}", "callback_data": f"run:{name}"},
-            {"text": f"⏸ {label}", "callback_data": f"pause:{name}"},
-        ])
+        keyboard.append(
+            [
+                {"text": f"▶ {label}", "callback_data": f"run:{name}"},
+                {"text": f"⏸ {label}", "callback_data": f"pause:{name}"},
+            ]
+        )
     keyboard.append([{"text": "🔙 Назад", "callback_data": "main_menu"}])
     return {"inline_keyboard": keyboard}
 
@@ -145,13 +154,17 @@ async def redis_run_now(agent: str):
 
 # ═══ Handlers ═════════════════════════════════════════════════════════
 
+
 async def handle_status(chat_id: str, edit_msg_id: int = None):
     lines = ["📊 *Статус системы*\n\n"]
 
     try:
         proc = await asyncio.create_subprocess_exec(
-            "systemctl", "is-active", "smart-skidka-agents",
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            "systemctl",
+            "is-active",
+            "smart-skidka-agents",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
         stdout, _ = await proc.communicate()
         status = stdout.decode().strip()
@@ -162,14 +175,12 @@ async def handle_status(chat_id: str, edit_msg_id: int = None):
 
     try:
         conn = await asyncpg.connect(DB_URL)
-        rows = await conn.fetch(
-            """
+        rows = await conn.fetch("""
             SELECT agent_name, cycle_id, timestamp, validation_score, data
             FROM agent_results
             ORDER BY timestamp DESC
             LIMIT 10
-            """
-        )
+            """)
         await conn.close()
 
         if rows:
@@ -255,8 +266,14 @@ async def handle_run_all(chat_id: str, edit_msg_id: int = None):
 async def handle_logs(chat_id: str, lines_count: int = 20, edit_msg_id: int = None):
     try:
         proc = await asyncio.create_subprocess_exec(
-            "journalctl", "-u", "smart-skidka-agents", "-n", str(lines_count), "--no-pager",
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            "journalctl",
+            "-u",
+            "smart-skidka-agents",
+            "-n",
+            str(lines_count),
+            "--no-pager",
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
         stdout, _ = await proc.communicate()
         logs = stdout.decode()
@@ -308,6 +325,7 @@ async def handle_main_menu(chat_id: str, edit_msg_id: int):
 
 
 # ═══ Message / Callback router ════════════════════════════════════════
+
 
 async def process_update(update: dict):
     # Callback query (inline buttons)
@@ -381,6 +399,7 @@ async def process_update(update: dict):
 
 # ═══ Polling loop ═════════════════════════════════════════════════════
 
+
 async def report_poller_task():
     """Фоновая задача: читает БД и отправляет отчёты о новых циклах."""
     last_cycle_id = ""
@@ -388,14 +407,12 @@ async def report_poller_task():
         try:
             await asyncio.sleep(60)  # проверяем каждую минуту
             conn = await asyncpg.connect(DB_URL)
-            row = await conn.fetchrow(
-                """
+            row = await conn.fetchrow("""
                 SELECT cycle_id, timestamp, data
                 FROM orchestrator_cycles
                 ORDER BY timestamp DESC
                 LIMIT 1
-                """
-            )
+                """)
             if not row:
                 await conn.close()
                 continue

@@ -30,17 +30,19 @@ import base64
 import json
 import os
 import secrets
-import structlog
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+import structlog
+
 try:
-    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
     CRYPTO_AVAILABLE = True
 except ImportError:
     CRYPTO_AVAILABLE = False
@@ -65,16 +67,17 @@ KEY_LENGTH = 32  # 256 bits
 # Role-based access control
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class Role(str, Enum):
-    READ = "read"       # Can read non-sensitive secrets
-    WRITE = "write"     # Can read/write secrets
-    ADMIN = "admin"     # Full access including master key ops
+    READ = "read"  # Can read non-sensitive secrets
+    WRITE = "write"  # Can read/write secrets
+    ADMIN = "admin"  # Full access including master key ops
 
 
 class SecretLevel(str, Enum):
-    STANDARD = "standard"   # Regular config values
+    STANDARD = "standard"  # Regular config values
     SENSITIVE = "sensitive"  # API keys, tokens
-    CRITICAL = "critical"   # Master key, DB credentials
+    CRITICAL = "critical"  # Master key, DB credentials
 
 
 ROLE_ACCESS: Dict[Role, Set[SecretLevel]] = {
@@ -87,6 +90,7 @@ ROLE_ACCESS: Dict[Role, Set[SecretLevel]] = {
 # ═══════════════════════════════════════════════════════════════════════════════
 # Audit logging
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 @dataclass
 class AuditEntry:
@@ -101,14 +105,11 @@ class AuditEntry:
 class AuditLog:
     """In-memory audit log with file persistence."""
 
-    def __init__(self, max_entries: int = 1000,
-                 audit_file: Optional[Path] = None):
+    def __init__(self, max_entries: int = 1000, audit_file: Optional[Path] = None):
         self._entries: List[AuditEntry] = []
         self._max_entries = max_entries
         # P1-17: Персистентный audit log
-        self._audit_file = audit_file or Path(
-            os.getenv("AUDIT_LOG_FILE", "logs/audit.log")
-        )
+        self._audit_file = audit_file or Path(os.getenv("AUDIT_LOG_FILE", "logs/audit.log"))
         self._lock = asyncio.Lock()
         self._load_from_file()
 
@@ -124,19 +125,21 @@ class AuditLog:
                         continue
                     try:
                         data = json.loads(line)
-                        self._entries.append(AuditEntry(
-                            timestamp=data.get("timestamp", ""),
-                            action=data.get("action", ""),
-                            key=data.get("key", ""),
-                            role=data.get("role", ""),
-                            success=data.get("success", False),
-                            error=data.get("error"),
-                        ))
+                        self._entries.append(
+                            AuditEntry(
+                                timestamp=data.get("timestamp", ""),
+                                action=data.get("action", ""),
+                                key=data.get("key", ""),
+                                role=data.get("role", ""),
+                                success=data.get("success", False),
+                                error=data.get("error"),
+                            )
+                        )
                     except (json.JSONDecodeError, KeyError):
                         continue
             # Ограничиваем размер
             if len(self._entries) > self._max_entries:
-                self._entries = self._entries[-self._max_entries:]
+                self._entries = self._entries[-self._max_entries :]
         except Exception as e:
             logger.warning("Failed to load audit log", error=str(e))
 
@@ -144,21 +147,30 @@ class AuditLog:
         """P1-17: Дописывает entry в audit log файл."""
         try:
             self._audit_file.parent.mkdir(parents=True, exist_ok=True)
-            line = json.dumps({
-                "timestamp": entry.timestamp,
-                "action": entry.action,
-                "key": entry.key,
-                "role": entry.role,
-                "success": entry.success,
-                "error": entry.error,
-            }, ensure_ascii=False)
+            line = json.dumps(
+                {
+                    "timestamp": entry.timestamp,
+                    "action": entry.action,
+                    "key": entry.key,
+                    "role": entry.role,
+                    "success": entry.success,
+                    "error": entry.error,
+                },
+                ensure_ascii=False,
+            )
             with open(self._audit_file, "a", encoding="utf-8") as f:
                 f.write(line + "\n")
         except Exception as e:
             logger.warning("Failed to write audit log", error=str(e))
 
-    def record(self, action: str, key: str, role: str, success: bool,
-               error: Optional[str] = None) -> None:
+    def record(
+        self,
+        action: str,
+        key: str,
+        role: str,
+        success: bool,
+        error: Optional[str] = None,
+    ) -> None:
         entry = AuditEntry(
             timestamp=datetime.now(timezone.utc).isoformat(),
             action=action,
@@ -169,7 +181,7 @@ class AuditLog:
         )
         self._entries.append(entry)
         if len(self._entries) > self._max_entries:
-            self._entries = self._entries[-self._max_entries:]
+            self._entries = self._entries[-self._max_entries :]
         # P1-17: Асинхронно пишем в файл
         try:
             loop = asyncio.get_running_loop()
@@ -178,8 +190,9 @@ class AuditLog:
             # Нет running loop — пропускаем async запись
             pass
 
-    def get_entries(self, key: Optional[str] = None, action: Optional[str] = None,
-                    limit: int = 100) -> List[Dict[str, Any]]:
+    def get_entries(
+        self, key: Optional[str] = None, action: Optional[str] = None, limit: int = 100
+    ) -> List[Dict[str, Any]]:
         entries = self._entries
         if key:
             entries = [e for e in entries if e.key == key]
@@ -201,6 +214,7 @@ class AuditLog:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Crypto engine
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class CryptoEngine:
     """AES-256-GCM encryption with PBKDF2 key derivation."""
@@ -244,6 +258,7 @@ class CryptoEngine:
 # Secrets storage
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class SecretEntry:
     value: str
@@ -257,8 +272,7 @@ class SecretEntry:
 class SecretsManager:
     """Encrypted secrets storage with role-based access."""
 
-    def __init__(self, secrets_file: Optional[Path] = None,
-                 master_key: Optional[bytes] = None):
+    def __init__(self, secrets_file: Optional[Path] = None, master_key: Optional[bytes] = None):
         self._file = secrets_file or SECRETS_FILE
         self._audit = AuditLog()
         self._secrets: Dict[str, SecretEntry] = {}
@@ -276,9 +290,7 @@ class SecretsManager:
     def _init_crypto(self) -> CryptoEngine:
         """Initialize crypto engine from env or file."""
         if not CRYPTO_AVAILABLE:
-            raise RuntimeError(
-                "cryptography library required. Install: pip install cryptography"
-            )
+            raise RuntimeError("cryptography library required. Install: pip install cryptography")
 
         # Try env first
         key_hex = os.getenv(MASTER_KEY_ENV)
@@ -365,8 +377,7 @@ class SecretsManager:
         self._dirty = False
         logger.info("Secrets saved", count=len(self._secrets), path=str(self._file))
 
-    def get(self, key: str, role: Role = Role.READ,
-            default: Optional[str] = None) -> Optional[str]:
+    def get(self, key: str, role: Role = Role.READ, default: Optional[str] = None) -> Optional[str]:
         """Get secret value with role check."""
         entry = self._secrets.get(key)
         if not entry:
@@ -377,16 +388,21 @@ class SecretsManager:
         allowed_levels = ROLE_ACCESS.get(role, set())
         if entry.level not in allowed_levels:
             self._audit.record("read", key, role.value, False, "Insufficient role")
-            logger.warning("Access denied", key=key, role=role.value,
-                           level=entry.level.value)
+            logger.warning("Access denied", key=key, role=role.value, level=entry.level.value)
             return default
 
         self._audit.record("read", key, role.value, True)
         return entry.value
 
-    def set(self, key: str, value: str, role: Role = Role.WRITE,
-            level: SecretLevel = SecretLevel.SENSITIVE,
-            description: str = "", tags: Optional[List[str]] = None) -> bool:
+    def set(
+        self,
+        key: str,
+        value: str,
+        role: Role = Role.WRITE,
+        level: SecretLevel = SecretLevel.SENSITIVE,
+        description: str = "",
+        tags: Optional[List[str]] = None,
+    ) -> bool:
         """Set secret value with role check."""
         # Check role can write this level
         allowed_levels = ROLE_ACCESS.get(role, set())
@@ -479,22 +495,27 @@ class SecretsManager:
             if v.level in allowed_levels
         ]
 
-    def get_audit_log(self, key: Optional[str] = None,
-                      action: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+    def get_audit_log(
+        self, key: Optional[str] = None, action: Optional[str] = None, limit: int = 100
+    ) -> List[Dict[str, Any]]:
         """Get audit log entries."""
         return self._audit.get_entries(key, action, limit)
 
-    def migrate_from_env(self, keys: Optional[List[str]] = None,
-                         role: Role = Role.ADMIN) -> Dict[str, bool]:
+    def migrate_from_env(self, keys: Optional[List[str]] = None, role: Role = Role.ADMIN) -> Dict[str, bool]:
         """Migrate secrets from environment variables to encrypted storage."""
         if role != Role.ADMIN:
             return {}
 
         if keys is None:
             keys = [
-                "LLM_API_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
-                "TELEGRAM_CHANNEL_ID", "DATABASE_URL", "REDIS_URL",
-                "YANDEX_METRIKA_TOKEN", "DASHBOARD_API_KEY",
+                "LLM_API_KEY",
+                "TELEGRAM_BOT_TOKEN",
+                "TELEGRAM_CHAT_ID",
+                "TELEGRAM_CHANNEL_ID",
+                "DATABASE_URL",
+                "REDIS_URL",
+                "YANDEX_METRIKA_TOKEN",
+                "DASHBOARD_API_KEY",
             ]
 
         results = {}
@@ -502,8 +523,13 @@ class SecretsManager:
             value = os.getenv(key)
             if value:
                 level = SecretLevel.CRITICAL if "URL" in key or "DB" in key else SecretLevel.SENSITIVE
-                success = self.set(key, value, role=Role.ADMIN, level=level,
-                                   description=f"Migrated from env on {datetime.now(timezone.utc).isoformat()}")
+                success = self.set(
+                    key,
+                    value,
+                    role=Role.ADMIN,
+                    level=level,
+                    description=f"Migrated from env on {datetime.now(timezone.utc).isoformat()}",
+                )
                 results[key] = success
                 if success:
                     logger.info("Migrated secret from env", key=key)
@@ -526,9 +552,12 @@ def get_manager() -> SecretsManager:
     return _manager
 
 
-def get_secret(key: str, default: Optional[str] = None,
-               role: str = "read",
-               allow_env_fallback: bool = False) -> Optional[str]:
+def get_secret(
+    key: str,
+    default: Optional[str] = None,
+    role: str = "read",
+    allow_env_fallback: bool = False,
+) -> Optional[str]:
     """
     Drop-in replacement for os.getenv() with encryption.
 
@@ -556,12 +585,18 @@ def get_secret(key: str, default: Optional[str] = None,
     return default
 
 
-def set_secret(key: str, value: str, role: str = "admin",
-               level: str = "sensitive", description: str = "") -> bool:
+def set_secret(
+    key: str,
+    value: str,
+    role: str = "admin",
+    level: str = "sensitive",
+    description: str = "",
+) -> bool:
     """Set secret in encrypted storage."""
     manager = get_manager()
     return manager.set(
-        key, value,
+        key,
+        value,
         role=Role(role),
         level=SecretLevel(level),
         description=description,
@@ -592,8 +627,9 @@ def migrate_env_secrets(role: str = "admin") -> Dict[str, bool]:
     return manager.migrate_from_env(role=Role(role))
 
 
-def get_audit_entries(key: Optional[str] = None, action: Optional[str] = None,
-                      limit: int = 100) -> List[Dict[str, Any]]:
+def get_audit_entries(
+    key: Optional[str] = None, action: Optional[str] = None, limit: int = 100
+) -> List[Dict[str, Any]]:
     """Get audit log."""
     manager = get_manager()
     return manager.get_audit_log(key, action, limit)

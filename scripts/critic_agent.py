@@ -36,6 +36,7 @@ logger = structlog.get_logger("critic_agent")
 # Data classes
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 class CriticSeverity(str, Enum):
     INFO = "info"
     WARNING = "warning"
@@ -46,6 +47,7 @@ class CriticSeverity(str, Enum):
 @dataclass
 class CriticFinding:
     """Одна находка аудита."""
+
     check_name: str
     severity: CriticSeverity
     message: str
@@ -65,6 +67,7 @@ class CriticFinding:
 @dataclass
 class CriticReport:
     """Итоговый отчёт аудита цикла."""
+
     cycle_id: str
     overall_score: float  # 0.0 – 1.0
     findings: List[CriticFinding]
@@ -90,6 +93,7 @@ class CriticReport:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Plan Adherence Checker
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class PlanAdherenceChecker:
     """
@@ -179,6 +183,7 @@ class PlanAdherenceChecker:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Argument Hallucination Detector
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class HallucinationDetector:
     """
@@ -274,9 +279,7 @@ class HallucinationDetector:
         keywords_count = data.get("keywords_count")
         if isinstance(keywords, list) and keywords_count is not None:
             if len(keywords) != keywords_count:
-                contradictions.append(
-                    f"keywords_count ({keywords_count}) != len(keywords) ({len(keywords)})"
-                )
+                contradictions.append(f"keywords_count ({keywords_count}) != len(keywords) ({len(keywords)})")
         return contradictions
 
     def _flatten(self, obj: Any, prefix: str = "") -> Dict[str, Any]:
@@ -303,6 +306,7 @@ class HallucinationDetector:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Escalation Quality Assessor
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class EscalationQualityAssessor:
     """
@@ -386,9 +390,7 @@ class EscalationQualityAssessor:
 
         # Проверка повторяющихся ошибок
         if previous_results:
-            repeat_findings = self._check_repeated_errors(
-                agent_name, error, previous_results
-            )
+            repeat_findings = self._check_repeated_errors(agent_name, error, previous_results)
             findings.extend(repeat_findings)
 
         return findings
@@ -430,6 +432,7 @@ class EscalationQualityAssessor:
 # ═══════════════════════════════════════════════════════════════════════════════
 # Critic Agent — thread-safe singleton
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 class CriticAgent:
     """
@@ -519,9 +522,7 @@ class CriticAgent:
 
         return findings
 
-    def _calculate_overall_score(
-        self, findings: List[CriticFinding], cycle_results: List[Dict[str, Any]]
-    ) -> float:
+    def _calculate_overall_score(self, findings: List[CriticFinding], cycle_results: List[Dict[str, Any]]) -> float:
         """
         Вычисляет общий score аудита.
 
@@ -548,9 +549,7 @@ class CriticAgent:
         score += info_bonus
         return max(0.0, min(1.0, round(score, 3)))
 
-    def _build_summary(
-        self, findings: List[CriticFinding], cycle_results: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    def _build_summary(self, findings: List[CriticFinding], cycle_results: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Строит сводку по аудиту."""
         severity_counts = {
             "critical": len(self._filter_by_severity(findings, CriticSeverity.CRITICAL)),
@@ -569,7 +568,11 @@ class CriticAgent:
             "agents_audited": len(cycle_results),
             "severity_counts": severity_counts,
             "agent_scores": agent_scores,
-            "checks_performed": ["plan_adherence", "hallucination", "escalation_quality"],
+            "checks_performed": [
+                "plan_adherence",
+                "hallucination",
+                "escalation_quality",
+            ],
         }
 
     def _calculate_agent_score(self, findings: List[CriticFinding]) -> float:
@@ -587,9 +590,7 @@ class CriticAgent:
         score += info_bonus
         return max(0.0, min(1.0, round(score, 3)))
 
-    def _filter_by_severity(
-        self, findings: List[CriticFinding], severity: CriticSeverity
-    ) -> List[CriticFinding]:
+    def _filter_by_severity(self, findings: List[CriticFinding], severity: CriticSeverity) -> List[CriticFinding]:
         return [f for f in findings if f.severity == severity]
 
     def _extract_agent_history(

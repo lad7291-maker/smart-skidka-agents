@@ -14,7 +14,6 @@ P1-1: Выделен из Orchestrator.
 """
 
 from __future__ import annotations
-from scripts.services._shared import _get_agent_type
 
 import asyncio
 import os
@@ -23,6 +22,8 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+from scripts.services._shared import _get_agent_type
 
 if False:  # noqa: F821 workaround — flake8 doesn't see nested imports
     from scripts.orchestrator import AgentConfig, AgentRunner, LLMClient
@@ -44,12 +45,8 @@ class CycleManager:
         redis_url: Optional[str] = None,
     ) -> None:
         self.config_path: str = config_path
-        self.db_url: str = db_url or os.getenv(
-            "DATABASE_URL", "postgresql://user:pass@localhost/agents"
-        )
-        self.redis_url: str = redis_url or os.getenv(
-            "REDIS_URL", "redis://localhost:6379"
-        )
+        self.db_url: str = db_url or os.getenv("DATABASE_URL", "postgresql://user:pass@localhost/agents")
+        self.redis_url: str = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379")
 
         self.llm_client: Optional["Any"] = None
         self.memory: Optional["Any"] = None
@@ -70,7 +67,13 @@ class CycleManager:
     async def initialize(self) -> None:
         """Инициализирует все компоненты."""
         # P1-1: Ленивый импорт для избежания циклических зависимостей
-        from scripts.orchestrator import LLMClient, MemoryStore, ResultValidator, AgentConfig, AgentRunner
+        from scripts.orchestrator import (
+            AgentConfig,
+            AgentRunner,
+            LLMClient,
+            MemoryStore,
+            ResultValidator,
+        )
 
         self.logger.info("Инициализация CycleManager")
 
@@ -115,7 +118,7 @@ class CycleManager:
 
                 agent_model = os.getenv(
                     f"{agent_name.upper().replace('-', '_')}_MODEL",
-                    os.getenv("DEFAULT_LLM_MODEL", DEFAULT_LLM_MODEL)
+                    os.getenv("DEFAULT_LLM_MODEL", DEFAULT_LLM_MODEL),
                 )
                 agent_llm = LLMClient(
                     api_key=os.getenv("LLM_API_KEY"),
@@ -166,7 +169,8 @@ class CycleManager:
             async with pool.acquire() as conn:
                 await conn.execute(
                     "INSERT INTO orchestrator_cycles (cycle_id, agents_count) VALUES ($1, $2)",
-                    cycle_id, len(self.agents),
+                    cycle_id,
+                    len(self.agents),
                 )
 
         # P1-2: Параллельный запуск агентов через asyncio.gather() с Semaphore
@@ -204,10 +208,18 @@ class CycleManager:
                     }
 
         # Группируем по приоритету
-        priority_order = {"trend": 0, "seo": 1, "smm": 1, "performance": 1, "analytics": 2, "email": 3, "content": 4}
+        priority_order = {
+            "trend": 0,
+            "seo": 1,
+            "smm": 1,
+            "performance": 1,
+            "analytics": 2,
+            "email": 3,
+            "content": 4,
+        }
         sorted_agents = sorted(
             self.agents,
-            key=lambda a: priority_order.get(_get_agent_type(a.agent_name), 99)
+            key=lambda a: priority_order.get(_get_agent_type(a.agent_name), 99),
         )
 
         # Запускаем всех параллельно (с семафором на N одновременных)
@@ -258,11 +270,13 @@ class CycleManager:
 
         # Отправка сводки
         if self.reporter:
-            await self.reporter.send_summary({
-                "cycle_id": cycle_id,
-                "results": cycle_results,
-                "duration_ms": cycle_duration,
-            })
+            await self.reporter.send_summary(
+                {
+                    "cycle_id": cycle_id,
+                    "results": cycle_results,
+                    "duration_ms": cycle_duration,
+                }
+            )
 
         self.logger.info(
             "=== ЦИКЛ ЗАВЕРШЁН ===",
@@ -356,9 +370,7 @@ class CycleManager:
 
             # Trend recommendations
             if agent_name == "trend_agent" and validation.is_valid:
-                dispatch_result = await task_dispatcher.dispatch_trend_recommendations(
-                    result["data"]
-                )
+                dispatch_result = await task_dispatcher.dispatch_trend_recommendations(result["data"])
                 self.logger.info("trend_recommendations_dispatched", **dispatch_result)
 
             # Analytics tasks
@@ -371,7 +383,9 @@ class CycleManager:
             await self.memory.save_result(agent_name, result, f"cycle-{datetime.now().strftime('%Y%m%d-%H%M%S')}")
             if "validation_result" in result:
                 await self.memory.update_validation_status(
-                    agent_name, f"cycle-{datetime.now().strftime('%Y%m%d-%H%M%S')}", result["validation_result"]
+                    agent_name,
+                    f"cycle-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+                    result["validation_result"],
                 )
 
         # Actions
@@ -429,13 +443,20 @@ class CycleManager:
             rows = await conn.fetch(
                 """SELECT cycle_id, created_at, validation_score, validation_errors, status, result, execution_time_ms
                     FROM agent_results WHERE agent_name = $1 ORDER BY created_at DESC LIMIT $2""",
-                agent_name, limit,
+                agent_name,
+                limit,
             )
 
         if not rows:
             return None
 
-        runs, high_scores, low_scores, error_patterns, action_history = [], [], [], {}, []
+        runs, high_scores, low_scores, error_patterns, action_history = (
+            [],
+            [],
+            [],
+            {},
+            [],
+        )
         for row in rows:
             score = row["validation_score"] or 0.0
             status = row["status"] or "unknown"
@@ -451,7 +472,7 @@ class CycleManager:
 
             run_info = {
                 "cycle_id": str(row["cycle_id"]),
-                "timestamp": row["created_at"].isoformat() if row["created_at"] else None,
+                "timestamp": (row["created_at"].isoformat() if row["created_at"] else None),
                 "validation_score": score,
                 "status": status,
                 "execution_time_ms": row["execution_time_ms"],
@@ -472,24 +493,30 @@ class CycleManager:
 
         patterns = []
         if high_scores:
-            patterns.append({
-                "type": "success_pattern",
-                "message": f"{len(high_scores)} из {len(runs)} запусков с высоким score (≥0.8)",
-                "count": len(high_scores),
-            })
+            patterns.append(
+                {
+                    "type": "success_pattern",
+                    "message": f"{len(high_scores)} из {len(runs)} запусков с высоким score (≥0.8)",
+                    "count": len(high_scores),
+                }
+            )
         if low_scores:
-            patterns.append({
-                "type": "failure_pattern",
-                "message": f"{len(low_scores)} из {len(runs)} запусков с низким score (<0.5) или failed",
-                "count": len(low_scores),
-            })
+            patterns.append(
+                {
+                    "type": "failure_pattern",
+                    "message": f"{len(low_scores)} из {len(runs)} запусков с низким score (<0.5) или failed",
+                    "count": len(low_scores),
+                }
+            )
         if error_patterns:
             for err_key, count in sorted(error_patterns.items(), key=lambda x: x[1], reverse=True)[:2]:
-                patterns.append({
-                    "type": "recurring_error",
-                    "message": f"Ошибка повторяется {count} раз(а): {err_key}...",
-                    "count": count,
-                })
+                patterns.append(
+                    {
+                        "type": "recurring_error",
+                        "message": f"Ошибка повторяется {count} раз(а): {err_key}...",
+                        "count": count,
+                    }
+                )
 
         recommendations = []
         if len(low_scores) > len(high_scores):
@@ -504,7 +531,7 @@ class CycleManager:
             "patterns": patterns,
             "recommendations": recommendations,
             "action_history": action_history[:5],
-            "avg_score": round(sum(r["validation_score"] for r in runs) / len(runs), 3) if runs else 0.0,
+            "avg_score": (round(sum(r["validation_score"] for r in runs) / len(runs), 3) if runs else 0.0),
         }
 
     async def handle_failure(

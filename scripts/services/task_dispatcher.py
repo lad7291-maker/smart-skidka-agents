@@ -71,7 +71,7 @@ class TaskDispatcher:
                     trend_result.get("confidence"),
                     trend_result.get("title"),
                     trend_result.get("description"),
-                    json.dumps(trend_result.get("metrics", {})) if trend_result.get("metrics") else None,
+                    (json.dumps(trend_result.get("metrics", {})) if trend_result.get("metrics") else None),
                 )
 
                 task = {
@@ -118,13 +118,15 @@ class TaskDispatcher:
                     }
                     target_agent = agent_map.get(target, target)
                     if target_agent in AGENT_NAMES and target_agent != "analytics_agent":
-                        tasks.append({
-                            "target_agent": target_agent,
-                            "title": rec.get("problem", rec.get("title", "")),
-                            "description": f"{rec.get('cause', '')}\n\nДействие: {rec.get('action', '')}",
-                            "priority": "medium",
-                            "metrics": rec.get("expected_effect", {}),
-                        })
+                        tasks.append(
+                            {
+                                "target_agent": target_agent,
+                                "title": rec.get("problem", rec.get("title", "")),
+                                "description": f"{rec.get('cause', '')}\n\nДействие: {rec.get('action', '')}",
+                                "priority": "medium",
+                                "metrics": rec.get("expected_effect", {}),
+                            }
+                        )
 
         if not tasks:
             return 0
@@ -150,7 +152,7 @@ class TaskDispatcher:
                     task.get("description", "")[:2000],
                     task.get("priority", "medium"),
                     task.get("deadline"),
-                    json.dumps(task.get("metrics", {})) if task.get("metrics") else None,
+                    (json.dumps(task.get("metrics", {})) if task.get("metrics") else None),
                 )
                 saved_count += 1
 
@@ -183,9 +185,7 @@ class TaskDispatcher:
                 return
 
             # Помечаем только конкретные выполненные действия
-            await self.memory.mark_trend_recommendations_completed(
-                agent_name, completed_actions
-            )
+            await self.memory.mark_trend_recommendations_completed(agent_name, completed_actions)
             self.logger.info(
                 "trend_recommendations_marked_completed",
                 agent=agent_name,
@@ -198,13 +198,10 @@ class TaskDispatcher:
             if analytics_tasks:
                 # Помечаем только задачи, связанные с выполненными действиями
                 completed_titles = [
-                    t["title"] for t in analytics_tasks
-                    if any(a in t.get("description", "") for a in completed_actions)
+                    t["title"] for t in analytics_tasks if any(a in t.get("description", "") for a in completed_actions)
                 ]
                 if completed_titles:
-                    await self.memory.mark_analytics_tasks_completed(
-                        agent_name, completed_titles
-                    )
+                    await self.memory.mark_analytics_tasks_completed(agent_name, completed_titles)
                     self.logger.info(
                         "analytics_tasks_marked_completed",
                         agent=agent_name,

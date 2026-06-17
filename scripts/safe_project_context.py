@@ -1,8 +1,9 @@
-from scripts.project_context import ProjectContext
+import logging
 import os
 from pathlib import Path
-from typing import Dict, List, Any
-import logging
+from typing import Any, Dict, List
+
+from scripts.project_context import ProjectContext
 
 logger = logging.getLogger("project_context")
 
@@ -17,13 +18,11 @@ PROTECTED_PATHS = {
     "app.js": "CORE_SITE",
     "css/style.css": "CORE_SITE",
     "products.json": "CORE_SITE",
-
     # Существующие категории — readonly
     "category/Гайды и советы.html": "EXISTING",
     "category/Гиды по экономии.html": "EXISTING",
     "category/Советы покупателям.html": "EXISTING",
     "category/guides.html": "EXISTING",
-
     # Служебные
     "sitemap.xml": "SERVICE",
     "robots.txt": "SERVICE",
@@ -31,7 +30,6 @@ PROTECTED_PATHS = {
     "contact.html": "EXISTING",
     "privacy.html": "EXISTING",
     "terms.html": "EXISTING",
-
     # Иконки
     "icons/": "ASSETS",
     "images/": "ASSETS",
@@ -41,13 +39,13 @@ PROTECTED_PATHS = {
 # SAFE ZONES — МОЖНО СОЗДАВАТЬ/ПЕРЕЗАПИСЫВАТЬ
 # ═══════════════════════════════════════════════════════
 SAFE_ZONES = [
-    "guides/",           # Новые гайды и статьи
-    "category/new-",     # Новые категории (префикс new-)
-    "landing/",          # Лендинги для трафика
-    "blog/",             # Блог-посты
-    "reviews/",          # Обзоры товаров
-    "comparisons/",      # Сравнения
-    "seasonal/",         # Сезонные подборки
+    "guides/",  # Новые гайды и статьи
+    "category/new-",  # Новые категории (префикс new-)
+    "landing/",  # Лендинги для трафика
+    "blog/",  # Блог-посты
+    "reviews/",  # Обзоры товаров
+    "comparisons/",  # Сравнения
+    "seasonal/",  # Сезонные подборки
 ]
 
 

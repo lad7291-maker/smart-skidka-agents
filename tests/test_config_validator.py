@@ -8,15 +8,15 @@ import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, '/opt/smart-skidka-agents')
-sys.path.insert(0, '/opt/smart-skidka-agents/scripts')
+sys.path.insert(0, "/opt/smart-skidka-agents")
+sys.path.insert(0, "/opt/smart-skidka-agents/scripts")
 
 from scripts.config_validator import (
-    validate_agent_config,
-    validate_config_file,
     ConfigError,
     _minimal_validation,
     _semantic_validation,
+    validate_agent_config,
+    validate_config_file,
 )
 
 
@@ -31,13 +31,23 @@ class TestValidateAgentConfig(unittest.TestCase):
             "enabled": True,
             "system_prompt": "You are a test agent.",
             "schedule": {"interval": 3600, "enabled": True, "run_once": False},
-            "llm_settings": {"model": "deepseek-chat", "temperature": 0.7, "max_tokens": 2048},
+            "llm_settings": {
+                "model": "deepseek-chat",
+                "temperature": 0.7,
+                "max_tokens": 2048,
+            },
             "validation_rules": {
                 "required_fields": ["title"],
                 "min_score": 0.7,
                 "max_execution_time": 30000,
             },
-            "actions": [{"name": "test_action", "input_map": {"key": "value"}, "condition": "has_key"}],
+            "actions": [
+                {
+                    "name": "test_action",
+                    "input_map": {"key": "value"},
+                    "condition": "has_key",
+                }
+            ],
         }
         base.update(overrides)
         return base
@@ -121,10 +131,12 @@ class TestValidateAgentConfig(unittest.TestCase):
 
     def test_duplicate_action_names(self):
         """Дублирующиеся имена action — ошибка."""
-        config = self._valid_config(actions=[
-            {"name": "action1"},
-            {"name": "action1"},
-        ])
+        config = self._valid_config(
+            actions=[
+                {"name": "action1"},
+                {"name": "action1"},
+            ]
+        )
         with self.assertRaises(ConfigError) as ctx:
             validate_agent_config(config)
         self.assertIn("Duplicate", str(ctx.exception))
@@ -162,11 +174,13 @@ class TestMinimalValidation(unittest.TestCase):
     def test_wrong_type(self):
         """Неверный тип."""
         with self.assertRaises(ConfigError):
-            _minimal_validation({
-                "agent_name": 123,
-                "version": "1.0.0",
-                "system_prompt": "test",
-            })
+            _minimal_validation(
+                {
+                    "agent_name": 123,
+                    "version": "1.0.0",
+                    "system_prompt": "test",
+                }
+            )
 
 
 class TestConfigFileValidation(unittest.TestCase):
@@ -185,6 +199,7 @@ class TestConfigFileValidation(unittest.TestCase):
     def test_invalid_json(self):
         """Невалидный JSON."""
         import tempfile
+
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write("{not json")
             path = Path(f.name)

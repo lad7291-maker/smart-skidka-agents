@@ -6,20 +6,20 @@
 
 import sys
 import unittest
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
 
-sys.path.insert(0, '/opt/smart-skidka-agents')
-sys.path.insert(0, '/opt/smart-skidka-agents/scripts')
+sys.path.insert(0, "/opt/smart-skidka-agents")
+sys.path.insert(0, "/opt/smart-skidka-agents/scripts")
 
 from scripts.actions.site_actions import (
-    check_category_page_quota,
-    record_category_page_creation,
-    get_quota_status,
     DAILY_CATEGORY_PAGE_LIMIT,
+    _cleanup_old_entries,
     _load_quota_tracker,
     _save_quota_tracker,
-    _cleanup_old_entries,
+    check_category_page_quota,
+    get_quota_status,
+    record_category_page_creation,
 )
 
 
@@ -42,7 +42,7 @@ class TestFileQuotas(unittest.TestCase):
         # Заполняем квоту
         for i in range(DAILY_CATEGORY_PAGE_LIMIT):
             record_category_page_creation(f"page-{i}.html")
-        
+
         allowed, reason, tracker = check_category_page_quota()
         self.assertFalse(allowed)
         self.assertIn("limit reached", reason.lower())
@@ -51,7 +51,7 @@ class TestFileQuotas(unittest.TestCase):
         """Запись создания обновляет tracker."""
         result = record_category_page_creation("test-category.html")
         self.assertTrue(result)
-        
+
         tracker = _load_quota_tracker()
         self.assertEqual(len(tracker["created_pages"]), 1)
         self.assertEqual(tracker["created_pages"][0]["page"], "test-category.html")
@@ -60,7 +60,10 @@ class TestFileQuotas(unittest.TestCase):
         """Старые записи (>24ч) удаляются."""
         tracker = {
             "created_pages": [
-                {"page": "old.html", "timestamp": (datetime.now() - timedelta(hours=25)).isoformat()},
+                {
+                    "page": "old.html",
+                    "timestamp": (datetime.now() - timedelta(hours=25)).isoformat(),
+                },
                 {"page": "new.html", "timestamp": datetime.now().isoformat()},
             ]
         }
@@ -80,7 +83,7 @@ class TestFileQuotas(unittest.TestCase):
         """Оставшиеся страницы считаются правильно."""
         for i in range(3):
             record_category_page_creation(f"page-{i}.html")
-        
+
         status = get_quota_status()
         self.assertEqual(status["created_pages_today"], 3)
         self.assertEqual(status["remaining_category_pages"], DAILY_CATEGORY_PAGE_LIMIT - 3)
@@ -90,11 +93,14 @@ class TestFileQuotas(unittest.TestCase):
         # Создаём старую запись
         tracker = {
             "created_pages": [
-                {"page": "old.html", "timestamp": (datetime.now() - timedelta(hours=25)).isoformat()},
+                {
+                    "page": "old.html",
+                    "timestamp": (datetime.now() - timedelta(hours=25)).isoformat(),
+                },
             ]
         }
         _save_quota_tracker(tracker)
-        
+
         # Проверяем — должно быть разрешено
         allowed, reason, _ = check_category_page_quota()
         self.assertTrue(allowed)

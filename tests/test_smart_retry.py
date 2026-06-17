@@ -7,14 +7,15 @@
 import sys
 import unittest
 
-sys.path.insert(0, '/opt/smart-skidka-agents')
-sys.path.insert(0, '/opt/smart-skidka-agents/scripts')
+sys.path.insert(0, "/opt/smart-skidka-agents")
+sys.path.insert(0, "/opt/smart-skidka-agents/scripts")
 
-from scripts.orchestrator import AgentRunner, AgentConfig
+from scripts.orchestrator import AgentConfig, AgentRunner
 
 
 class MockLLM:
     """Мок LLM клиента."""
+
     def __init__(self):
         self.model = "test-model"
 
@@ -23,7 +24,7 @@ class TestSmartRetry(unittest.TestCase):
     """Тесты умного retry с анализом ошибок."""
 
     def setUp(self):
-        self.config = AgentConfig('seo-agent', './configs')
+        self.config = AgentConfig("seo-agent", "./configs")
         self.runner = AgentRunner(self.config, MockLLM())
 
     def test_analyze_json_error(self):
@@ -75,7 +76,14 @@ class TestSmartRetry(unittest.TestCase):
     def test_corrections_structure(self):
         """Все corrections — непустые строки."""
         result = {"raw": "test"}
-        for error in ["json", "timeout", "validation", "empty", "rate limit", "unknown"]:
+        for error in [
+            "json",
+            "timeout",
+            "validation",
+            "empty",
+            "rate limit",
+            "unknown",
+        ]:
             corrections = self.runner._analyze_error(error, result)
             for key, value in corrections.items():
                 self.assertIsInstance(value, str)
@@ -86,7 +94,7 @@ class TestPromptInjectionProtection(unittest.TestCase):
     """Тесты защиты от prompt injection (P2-11)."""
 
     def setUp(self):
-        self.config = AgentConfig('seo-agent', './configs')
+        self.config = AgentConfig("seo-agent", "./configs")
         self.runner = AgentRunner(self.config, MockLLM())
 
     def test_sanitize_normal_string(self):
@@ -118,10 +126,7 @@ class TestPromptInjectionProtection(unittest.TestCase):
 
     def test_sanitize_dict(self):
         """Словарь рекурсивно санитизируется."""
-        val = self.runner._sanitize_context_value({
-            "key1": "normal",
-            "key2": "system: override"
-        })
+        val = self.runner._sanitize_context_value({"key1": "normal", "key2": "system: override"})
         self.assertEqual(val["key1"], "normal")
         self.assertIn("SANITIZED", val["key2"])
 

@@ -4,44 +4,44 @@
 Тесты для validator.py — валидация результатов агентов.
 """
 
-import sys
 import os
+import sys
 import unittest
 from datetime import datetime, timedelta
 
-sys.path.insert(0, '/opt/smart-skidka-agents')
-sys.path.insert(0, '/opt/smart-skidka-agents/scripts')
+sys.path.insert(0, "/opt/smart-skidka-agents")
+sys.path.insert(0, "/opt/smart-skidka-agents/scripts")
 
 from scripts.validator import (
-    ValidationStatus,
-    ValidationResult,
-    SpamAnalysisResult,
-    UniquenessResult,
-    _normalize_text,
-    _count_words,
-    _estimate_readability,
-    _check_keyword_density,
-    calculate_spam_score,
-    check_uniqueness,
-    validate_seo_result,
-    validate_smm_result,
-    validate_performance_result,
-    validate_email_result,
-    validate_analytics_result,
-    validate_content_result,
-    validate_trend_result,
-    validate_by_type,
-    SEO_TITLE_MIN_LENGTH,
-    SEO_TITLE_MAX_LENGTH,
-    SEO_META_MIN_LENGTH,
-    SEO_META_MAX_LENGTH,
-    SEO_H1_MIN_LENGTH,
-    SEO_H1_MAX_LENGTH,
-    SEO_KEYWORDS_MIN_COUNT,
-    SEO_KEYWORDS_MAX_COUNT,
+    CONTENT_MIN_LENGTH,
     EMAIL_SPAM_KEYWORDS_HIGH,
     EMAIL_SPAM_KEYWORDS_MEDIUM,
-    CONTENT_MIN_LENGTH,
+    SEO_H1_MAX_LENGTH,
+    SEO_H1_MIN_LENGTH,
+    SEO_KEYWORDS_MAX_COUNT,
+    SEO_KEYWORDS_MIN_COUNT,
+    SEO_META_MAX_LENGTH,
+    SEO_META_MIN_LENGTH,
+    SEO_TITLE_MAX_LENGTH,
+    SEO_TITLE_MIN_LENGTH,
+    SpamAnalysisResult,
+    UniquenessResult,
+    ValidationResult,
+    ValidationStatus,
+    _check_keyword_density,
+    _count_words,
+    _estimate_readability,
+    _normalize_text,
+    calculate_spam_score,
+    check_uniqueness,
+    validate_analytics_result,
+    validate_by_type,
+    validate_content_result,
+    validate_email_result,
+    validate_performance_result,
+    validate_seo_result,
+    validate_smm_result,
+    validate_trend_result,
 )
 
 
@@ -214,8 +214,14 @@ class TestValidateSEO(unittest.TestCase):
         result = {
             "title": "Лучшие скидки на электронику — smart-skidka.ru 2024",
             "meta_description": "Найдите лучшие скидки на электронику в интернет-магазинах. "
-                              "Сравнивайте цены и экономьте до 50% на покупках вместе с smart-skidka.ru.",
-            "keywords": ["скидки", "электроника", "дешевые гаджеты", "распродажа", "сравнение цен"],
+            "Сравнивайте цены и экономьте до 50% на покупках вместе с smart-skidka.ru.",
+            "keywords": [
+                "скидки",
+                "электроника",
+                "дешевые гаджеты",
+                "распродажа",
+                "сравнение цен",
+            ],
             "h1": "Скидки на электронику: лучшие предложения",
             "og_tags": {"og:title": "t", "og:description": "d", "og:image": "i"},
             "structured_data": {"@type": "Product"},
@@ -450,9 +456,7 @@ class TestValidatePerformance(unittest.TestCase):
         v = validate_performance_result(result)
         self.assertEqual(v.status, ValidationStatus.FAILED)
         # Missing headlines causes "headlines" or "заголовков" in errors
-        self.assertTrue(
-            any("headlines" in e.lower() or "заголовков" in e.lower() for e in v.errors)
-        )
+        self.assertTrue(any("headlines" in e.lower() or "заголовков" in e.lower() for e in v.errors))
 
     def test_too_few_headlines(self):
         result = {
@@ -958,9 +962,7 @@ class TestValidateTrend(unittest.TestCase):
             "description": "iPhone sales are rising",
             "data_sources": ["Google Trends", "Amazon"],
             "metrics": {"search_volume": 10000},
-            "recommended_actions": [
-                {"agent": "seo_agent", "action": "optimize_keywords"}
-            ],
+            "recommended_actions": [{"agent": "seo_agent", "action": "optimize_keywords"}],
             "status": "rising",
             "detected_at": datetime.now().isoformat(),
         }
@@ -1033,9 +1035,7 @@ class TestValidateTrend(unittest.TestCase):
             "description": "Desc",
             "data_sources": ["A", "B"],
             "metrics": {},
-            "recommended_actions": [
-                {"agent": "unknown_agent", "action": "test"}
-            ],
+            "recommended_actions": [{"agent": "unknown_agent", "action": "test"}],
         }
         v = validate_trend_result(result)
         self.assertTrue(any("Неизвестные агенты" in e for e in v.errors))
@@ -1048,9 +1048,7 @@ class TestValidateTrend(unittest.TestCase):
             "description": "Desc",
             "data_sources": ["A", "B"],
             "metrics": {},
-            "recommended_actions": [
-                {"agent": "seo_agent", "action": "test"}
-            ],
+            "recommended_actions": [{"agent": "seo_agent", "action": "test"}],
             "status": "rising",
             "detected_at": (datetime.now() - timedelta(hours=50)).isoformat(),
         }
@@ -1065,9 +1063,7 @@ class TestValidateTrend(unittest.TestCase):
             "description": "Desc",
             "data_sources": ["A", "B"],
             "metrics": {},
-            "recommended_actions": [
-                {"agent": "seo_agent", "action": "test"}
-            ],
+            "recommended_actions": [{"agent": "seo_agent", "action": "test"}],
             "status": "invalid_status",
         }
         v = validate_trend_result(result)
@@ -1078,8 +1074,20 @@ class TestValidateByType(unittest.TestCase):
     """Тесты validate_by_type dispatcher."""
 
     def test_valid_types(self):
-        for agent_type in ["seo", "smm", "performance", "email", "analytics", "content", "trend"]:
-            result = {"title": "Test", "content": "<p>Test</p>", "content_type": "article"}
+        for agent_type in [
+            "seo",
+            "smm",
+            "performance",
+            "email",
+            "analytics",
+            "content",
+            "trend",
+        ]:
+            result = {
+                "title": "Test",
+                "content": "<p>Test</p>",
+                "content_type": "article",
+            }
             if agent_type == "content":
                 # content will raise ValueError due to check_uniqueness
                 continue

@@ -29,8 +29,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from playwright.async_api import async_playwright, Browser, BrowserContext, Page
-
+from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Конфигурация
@@ -39,8 +38,7 @@ from playwright.async_api import async_playwright, Browser, BrowserContext, Page
 DEFAULT_TIMEOUT = int(os.getenv("BROWSER_TIMEOUT_MS", "15000"))
 DEFAULT_VIEWPORT = {"width": 1280, "height": 800}
 USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
 )
 
 SCREENSHOT_DIR = Path(os.getenv("SCREENSHOT_DIR", "/tmp/agent_screenshots"))  # nosec B108
@@ -51,9 +49,11 @@ SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
 # Data-классы
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 @dataclass
 class PageMetrics:
     """Метрики страницы — Core Web Vitals + SEO."""
+
     url: str
     title: str
     status: int = 200
@@ -91,6 +91,7 @@ class PageMetrics:
 @dataclass
 class CompetitorData:
     """Данные конкурента — цены, наличие, мета-информация."""
+
     url: str
     product_name: Optional[str] = None
     price: Optional[str] = None
@@ -119,9 +120,9 @@ class CompetitorData:
 DEFAULT_BROWSER_MAX_PAGES: int = int(os.getenv("BROWSER_MAX_PAGES", "10"))
 DEFAULT_BROWSER_SCREENSHOT_QUOTA: int = int(os.getenv("BROWSER_SCREENSHOT_QUOTA", "50"))
 DEFAULT_BROWSER_PAGE_TTL: int = int(os.getenv("BROWSER_PAGE_TTL", "300"))  # seconds
-DEFAULT_BROWSER_DOMAIN_WHITELIST: List[str] = os.getenv(
-    "BROWSER_DOMAIN_WHITELIST", ""
-).split(",") if os.getenv("BROWSER_DOMAIN_WHITELIST", "") else []
+DEFAULT_BROWSER_DOMAIN_WHITELIST: List[str] = (
+    os.getenv("BROWSER_DOMAIN_WHITELIST", "").split(",") if os.getenv("BROWSER_DOMAIN_WHITELIST", "") else []
+)
 
 
 class BrowserManager:
@@ -161,10 +162,10 @@ class BrowserManager:
         if not self._domain_whitelist:
             return True
         from urllib.parse import urlparse
+
         domain = urlparse(url).netloc.lower()
         return any(
-            domain == allowed.lower() or domain.endswith(f".{allowed.lower()}")
-            for allowed in self._domain_whitelist
+            domain == allowed.lower() or domain.endswith(f".{allowed.lower()}") for allowed in self._domain_whitelist
         )
 
     async def _cleanup_expired_pages(self) -> None:
@@ -172,10 +173,7 @@ class BrowserManager:
         while True:
             await asyncio.sleep(30)
             now = asyncio.get_event_loop().time()
-            expired = [
-                page for page, created_at in list(self._pages.items())
-                if (now - created_at) > self._page_ttl
-            ]
+            expired = [page for page, created_at in list(self._pages.items()) if (now - created_at) > self._page_ttl]
             for page in expired:
                 try:
                     if not page.is_closed():
@@ -215,9 +213,7 @@ class BrowserManager:
         """
         # P1-15: Проверка домена
         if url and not self._is_domain_allowed(url):
-            raise PermissionError(
-                f"Domain not allowed: {url}. Allowed: {self._domain_whitelist}"
-            )
+            raise PermissionError(f"Domain not allowed: {url}. Allowed: {self._domain_whitelist}")
         # P1-15: Проверка лимита страниц
         if len(self._pages) >= self._max_pages:
             # Закрываем самую старую страницу
@@ -239,9 +235,7 @@ class BrowserManager:
         P1-15: Делает скриншот с учётом квоты.
         """
         if self._screenshots_taken >= self._screenshot_quota:
-            raise RuntimeError(
-                f"Screenshot quota exceeded: {self._screenshots_taken}/{self._screenshot_quota}"
-            )
+            raise RuntimeError(f"Screenshot quota exceeded: {self._screenshots_taken}/{self._screenshot_quota}")
         await page.screenshot(path=path, **kwargs)
         self._screenshots_taken += 1
 
@@ -282,14 +276,8 @@ class BrowserManager:
     def get_stats(self) -> Dict[str, Any]:
         """P1-15: Возвращает статистику менеджера."""
         now = asyncio.get_event_loop().time()
-        active_pages = sum(
-            1 for page in self._pages
-            if not page.is_closed()
-        )
-        expired_pages = sum(
-            1 for page, created_at in self._pages.items()
-            if (now - created_at) > self._page_ttl
-        )
+        active_pages = sum(1 for page in self._pages if not page.is_closed())
+        expired_pages = sum(1 for page, created_at in self._pages.items() if (now - created_at) > self._page_ttl)
         return {
             "max_pages": self._max_pages,
             "active_pages": active_pages,
@@ -304,6 +292,7 @@ class BrowserManager:
 # ═══════════════════════════════════════════════════════════════════════════════
 # SEO-функции: проверка рендера, Core Web Vitals
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 async def check_page_render(
     url: str,
@@ -455,12 +444,21 @@ async def measure_core_vitals(url: str, timeout: int = DEFAULT_TIMEOUT) -> Dict[
     metrics = await check_page_render(url, timeout=timeout)
 
     # Оценка по порогам Google
-    lcp_score = "good" if (metrics.lcp_ms and metrics.lcp_ms < 2500) else \
-                "needs_improvement" if (metrics.lcp_ms and metrics.lcp_ms < 4000) else "poor"
-    cls_score = "good" if (metrics.cls_score is not None and metrics.cls_score < 0.1) else \
-                "needs_improvement" if (metrics.cls_score is not None and metrics.cls_score < 0.25) else "poor"
-    load_score = "good" if metrics.dom_content_loaded_ms < 1000 else \
-                 "needs_improvement" if metrics.dom_content_loaded_ms < 3000 else "poor"
+    lcp_score = (
+        "good"
+        if (metrics.lcp_ms and metrics.lcp_ms < 2500)
+        else ("needs_improvement" if (metrics.lcp_ms and metrics.lcp_ms < 4000) else "poor")
+    )
+    cls_score = (
+        "good"
+        if (metrics.cls_score is not None and metrics.cls_score < 0.1)
+        else ("needs_improvement" if (metrics.cls_score is not None and metrics.cls_score < 0.25) else "poor")
+    )
+    load_score = (
+        "good"
+        if metrics.dom_content_loaded_ms < 1000
+        else "needs_improvement" if metrics.dom_content_loaded_ms < 3000 else "poor"
+    )
 
     recommendations = []
     if lcp_score == "poor":
@@ -482,7 +480,9 @@ async def measure_core_vitals(url: str, timeout: int = DEFAULT_TIMEOUT) -> Dict[
         "cls_rating": cls_score,
         "dom_content_loaded_ms": metrics.dom_content_loaded_ms,
         "load_rating": load_score,
-        "overall_rating": "good" if all(s == "good" for s in [lcp_score, cls_score, load_score]) else "needs_improvement",
+        "overall_rating": (
+            "good" if all(s == "good" for s in [lcp_score, cls_score, load_score]) else "needs_improvement"
+        ),
         "recommendations": recommendations,
         "timestamp": metrics.timestamp,
     }
@@ -491,6 +491,7 @@ async def measure_core_vitals(url: str, timeout: int = DEFAULT_TIMEOUT) -> Dict[
 # ═══════════════════════════════════════════════════════════════════════════════
 # Trend-функции: скриншоты товаров, проверка конкурентов
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 async def screenshot_product(
     url: str,
@@ -562,7 +563,13 @@ async def check_competitor(
         # Default selectors for common e-commerce platforms
         if not price_selector:
             # Try common patterns with short timeout
-            for sel in ["[data-testid='price']", ".price", ".product-price", "[itemprop='price']", ".cost"]:
+            for sel in [
+                "[data-testid='price']",
+                ".price",
+                ".product-price",
+                "[itemprop='price']",
+                ".cost",
+            ]:
                 try:
                     if await page.locator(sel).count() > 0:
                         price_selector = sel
@@ -571,7 +578,12 @@ async def check_competitor(
                     continue
 
         if not name_selector:
-            for sel in ["h1", "[data-testid='product-name']", ".product-title", "[itemprop='name']"]:
+            for sel in [
+                "h1",
+                "[data-testid='product-name']",
+                ".product-title",
+                "[itemprop='name']",
+            ]:
                 try:
                     if await page.locator(sel).count() > 0:
                         name_selector = sel
@@ -630,6 +642,7 @@ async def check_competitor(
 # ═══════════════════════════════════════════════════════════════════════════════
 # Batch операции
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 async def batch_check_pages(
     urls: List[str],
@@ -693,6 +706,7 @@ async def batch_check_competitors(
 # ═══════════════════════════════════════════════════════════════════════════════
 # Cleanup
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 async def close_browser() -> None:
     """Закрывает браузер и освобождает ресурсы."""

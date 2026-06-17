@@ -35,6 +35,10 @@ Example:
 from __future__ import annotations
 
 import hashlib
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Загрузка переменных окружения
+# ═══════════════════════════════════════════════════════════════════════════════
 import os
 import re
 from dataclasses import dataclass, field
@@ -45,16 +49,12 @@ from typing import Any, Dict, List, Optional, Set
 import structlog
 from dotenv import load_dotenv
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# Загрузка переменных окружения
-# ═══════════════════════════════════════════════════════════════════════════════
-import os
 _env_loaded = load_dotenv()
 if not _env_loaded and not os.getenv("LLM_API_KEY"):
     import warnings
+
     warnings.warn(
-        ".env файл не найден и переменные окружения не заданы. "
-        "Система может работать некорректно.",
+        ".env файл не найден и переменные окружения не заданы. " "Система может работать некорректно.",
         RuntimeWarning,
         stacklevel=2,
     )
@@ -70,6 +70,7 @@ logger = structlog.get_logger("validator")
 # ═══════════════════════════════════════════════════════════════════════════════
 class ValidationStatus(str, Enum):
     """Статусы валидации результата."""
+
     PASSED = "passed"
     FAILED = "failed"
     WARNING = "warning"
@@ -97,17 +98,39 @@ EMAIL_SUBJECT_OPTIMAL_MIN: int = 20
 EMAIL_SUBJECT_OPTIMAL_MAX: int = 60
 EMAIL_BODY_MIN_LENGTH: int = 100
 EMAIL_SPAM_KEYWORDS_HIGH: List[str] = [
-    "БЕСПЛАТНО", "КУПИ СЕЙЧАС", "ОГРАНИЧЕННОЕ ВРЕМЯ",
-    "ПРЯМО СЕЙЧАС", "ТОЛЬКО СЕГОДНЯ", "СУПЕР ПРЕДЛОЖЕНИЕ",
-    "100% БЕСПЛАТНО", "ЗАРАБОТАЙ", "$$$", "!!!",
-    "НЕ УДАЛЯЙТЕ", "СРОЧНО", "ПОСЛЕДНИЙ ШАНС",
-    "БЕЗ ОБЯЗАТЕЛЬСТВ", "КОНФИДЕНЦИАЛЬНО", "ВЫ ВЫИГРАЛИ",
-    "ЛОТЕРЕЯ", "МИЛЛИОН", "ГАРАНТИРОВАНО", "НИЧЕГО НЕ ПОКУПАЙ",
+    "БЕСПЛАТНО",
+    "КУПИ СЕЙЧАС",
+    "ОГРАНИЧЕННОЕ ВРЕМЯ",
+    "ПРЯМО СЕЙЧАС",
+    "ТОЛЬКО СЕГОДНЯ",
+    "СУПЕР ПРЕДЛОЖЕНИЕ",
+    "100% БЕСПЛАТНО",
+    "ЗАРАБОТАЙ",
+    "$$$",
+    "!!!",
+    "НЕ УДАЛЯЙТЕ",
+    "СРОЧНО",
+    "ПОСЛЕДНИЙ ШАНС",
+    "БЕЗ ОБЯЗАТЕЛЬСТВ",
+    "КОНФИДЕНЦИАЛЬНО",
+    "ВЫ ВЫИГРАЛИ",
+    "ЛОТЕРЕЯ",
+    "МИЛЛИОН",
+    "ГАРАНТИРОВАНО",
+    "НИЧЕГО НЕ ПОКУПАЙ",
 ]
 EMAIL_SPAM_KEYWORDS_MEDIUM: List[str] = [
-    "скидка", "бесплатно", "акция", "распродажа",
-    "выгода", "экономия", "подарок", "бонус",
-    "дешево", "лучшая цена", "только сейчас",
+    "скидка",
+    "бесплатно",
+    "акция",
+    "распродажа",
+    "выгода",
+    "экономия",
+    "подарок",
+    "бонус",
+    "дешево",
+    "лучшая цена",
+    "только сейчас",
 ]
 
 # Content-константы
@@ -137,6 +160,7 @@ class ValidationResult:
         warnings: Список предупреждений
         metadata: Дополнительные метаданные
     """
+
     status: ValidationStatus
     score: float = 0.0
     errors: List[str] = field(default_factory=list)
@@ -163,6 +187,7 @@ class ValidationResult:
 @dataclass
 class SpamAnalysisResult:
     """Результат анализа на спам."""
+
     total_score: int
     high_risk_keywords: List[str]
     medium_risk_keywords: List[str]
@@ -173,6 +198,7 @@ class SpamAnalysisResult:
 @dataclass
 class UniquenessResult:
     """Результат проверки уникальности текста."""
+
     uniqueness_score: float  # 0.0 - 1.0
     similar_phrases: List[Dict[str, Any]]
     checked_against: int  # количество проверенных записей
@@ -227,7 +253,7 @@ def _estimate_readability(text: str) -> float:
         return 0.0
 
     words = text.split()
-    sentences = re.split(r'[.!?]+', text)
+    sentences = re.split(r"[.!?]+", text)
     sentences = [s for s in sentences if s.strip()]
 
     if not sentences or not words:
@@ -335,8 +361,7 @@ def validate_seo_result(result: Dict[str, Any]) -> ValidationResult:
             score -= 0.15
         elif title_len > SEO_TITLE_MAX_LENGTH:
             warnings.append(
-                f"Title слишком длинный ({title_len} симв., "
-                f"поисковики обрежут до {SEO_TITLE_MAX_LENGTH})"
+                f"Title слишком длинный ({title_len} симв., " f"поисковики обрежут до {SEO_TITLE_MAX_LENGTH})"
             )
             score -= 0.1
         else:
@@ -377,8 +402,7 @@ def validate_seo_result(result: Dict[str, Any]) -> ValidationResult:
             score -= 0.15
         elif meta_len > SEO_META_MAX_LENGTH:
             warnings.append(
-                f"Meta description слишком длинный ({meta_len} симв., "
-                f"поисковики обрежут до {SEO_META_MAX_LENGTH})"
+                f"Meta description слишком длинный ({meta_len} симв., " f"поисковики обрежут до {SEO_META_MAX_LENGTH})"
             )
             score -= 0.1
         else:
@@ -423,8 +447,7 @@ def validate_seo_result(result: Dict[str, Any]) -> ValidationResult:
             score -= 0.1
         elif keywords_count > SEO_KEYWORDS_MAX_COUNT:
             warnings.append(
-                f"Много ключевых слов ({keywords_count}, "
-                f"рекомендуется не более {SEO_KEYWORDS_MAX_COUNT})"
+                f"Много ключевых слов ({keywords_count}, " f"рекомендуется не более {SEO_KEYWORDS_MAX_COUNT})"
             )
             score -= 0.05
 
@@ -556,9 +579,7 @@ def validate_smm_result(result: Dict[str, Any]) -> ValidationResult:
         limit = platform_limits.get(platform, 2000)
 
         if text_len > limit:
-            errors.append(
-                f"Текст превышает лимит {platform} ({text_len} > {limit})"
-            )
+            errors.append(f"Текст превышает лимит {platform} ({text_len} > {limit})")
             score -= 0.3
 
         # Проверка на минимальную длину
@@ -569,12 +590,12 @@ def validate_smm_result(result: Dict[str, Any]) -> ValidationResult:
         # Проверка эмодзи (не более 20% символов)
         emoji_pattern = re.compile(
             "["
-            "\U0001F600-\U0001F64F"  # смайлики
-            "\U0001F300-\U0001F5FF"  # символы
-            "\U0001F680-\U0001F6FF"  # транспорт
-            "\U0001F1E0-\U0001F1FF"  # флаги
-            "\U00002702-\U000027B0"
-            "\U000024C2-\U0001F251"
+            "\U0001f600-\U0001f64f"  # смайлики
+            "\U0001f300-\U0001f5ff"  # символы
+            "\U0001f680-\U0001f6ff"  # транспорт
+            "\U0001f1e0-\U0001f1ff"  # флаги
+            "\U00002702-\U000027b0"
+            "\U000024c2-\U0001f251"
             "]+",
             flags=re.UNICODE,
         )
@@ -599,14 +620,10 @@ def validate_smm_result(result: Dict[str, Any]) -> ValidationResult:
             warnings.append("Нет хештегов — рекомендуется добавить 5-15")
             score -= 0.1
         elif hashtags_count > SMM_HASHTAGS_MAX_COUNT:
-            errors.append(
-                f"Слишком много хештегов ({hashtags_count}, макс. {SMM_HASHTAGS_MAX_COUNT})"
-            )
+            errors.append(f"Слишком много хештегов ({hashtags_count}, макс. {SMM_HASHTAGS_MAX_COUNT})")
             score -= 0.2
         elif hashtags_count > SMM_HASHTAGS_OPTIMAL_COUNT:
-            warnings.append(
-                f"Много хештегов ({hashtags_count}, оптимально {SMM_HASHTAGS_OPTIMAL_COUNT})"
-            )
+            warnings.append(f"Много хештегов ({hashtags_count}, оптимально {SMM_HASHTAGS_OPTIMAL_COUNT})")
             score -= 0.05
 
         # Проверка формата хештегов
@@ -718,15 +735,10 @@ def validate_performance_result(result: Dict[str, Any]) -> ValidationResult:
         metadata["headlines_count"] = headlines_count
 
         if headlines_count < 3:
-            errors.append(
-                f"Слишком мало заголовков ({headlines_count}, "
-                f"рекомендуется 5-15 для Google Ads)"
-            )
+            errors.append(f"Слишком мало заголовков ({headlines_count}, " f"рекомендуется 5-15 для Google Ads)")
             score -= 0.2
         elif headlines_count < 5:
-            warnings.append(
-                f"Мало заголовков ({headlines_count}, рекомендуется 5-15)"
-            )
+            warnings.append(f"Мало заголовков ({headlines_count}, рекомендуется 5-15)")
             score -= 0.1
 
         # Проверка длины каждого заголовка
@@ -735,9 +747,7 @@ def validate_performance_result(result: Dict[str, Any]) -> ValidationResult:
             if len(h) > 30:
                 long_headlines.append((i + 1, len(h)))
         if long_headlines:
-            warnings.append(
-                f"Заголовки превышают 30 символов: {long_headlines}"
-            )
+            warnings.append(f"Заголовки превышают 30 символов: {long_headlines}")
             score -= 0.05 * len(long_headlines)
 
         # Проверка уникальности заголовков
@@ -757,9 +767,7 @@ def validate_performance_result(result: Dict[str, Any]) -> ValidationResult:
         metadata["descriptions_count"] = desc_count
 
         if desc_count < 2:
-            warnings.append(
-                f"Мало описаний ({desc_count}, рекомендуется 2-4)"
-            )
+            warnings.append(f"Мало описаний ({desc_count}, рекомендуется 2-4)")
             score -= 0.1
 
         # Проверка длины описаний
@@ -768,9 +776,7 @@ def validate_performance_result(result: Dict[str, Any]) -> ValidationResult:
             if len(d) > 90:
                 long_descs.append((i + 1, len(d)))
         if long_descs:
-            warnings.append(
-                f"Описания превышают 90 символов: {long_descs}"
-            )
+            warnings.append(f"Описания превышают 90 символов: {long_descs}")
             score -= 0.05 * len(long_descs)
 
     else:
@@ -905,12 +911,12 @@ def calculate_spam_score(email_content: str) -> int:
             score += 1
 
     # ─── Проверка на множественные знаки препинания ───────────────────────────
-    excessive_punctuation = len(re.findall(r'[!]{2,}', email_content))
-    excessive_punctuation += len(re.findall(r'[?]{2,}', email_content))
+    excessive_punctuation = len(re.findall(r"[!]{2,}", email_content))
+    excessive_punctuation += len(re.findall(r"[?]{2,}", email_content))
     score += min(excessive_punctuation, 3)
 
     # ─── Проверка на $$ и цифры ───────────────────────────────────────────────
-    money_symbols = len(re.findall(r'\$+', email_content))
+    money_symbols = len(re.findall(r"\$+", email_content))
     score += min(money_symbols, 2)
 
     # ─── Проверка на отсутствие отписки ───────────────────────────────────────
@@ -918,9 +924,9 @@ def calculate_spam_score(email_content: str) -> int:
         score += 2
 
     # ─── Проверка соотношения текста и HTML ───────────────────────────────────
-    html_tags = len(re.findall(r'<[^>]+>', email_content))
+    html_tags = len(re.findall(r"<[^>]+>", email_content))
     if html_tags > 0:
-        text_length = len(re.sub(r'<[^>]+>', '', email_content))
+        text_length = len(re.sub(r"<[^>]+>", "", email_content))
         if text_length < html_tags * 5:  # Слишком много HTML относительно текста
             score += 1
 
@@ -933,7 +939,7 @@ def calculate_spam_score(email_content: str) -> int:
         score += 1
 
     # ─── Проверка на ссылки ───────────────────────────────────────────────────
-    urls = re.findall(r'https?://\S+', email_content)
+    urls = re.findall(r"https?://\S+", email_content)
     if len(urls) > 5:  # Слишком много ссылок
         score += 1
 
@@ -1039,13 +1045,11 @@ def validate_email_result(result: Dict[str, Any]) -> ValidationResult:
     body = result.get("body", "")
     if body:
         # Проверка длины
-        body_text = re.sub(r'<[^>]+>', '', body)
+        body_text = re.sub(r"<[^>]+>", "", body)
         metadata["body_text_length"] = len(body_text)
 
         if len(body_text) < EMAIL_BODY_MIN_LENGTH:
-            warnings.append(
-                f"Тело письма слишком короткое ({len(body_text)} симв.)"
-            )
+            warnings.append(f"Тело письма слишком короткое ({len(body_text)} симв.)")
             score -= 0.1
 
         # Расчёт спам-скора
@@ -1067,9 +1071,7 @@ def validate_email_result(result: Dict[str, Any]) -> ValidationResult:
 
         # Проверка ссылки для отписки
         has_unsubscribe = (
-            "unsubscribe" in body.lower() or
-            "отписаться" in body.lower() or
-            "{unsubscribe_url}" in body.lower()
+            "unsubscribe" in body.lower() or "отписаться" in body.lower() or "{unsubscribe_url}" in body.lower()
         )
         if not has_unsubscribe:
             errors.append("Отсутствует ссылка для отписки (unsubscribe)")
@@ -1087,8 +1089,18 @@ def validate_email_result(result: Dict[str, Any]) -> ValidationResult:
             metadata["has_personalization"] = True
 
         # Проверка CTA
-        cta_patterns = ["перейти", "подробнее", "узнать", "смотреть", "купить",
-                        "заказать", "скачать", "получить", "подписаться", "button"]
+        cta_patterns = [
+            "перейти",
+            "подробнее",
+            "узнать",
+            "смотреть",
+            "купить",
+            "заказать",
+            "скачать",
+            "получить",
+            "подписаться",
+            "button",
+        ]
         has_cta = any(cta in body.lower() for cta in cta_patterns)
         if not has_cta:
             warnings.append("Отсутствует явный призыв к действию (CTA)")
@@ -1097,10 +1109,10 @@ def validate_email_result(result: Dict[str, Any]) -> ValidationResult:
             metadata["has_cta"] = True
 
         # Проверка alt-текста для изображений
-        img_tags = re.findall(r'<img[^>]*>', body, re.IGNORECASE)
+        img_tags = re.findall(r"<img[^>]*>", body, re.IGNORECASE)
         imgs_without_alt = []
         for img in img_tags:
-            if 'alt=' not in img.lower():
+            if "alt=" not in img.lower():
                 imgs_without_alt.append(img[:50])
         if imgs_without_alt:
             warnings.append(f"{len(imgs_without_alt)} изображений без alt-текста")
@@ -1225,9 +1237,7 @@ def validate_analytics_result(result: Dict[str, Any]) -> ValidationResult:
         metadata["key_metrics_found"] = found_key
 
         if len(found_key) < 2:
-            warnings.append(
-                f"Мало ключевых метрик ({len(found_key)}/{len(key_metrics)})"
-            )
+            warnings.append(f"Мало ключевых метрик ({len(found_key)}/{len(key_metrics)})")
             score -= 0.1
 
         # Проверка на отрицательные значения
@@ -1337,7 +1347,7 @@ def check_uniqueness(text: str, reference_texts: Optional[List[str]] = None) -> 
 
     shingles: Set[str] = set()
     for i in range(len(words) - 2):
-        shingle = " ".join(words[i:i + 3])
+        shingle = " ".join(words[i : i + 3])
         shingles.add(hashlib.md5(shingle.encode(), usedforsecurity=False).hexdigest())
 
     total_shingles = len(shingles)
@@ -1374,7 +1384,7 @@ def check_uniqueness(text: str, reference_texts: Optional[List[str]] = None) -> 
 
         ref_shingles: Set[str] = set()
         for i in range(len(ref_words) - 2):
-            shingle = " ".join(ref_words[i:i + 3])
+            shingle = " ".join(ref_words[i : i + 3])
             ref_shingles.add(hashlib.md5(shingle.encode(), usedforsecurity=False).hexdigest())
 
         if not ref_shingles:
@@ -1389,10 +1399,12 @@ def check_uniqueness(text: str, reference_texts: Optional[List[str]] = None) -> 
             max_similarity = max(max_similarity, similarity)
 
             if similarity > 0.3:  # Записываем похожие фразы
-                similar_phrases.append({
-                    "similarity": round(similarity, 3),
-                    "matched_shingles": len(intersection),
-                })
+                similar_phrases.append(
+                    {
+                        "similarity": round(similarity, 3),
+                        "matched_shingles": len(intersection),
+                    }
+                )
 
     # Уникальность = 1 - максимальная схожесть
     uniqueness = 1.0 - max_similarity
@@ -1459,7 +1471,7 @@ def validate_content_result(result: Dict[str, Any]) -> ValidationResult:
     # ─── Проверка длины контента ──────────────────────────────────────────────
     if content:
         # Убираем HTML-теги для подсчёта
-        content_text = re.sub(r'<[^>]+>', '', content)
+        content_text = re.sub(r"<[^>]+>", "", content)
         content_len = len(content_text)
         metadata["content_length"] = content_len
 
@@ -1467,14 +1479,11 @@ def validate_content_result(result: Dict[str, Any]) -> ValidationResult:
 
         if content_len < min_length:
             warnings.append(
-                f"Контент слишком короткий ({content_len} симв., "
-                f"мин. для {content_type}: {min_length})"
+                f"Контент слишком короткий ({content_len} симв., " f"мин. для {content_type}: {min_length})"
             )
             score -= 0.15
         elif content_len > min_length * 5:
-            warnings.append(
-                f"Контент очень длинный ({content_len} симв.)"
-            )
+            warnings.append(f"Контент очень длинный ({content_len} симв.)")
             score -= 0.03
 
         # Проверка количества слов
@@ -1491,25 +1500,19 @@ def validate_content_result(result: Dict[str, Any]) -> ValidationResult:
         metadata["readability_score"] = round(readability, 2)
 
         if readability < 30:
-            warnings.append(
-                f"Низкая читаемость ({readability:.1f}). "
-                f"Текст слишком сложный, разбейте предложения."
-            )
+            warnings.append(f"Низкая читаемость ({readability:.1f}). " f"Текст слишком сложный, разбейте предложения.")
             score -= 0.1
         elif readability > 90:
-            warnings.append(
-                f"Очень высокая читаемость ({readability:.1f}). "
-                f"Возможно, текст слишком простой."
-            )
+            warnings.append(f"Очень высокая читаемость ({readability:.1f}). " f"Возможно, текст слишком простой.")
             score -= 0.02
 
     # ─── Проверка структуры ───────────────────────────────────────────────────
     if content:
         # Проверка заголовков h2/h3
-        h2_count = len(re.findall(r'<h2[^>]*>', content, re.IGNORECASE))
-        h2_count += len(re.findall(r'^## ', content, re.MULTILINE))  # Markdown
-        h3_count = len(re.findall(r'<h3[^>]*>', content, re.IGNORECASE))
-        h3_count += len(re.findall(r'^### ', content, re.MULTILINE))  # Markdown
+        h2_count = len(re.findall(r"<h2[^>]*>", content, re.IGNORECASE))
+        h2_count += len(re.findall(r"^## ", content, re.MULTILINE))  # Markdown
+        h3_count = len(re.findall(r"<h3[^>]*>", content, re.IGNORECASE))
+        h3_count += len(re.findall(r"^### ", content, re.MULTILINE))  # Markdown
 
         metadata["h2_count"] = h2_count
         metadata["h3_count"] = h3_count
@@ -1522,13 +1525,11 @@ def validate_content_result(result: Dict[str, Any]) -> ValidationResult:
             score -= 0.05
 
         # Проверка абзацев
-        paragraphs = [p for p in content_text.split('\n') if p.strip()]
+        paragraphs = [p for p in content_text.split("\n") if p.strip()]
         avg_paragraph_len = sum(len(p) for p in paragraphs) / len(paragraphs) if paragraphs else 0
 
         if avg_paragraph_len > 500:
-            warnings.append(
-                f"Абзацы слишком длинные (средн. {avg_paragraph_len:.0f} симв.)"
-            )
+            warnings.append(f"Абзацы слишком длинные (средн. {avg_paragraph_len:.0f} симв.)")
             score -= 0.05
 
     # ─── Проверка тегов ───────────────────────────────────────────────────────
@@ -1564,9 +1565,7 @@ def validate_content_result(result: Dict[str, Any]) -> ValidationResult:
                 warnings.append(f"Ключевое слово '{kw}' не найдено в тексте")
                 score -= 0.05
             elif density > 5:
-                warnings.append(
-                    f"Высокая плотность ключевого слова '{kw}' ({density:.1f}%)"
-                )
+                warnings.append(f"Высокая плотность ключевого слова '{kw}' ({density:.1f}%)")
                 score -= 0.1
 
     # ─── Проверка внутренних ссылок ───────────────────────────────────────────
@@ -1594,8 +1593,7 @@ def validate_content_result(result: Dict[str, Any]) -> ValidationResult:
             score -= 0.05
 
     # ─── Проверка на пустые секции ────────────────────────────────────────────
-    empty_sections = re.findall(r'<h[23][^>]*>.*?</h[23]>\s*(?=<h[23]|</|$)',
-                                content, re.IGNORECASE | re.DOTALL)
+    empty_sections = re.findall(r"<h[23][^>]*>.*?</h[23]>\s*(?=<h[23]|</|$)", content, re.IGNORECASE | re.DOTALL)
     if empty_sections:
         warnings.append(f"{len(empty_sections)} пустых секций после заголовков")
         score -= 0.05 * len(empty_sections)
@@ -1672,10 +1670,7 @@ def validate_trend_result(result: Dict[str, Any]) -> ValidationResult:
         "min_data_sources": len(result.get("data_sources", [])) >= 2,
         "has_metrics": bool(result.get("metrics")),
         "has_recommendations": len(result.get("recommended_actions", [])) > 0,
-        "actions_have_agents": all(
-            a.get("agent") in AGENT_NAMES
-            for a in result.get("recommended_actions", [])
-        ),
+        "actions_have_agents": all(a.get("agent") in AGENT_NAMES for a in result.get("recommended_actions", [])),
         "status_valid": result.get("status") in ["rising", "peak", "declining"],
         "not_expired": _check_trend_freshness(result),
     }
@@ -1763,7 +1758,13 @@ if __name__ == "__main__":
         "title": "Лучшие скидки на электронику — smart-skidka.ru 2024",
         "meta_description": "Найдите лучшие скидки на электронику в интернет-магазинах. "
         "Сравнивайте цены и экономьте до 50% на покупках вместе с smart-skidka.ru.",
-        "keywords": ["скидки", "электроника", "дешевые гаджеты", "распродажа", "сравнение цен"],
+        "keywords": [
+            "скидки",
+            "электроника",
+            "дешевые гаджеты",
+            "распродажа",
+            "сравнение цен",
+        ],
         "h1": "Скидки на электронику: лучшие предложения",
     }
     seo_validation = validate_seo_result(seo_result)
