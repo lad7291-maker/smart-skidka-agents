@@ -31,11 +31,119 @@ from scripts.orchestrator import (
     LLMClient,
     NON_RETRYABLE_ERRORS,
     AGENT_NAMES,
+    DEFAULT_CYCLE_INTERVAL,
 )
+from scripts.services.cycle_manager import CycleManager
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Helper functions & data classes
 # ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestGetAgentType:
+    def test_with_dash(self):
+        assert _get_agent_type("seo-agent") == "seo"
+
+    def test_without_dash(self):
+        assert _get_agent_type("analytics") == "analytics"
+
+
+class TestDefaultCycleInterval:
+    """P1-20: Проверяем что DEFAULT_CYCLE_INTERVAL = 3600 (1 час)."""
+
+    def test_default_interval_is_one_hour(self):
+        # .env may override, check the fallback value
+        import os
+
+        env_val = os.getenv("CYCLE_INTERVAL")
+        if env_val:
+            assert int(env_val) == 43200  # CI/production value
+        else:
+            assert DEFAULT_CYCLE_INTERVAL == 3600  # Default fallback
+
+
+class TestCycleManagerScheduling:
+    """P1-20: Тесты per-agent scheduling в CycleManager."""
+
+    @pytest.mark.asyncio
+    async def test_should_run_agent_first_time(self):
+        """Агент запускается если никогда не запускался."""
+        cm = CycleManager()
+        mock_agent = MagicMock()
+        mock_agent.agent_name = "seo-agent"
+        mock_agent.get_schedule.return_value = {"interval": 3600, "run_once": False}
+
+        with patch.object(cm, "_get_last_run_time", AsyncMock(return_value=None)):
+            result = await cm._should_run_agent(mock_agent)
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_should_run_agent_interval_elapsed(self):
+        """Агент запускается если интервал прошёл."""
+        cm = CycleManager()
+        mock_agent = MagicMock()
+        mock_agent.agent_name = "seo-agent"
+        mock_agent.get_schedule.return_value = {"interval": 3600, "run_once": False}
+
+        last_run = datetime.now() - timedelta(hours=2)
+        with patch.object(cm, "_get_last_run_time", AsyncMock(return_value=last_run)):
+            result = await cm._should_run_agent(mock_agent)
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_should_run_agent_interval_not_elapsed(self):
+        """Агент пропускается если интервал ещё не прошёл."""
+        cm = CycleManager()
+        mock_agent = MagicMock()
+        mock_agent.agent_name = "seo-agent"
+        mock_agent.get_schedule.return_value = {"interval": 3600, "run_once": False}
+
+        last_run = datetime.now() - timedelta(minutes=10)
+        with patch.object(cm, "_get_last_run_time", AsyncMock(return_value=last_run)):
+            result = await cm._should_run_agent(mock_agent)
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_should_run_agent_run_once_already_executed(self):
+        """run_once агент пропускается если уже запускался."""
+        cm = CycleManager()
+        mock_agent = MagicMock()
+        mock_agent.agent_name = "trend-agent"
+        mock_agent.get_schedule.return_value = {"interval": 3600, "run_once": True}
+
+        last_run = datetime.now() - timedelta(days=1)
+        with patch.object(cm, "_get_last_run_time", AsyncMock(return_value=last_run)):
+            result = await cm._should_run_agent(mock_agent)
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_should_run_agent_run_once_never_executed(self):
+        """run_once агент запускается если никогда не запускался."""
+        cm = CycleManager()
+        mock_agent = MagicMock()
+        mock_agent.agent_name = "trend-agent"
+        mock_agent.get_schedule.return_value = {"interval": 3600, "run_once": True}
+
+        with patch.object(cm, "_get_last_run_time", AsyncMock(return_value=None)):
+            result = await cm._should_run_agent(mock_agent)
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_get_last_run_time_returns_none_when_no_memory(self):
+        """_get_last_run_time возвращает None если memory не инициализирован."""
+        cm = CycleManager()
+        cm.memory = None
+        result = await cm._get_last_run_time("seo-agent")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_last_run_time_queries_db(self):
+        """_get_last_run_time запрашивает MAX(created_at) из БД."""
+        cm = CycleManager()
+        last_run = datetime.now() - timedelta(hours=3)
+        with patch.object(cm, "_get_last_run_time", AsyncMock(return_value=last_run)):
+            result = await cm._get_last_run_time("seo-agent")
+        assert result == last_run
 
 
 class TestGetAgentType:

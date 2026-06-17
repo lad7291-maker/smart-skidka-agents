@@ -31,6 +31,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import random
@@ -176,7 +177,7 @@ NON_RETRYABLE_ERRORS: Tuple[str, ...] = (
 )
 
 # Цикл оркестратора
-DEFAULT_CYCLE_INTERVAL: int = int(os.getenv("CYCLE_INTERVAL", "300"))
+DEFAULT_CYCLE_INTERVAL: int = int(os.getenv("CYCLE_INTERVAL", "3600"))
 
 # LLM настройки
 DEFAULT_LLM_MODEL: str = os.getenv("DEFAULT_LLM_MODEL", "deepseek/deepseek-chat-v3.1")
@@ -3225,6 +3226,9 @@ class Orchestrator:
                     await self.generate_daily_report()
                     last_report_date = now.strftime("%Y-%m-%d")
 
+                # P1-20: Проверяем изменения файлов сайта перед циклом
+                await self._check_file_changes()
+
                 await self.run_cycle()
 
                 self.logger.info(f"Ожидание {interval} секунд до следующего цикла")
@@ -3239,6 +3243,57 @@ class Orchestrator:
                 await asyncio.sleep(interval)
 
         self.logger.info("Оркестратор остановлен")
+
+    def _hash_file(self, path: Path) -> str:
+        """Возвращает MD5-хеш файла."""
+        try:
+            return hashlib.md5(path.read_bytes()).hexdigest()
+        except Exception:
+            return ""
+
+    async def _check_file_changes(self) -> None:
+        """Проверяет изменения критичных файлов и форсирует запуск агентов."""
+        try:
+            from scripts.actions.file_utils import _get_site_root
+
+            site_root = _get_site_root()
+            products_json = site_root / "products.json"
+            index_html = site_root / "index.html"
+
+            current_products_hash = self._hash_file(products_json)
+            current_index_hash = self._hash_file(index_html)
+
+            if not hasattr(self, "_last_products_hash"):
+                self._last_products_hash = ""
+            if not hasattr(self, "_last_index_hash"):
+                self._last_index_hash = ""
+
+            products_changed = current_products_hash and current_products_hash != self._last_products_hash
+            index_changed = current_index_hash and current_index_hash != self._last_index_hash
+
+            if products_changed:
+                self.logger.info("products.json changed — forcing content + seo agents")
+                await self._force_run_agents(["content-agent", "seo-agent"])
+
+            if index_changed:
+                self.logger.info("index.html changed — forcing seo agent")
+                await self._force_run_agents(["seo-agent"])
+
+            self._last_products_hash = current_products_hash
+            self._last_index_hash = current_index_hash
+
+        except Exception as e:
+            self.logger.warning("File change check failed", error=str(e))
+
+    async def _force_run_agents(self, agent_names: List[str]) -> None:
+        """Устанавливает Redis флаг run_now для указанных агентов."""
+        try:
+            redis = await self._cycle.memory._get_redis()
+            for name in agent_names:
+                await redis.setex(f"agent:run_now:{name}", 300, "1")
+                self.logger.info("Forced agent run via run_now", agent=name)
+        except Exception as e:
+            self.logger.warning("Failed to force agent run", error=str(e))
 
     def pause_agent(self, agent_name: str) -> bool:
         """Приостанавливает агента."""

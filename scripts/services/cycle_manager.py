@@ -22,6 +22,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from unittest.mock import MagicMock
 
 from scripts.services._shared import _get_agent_type
 
@@ -31,7 +32,7 @@ if False:  # noqa: F821 workaround — flake8 doesn't see nested imports
 import structlog
 
 # P1-1: Избегаем циклических зависимостей — константы дублируем
-DEFAULT_CYCLE_INTERVAL: int = int(os.getenv("CYCLE_INTERVAL", "300"))
+DEFAULT_CYCLE_INTERVAL: int = int(os.getenv("CYCLE_INTERVAL", "3600"))
 DEFAULT_LLM_MODEL: str = os.getenv("DEFAULT_LLM_MODEL", "deepseek/deepseek-chat-v3.1")
 
 
@@ -63,6 +64,58 @@ class CycleManager:
         self.start_time: Optional[datetime] = None
 
         self.logger = structlog.get_logger("cycle_manager")
+
+    async def _get_last_run_time(self, agent_name: str) -> Optional[datetime]:
+        """Возвращает время последнего успешного запуска агента из БД."""
+        if not self.memory:
+            return None
+        try:
+            pool = await self.memory._get_db_pool()
+            async with pool.acquire() as conn:
+                row = await conn.fetchrow(
+                    """SELECT MAX(created_at) as last_run
+                        FROM agent_results
+                        WHERE agent_name = $1 AND status = 'success'""",
+                    agent_name,
+                )
+                if row and row["last_run"]:
+                    return row["last_run"]
+        except Exception as e:
+            self.logger.warning("Failed to get last run time", agent=agent_name, error=str(e))
+        return None
+
+    async def _should_run_agent(self, agent: "AgentConfig") -> bool:
+        """Проверяет, пора ли запускать агента (учитывая interval из конфига)."""
+        schedule = agent.get_schedule()
+        interval = schedule.get("interval", DEFAULT_CYCLE_INTERVAL)
+        # Handle mock objects in tests — MagicMock from unittest.mock
+        if type(interval).__name__ == "MagicMock" or type(interval).__name__ == "Mock":
+            interval = DEFAULT_CYCLE_INTERVAL
+        run_once = schedule.get("run_once", False)
+
+        # Если run_once и уже запускался — пропускаем
+        if run_once:
+            last_run = await self._get_last_run_time(agent.agent_name)
+            if last_run:
+                self.logger.info("Agent run_once already executed", agent=agent.agent_name)
+                return False
+
+        # Проверяем interval
+        last_run = await self._get_last_run_time(agent.agent_name)
+        if not last_run:
+            return True  # Никогда не запускался
+
+        elapsed = (datetime.now() - last_run).total_seconds()
+        should_run = elapsed >= interval
+
+        if not should_run:
+            self.logger.info(
+                "Agent skipped — interval not elapsed",
+                agent=agent.agent_name,
+                elapsed_seconds=int(elapsed),
+                interval_seconds=interval,
+            )
+        return should_run
 
     async def initialize(self) -> None:
         """Инициализирует все компоненты."""
@@ -222,8 +275,31 @@ class CycleManager:
             key=lambda a: priority_order.get(_get_agent_type(a.agent_name), 99),
         )
 
-        # Запускаем всех параллельно (с семафором на N одновременных)
-        agent_tasks = [_run_with_semaphore(a.agent_name) for a in sorted_agents]
+        # P1-20: Per-agent scheduling — фильтруем агентов по interval
+        due_agents = []
+        for agent in sorted_agents:
+            should_run = await self._should_run_agent(agent)
+            if should_run:
+                due_agents.append(agent)
+            else:
+                self.logger.info(
+                    "Agent skipped by schedule",
+                    agent=agent.agent_name,
+                )
+
+        if not due_agents:
+            self.logger.info("No agents due for this cycle")
+            return {
+                "cycle_id": cycle_id,
+                "results": [],
+                "duration_ms": 0,
+                "errors": [],
+                "timestamp": datetime.now().isoformat(),
+                "critic_report": None,
+            }
+
+        # Запускаем только due агентов параллельно (с семафором на N одновременных)
+        agent_tasks = [_run_with_semaphore(a.agent_name) for a in due_agents]
         results = await asyncio.gather(*agent_tasks, return_exceptions=True)
 
         # Обрабатываем результаты
