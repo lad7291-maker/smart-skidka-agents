@@ -2646,15 +2646,8 @@ class MemoryStore:
                     """
                     SELECT title, description, priority, deadline, metrics, created_at
                     FROM agent_tasks
-                    WHERE target_agent = $1 AND status = 'pending'
-                    ORDER BY
-                        CASE priority
-                            WHEN 'high' THEN 1
-                            WHEN 'medium' THEN 2
-                            WHEN 'low' THEN 3
-                            ELSE 4
-                        END,
-                        created_at DESC
+                    WHERE agent_name = $1 AND status = 'pending'
+                    ORDER BY priority ASC, created_at DESC
                     LIMIT $2
                     """,
                     agent_name,
@@ -2677,7 +2670,7 @@ class MemoryStore:
                         """
                         UPDATE agent_tasks
                         SET status = 'completed', completed_at = NOW()
-                        WHERE target_agent = $1 AND title = $2 AND status = 'pending'
+                        WHERE agent_name = $1 AND title = $2 AND status = 'pending'
                         """,
                         agent_name,
                         title,
