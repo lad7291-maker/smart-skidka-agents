@@ -529,7 +529,7 @@ def add_badge(item_id: str, badge_text: str = "🔥 Тренд") -> bool:
 @with_retry(max_retries=3, delay=0.5, backoff=2.0, exceptions=(Exception,))
 @register_action(
     "prioritize_products",
-    agent_types=["performance"],
+    agent_types=["performance", "analytics", "email"],
     description="Устанавливает приоритет товаров",
 )
 def prioritize_products(product_ids: list) -> bool:
