@@ -33,6 +33,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import logging
 import os
 import random
 import re
@@ -103,6 +104,11 @@ load_dotenv()
 # ═══════════════════════════════════════════════════════════════════════════════
 # Настройка логирования через structlog
 # ═══════════════════════════════════════════════════════════════════════════════
+logging.basicConfig(
+    format="%(message)s",
+    stream=__import__("sys").stdout,
+    level=logging.DEBUG,
+)
 structlog.configure(
     processors=[
         structlog.stdlib.filter_by_level,
@@ -2219,7 +2225,7 @@ class MemoryStore:
         self._redis: Optional[aioredis.Redis] = None
 
         # P3-7: ContextCache для оптимизации загрузки контекста
-        from actions.context_cache import ContextCache
+        from scripts.actions.context_cache import ContextCache
 
         self.context_cache = ContextCache(memory_store=self)
 
