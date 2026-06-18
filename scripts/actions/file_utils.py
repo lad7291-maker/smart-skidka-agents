@@ -7,6 +7,7 @@
 
 import json
 import os
+import re
 import shutil
 import subprocess
 from datetime import datetime
@@ -43,6 +44,21 @@ def _backup_path(target: Path) -> Path:
     return Path(str(target) + f".bak.{ts}")
 
 
+def _inject_html_charset(content: str) -> str:
+    """P1-X: Автоматически добавляет <meta charset=\"UTF-8\"> в HTML если отсутствует."""
+    if '<meta charset=' in content.lower():
+        return content
+    head_match = re.search(r'(<head[^>]*>)', content, re.IGNORECASE)
+    if head_match:
+        insert_pos = head_match.end()
+        return content[:insert_pos] + '\n<meta charset="UTF-8">' + content[insert_pos:]
+    html_match = re.search(r'(<html[^>]*>)', content, re.IGNORECASE)
+    if html_match:
+        insert_pos = html_match.end()
+        return content[:insert_pos] + '\n<head><meta charset="UTF-8"><title>Smart Skidka</title></head>' + content[insert_pos:]
+    return '<meta charset="UTF-8">\n' + content
+
+
 def safe_read(path: Path) -> str:
     """Читает файл, возвращает пустую строку если не найден."""
     try:
@@ -67,6 +83,10 @@ def safe_write(path: Path, content: str, make_backup: bool = True) -> bool:
     backup: Optional[Path] = None
     try:
         _resolve_within_site_root(path)
+
+        # P1-X: Auto-inject charset into HTML if missing
+        if path.suffix == ".html" and 'charset=' not in content.lower():
+            content = _inject_html_charset(content)
 
         if make_backup and path.exists():
             backup = _backup_path(path)
