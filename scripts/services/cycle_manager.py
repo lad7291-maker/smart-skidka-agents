@@ -98,12 +98,17 @@ class CycleManager:
             try:
                 redis = await self.memory._get_redis()
                 run_now = await redis.get(f"agent:run_now:{agent.agent_name}")
+                self.logger.info(
+                    "Checking run_now",
+                    agent=agent.agent_name,
+                    run_now=run_now,
+                )
                 if run_now:
                     await redis.delete(f"agent:run_now:{agent.agent_name}")
                     self.logger.info("Agent forced by run_now", agent=agent.agent_name)
                     return True
-            except Exception:
-                pass
+            except Exception as e:
+                self.logger.warning("run_now check failed", agent=agent.agent_name, error=str(e))
 
         # Если run_once и уже запускался — пропускаем
         if run_once:
