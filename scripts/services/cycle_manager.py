@@ -175,9 +175,15 @@ class CycleManager:
 
                 self.agents.append(config)
 
+                # P1-X: Приоритет выбора модели:
+                # 1. Env-переменная агента (SEO_AGENT_MODEL)
+                # 2. Модель из конфига агента (llm_settings.model)
+                # 3. Глобальная DEFAULT_LLM_MODEL
+                # 4. Встроенный default
+                config_llm = config.get_llm_settings()
                 agent_model = os.getenv(
                     f"{agent_name.upper().replace('-', '_')}_MODEL",
-                    os.getenv("DEFAULT_LLM_MODEL", DEFAULT_LLM_MODEL),
+                    config_llm.get("model", os.getenv("DEFAULT_LLM_MODEL", DEFAULT_LLM_MODEL)),
                 )
                 agent_llm = LLMClient(
                     api_key=os.getenv("LLM_API_KEY"),

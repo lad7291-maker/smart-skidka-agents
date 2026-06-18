@@ -10,12 +10,16 @@
     "run_once": false
   },
   "llm_settings": {
-    "model": "deepseek-chat",
+    "model": "openai/gpt-4o-mini",
     "temperature": 0.6,
     "max_tokens": 4096
   },
   "validation_rules": {
-    "required_fields": ["subject", "preheader", "html"],
+    "required_fields": [
+      "subject",
+      "preheader",
+      "html"
+    ],
     "min_score": 0.6,
     "max_execution_time": 60000
   },

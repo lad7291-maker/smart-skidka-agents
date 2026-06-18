@@ -734,6 +734,7 @@ class LLMClient:
     # Поддерживаемые API endpoints
     ROUTERAI_URL: str = "https://api.rrouter.ai/v1/chat/completions"
     DEEPSEEK_URL: str = "https://api.deepseek.com/v1/chat/completions"
+    KIMI_URL: str = "https://api.moonshot.cn/v1/chat/completions"
 
     def __init__(
         self,
@@ -759,11 +760,18 @@ class LLMClient:
         self.timeout: aiohttp.ClientTimeout = aiohttp.ClientTimeout(total=timeout)
         self.logger = structlog.get_logger("llm_client").bind(model=model)
 
+        # Fallback на Kimi если настроен KIMI_API_KEY
+        self._fallback_api_key: str = os.getenv("KIMI_API_KEY", "")
+        self._fallback_base_url: str = self.KIMI_URL
+        self._fallback_used: bool = False
+
         # Определение base_url
         if base_url:
             self.base_url = base_url
-        elif "rrouter" in self.model or "anthropic" in self.model:
-            self.base_url = self.ROUTERAI_URL
+        elif "rrouter" in self.model or "anthropic" in self.model or "openai" in self.model or "gpt-" in self.model or "claude" in self.model:
+            self.base_url = os.getenv("LLM_API_URL", self.ROUTERAI_URL)
+        elif "kimi" in self.model or "moonshot" in self.model:
+            self.base_url = self.KIMI_URL
         else:
             self.base_url = os.getenv("LLM_BASE_URL", self.DEEPSEEK_URL)
 
@@ -853,12 +861,29 @@ class LLMClient:
             estimated_tokens = len(user_prompt) // 4 + len(system_prompt) // 4 + 100
             await self._rate_limiter.acquire(tokens_needed=estimated_tokens)
 
-            async def _do_request():
-                async with session.post(self.base_url, json=payload) as response:
-                    response.raise_for_status()
-                    # P1-3: Обновляем лимиты из заголовков ответа
-                    self._rate_limiter.update_from_headers(dict(response.headers))
-                    return await response.json()
+            async def _do_request(use_fallback: bool = False):
+                url = self._fallback_base_url if use_fallback else self.base_url
+                api_key = self._fallback_api_key if use_fallback else self.api_key
+                # Пересоздаём сессию с нужным ключом при fallback
+                req_session = session
+                if use_fallback:
+                    req_session = aiohttp.ClientSession(
+                        timeout=self.timeout,
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "Content-Type": "application/json",
+                        },
+                    )
+                try:
+                    async with req_session.post(url, json=payload) as response:
+                        response.raise_for_status()
+                        # P1-3: Обновляем лимиты из заголовков ответа
+                        if not use_fallback:
+                            self._rate_limiter.update_from_headers(dict(response.headers))
+                        return await response.json()
+                finally:
+                    if use_fallback and req_session:
+                        await req_session.close()
 
             try:
                 result = await self._circuit_breaker.call(_do_request())
@@ -893,20 +918,48 @@ class LLMClient:
                     "elapsed_ms": round(elapsed_ms, 2),
                 }
 
+            except (aiohttp.ClientResponseError, asyncio.TimeoutError) as e:
+                # P1-X: Fallback на Kimi API если основной провайдер недоступен
+                if self._fallback_api_key and not self._fallback_used:
+                    self.logger.warning(
+                        "Основной LLM провайдер недоступен, пробуем Kimi fallback",
+                        error=str(e),
+                    )
+                    self._fallback_used = True
+                    try:
+                        result = await _do_request(use_fallback=True)
+                        elapsed_ms = (time.monotonic() - start_time) * 1000
+                        content = ""
+                        if "choices" in result and result["choices"]:
+                            message = result["choices"][0].get("message", {})
+                            content = message.get("content", "")
+                        usage = result.get("usage", {})
+                        self.logger.info(
+                            "Ответ получен от Kimi fallback",
+                            elapsed_ms=round(elapsed_ms, 2),
+                        )
+                        return {
+                            "content": content,
+                            "usage": usage,
+                            "model": result.get("model", self.model),
+                            "elapsed_ms": round(elapsed_ms, 2),
+                        }
+                    except Exception as fallback_error:
+                        self.logger.error("Kimi fallback тоже недоступен", error=str(fallback_error))
+                        raise
+                if isinstance(e, aiohttp.ClientResponseError):
+                    self.logger.error(
+                        "HTTP ошибка от LLM API",
+                        status=e.status,
+                        message=str(e.message),
+                    )
+                    raise
+                self.logger.error("Таймаут запроса к LLM API")
+                raise
             except RuntimeError as e:
                 if "Circuit breaker is OPEN" in str(e):
                     self.logger.error("Circuit breaker OPEN — запрос отклонён")
                     raise
-                raise
-            except aiohttp.ClientResponseError as e:
-                self.logger.error(
-                    "HTTP ошибка от LLM API",
-                    status=e.status,
-                    message=str(e.message),
-                )
-                raise
-            except asyncio.TimeoutError:
-                self.logger.error("Таймаут запроса к LLM API")
                 raise
             except Exception as e:
                 self.logger.error("Неожиданная ошибка при запросе к LLM", error=str(e))

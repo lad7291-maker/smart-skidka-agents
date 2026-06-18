@@ -10,7 +10,7 @@
     "run_once": false
   },
   "llm_settings": {
-    "model": "deepseek-chat",
+    "model": "anthropic/claude-3-haiku",
     "temperature": 0.8,
     "max_tokens": 2048
   },
