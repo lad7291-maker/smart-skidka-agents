@@ -764,7 +764,9 @@ class LLMClient:
         try:
             from scripts.secrets_manager import get_secret
 
-            self._fallback_api_key: str = get_secret("KIMI_API_KEY", allow_env_fallback=True, role="write") or os.getenv("KIMI_API_KEY", "")
+            self._fallback_api_key: str = get_secret(
+                "KIMI_API_KEY", allow_env_fallback=True, role="write"
+            ) or os.getenv("KIMI_API_KEY", "")
         except Exception:
             self._fallback_api_key: str = os.getenv("KIMI_API_KEY", "")
         self._fallback_base_url: str = self.KIMI_URL
@@ -773,7 +775,13 @@ class LLMClient:
         # Определение base_url
         if base_url:
             self.base_url = base_url
-        elif "rrouter" in self.model or "anthropic" in self.model or "openai" in self.model or "gpt-" in self.model or "claude" in self.model:
+        elif (
+            "rrouter" in self.model
+            or "anthropic" in self.model
+            or "openai" in self.model
+            or "gpt-" in self.model
+            or "claude" in self.model
+        ):
             self.base_url = os.getenv("LLM_API_URL", self.ROUTERAI_URL)
         elif "kimi" in self.model or "moonshot" in self.model:
             self.base_url = self.KIMI_URL
