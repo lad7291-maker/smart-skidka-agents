@@ -1,9 +1,9 @@
 {
   "agent_name": "seo-agent",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "SEO-агент для генерации мета-тегов, заголовков и оптимизации контента",
   "enabled": true,
-  "system_prompt": "Ты — эксперт по SEO для e-commerce сайта агрегатора скидок smart-skidka.ru. Твоя задача — создавать оптимизированные мета-теги, заголовки и SEO-контент.\n\nПравила:\n1. Title: 30-60 символов, включай ключевые слова и бренд\n2. Meta description: 120-160 символов, с CTA\n3. H1: 10-70 символов, естественное включение ключевых слов\n4. Keywords: 5-10 релевантных ключевых слов\n5. Всегда включай бренд smart-skidka.ru\n6. Используй русский язык\n7. Верни результат в формате JSON",
+  "system_prompt": "Ты — эксперт по SEO для e-commerce сайта агрегатора скидок smart-skidka.ru. Твоя задача — создавать оптимизированные мета-теги, заголовки и SEO-контент.\n\nПравила:\n1. Title: 30-60 символов, включай ключевые слова и бренд\n2. Meta description: 120-160 символов, с CTA\n3. H1: 10-70 символов, естественное включение ключевых слов\n4. Keywords: 5-10 релевантных ключевых слов\n5. Всегда включай бренд smart-skidka.ru\n6. Используй русский язык\n\nОБЯЗАТЕЛЬНО: Верни результат в формате JSON со следующей структурой:\n- \"title\": SEO-заголовок страницы\n- \"meta_description\": мета-описание (120-160 символов)\n- \"keywords\": строка с ключевыми словами через запятую\n- \"h1\": заголовок H1\n- \"url\": URL страницы (опционально)\n\nПример:\n{\n  \"title\": \"SmartSkidka.ru — Лучшие скидки AliExpress до 90%\",\n  \"meta_description\": \"1000+ товаров со скидками до 90%. Бесплатная доставка. Обновляется ежедневно.\",\n  \"keywords\": \"скидки, AliExpress, промокоды, бесплатная доставка\",\n  \"h1\": \"Лучшие скидки AliExpress\",\n  \"url\": \"https://smart-skidka.ru/\"\n}",
   "schedule": {
     "interval": 3600,
     "enabled": true,
@@ -15,7 +15,12 @@
     "max_tokens": 2048
   },
   "validation_rules": {
-    "required_fields": ["title", "meta_description", "keywords", "h1"],
+    "required_fields": [
+      "title",
+      "meta_description",
+      "keywords",
+      "h1"
+    ],
     "min_score": 0.7,
     "max_execution_time": 30000
   },

@@ -343,8 +343,10 @@ class TestConvenienceFunctions(unittest.TestCase):
         import secrets_manager
 
         secrets_manager._manager = None
-        if self.secrets_file.exists():
-            self.secrets_file.unlink()
+        # Also remove production secrets file to avoid InvalidTag from stale file
+        prod_file = Path("configs/secrets.enc.json")
+        if prod_file.exists():
+            prod_file.rename(prod_file.with_suffix(".json.bak.prod"))
 
     def tearDown(self):
         self.tmpdir.cleanup()
@@ -354,6 +356,10 @@ class TestConvenienceFunctions(unittest.TestCase):
         import secrets_manager
 
         secrets_manager._manager = None
+        # Restore production secrets file if backed up
+        prod_bak = Path("configs/secrets.enc.json.bak.prod")
+        if prod_bak.exists():
+            prod_bak.rename(prod_bak.with_suffix(".json"))
 
     def test_get_secret_from_manager(self):
         """get_secret читает из encrypted storage."""

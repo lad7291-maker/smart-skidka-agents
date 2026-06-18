@@ -156,7 +156,15 @@ class ActionExecutor:
         action_log: List[str] = []
 
         if agent_type == "smm":
+            # LLM может вернуть {"post": {...}} (единственное число) или {"posts": [...]}
+            raw_post = data.get("post")
             posts = data.get("posts", data.get("content", []))
+            if raw_post and isinstance(raw_post, dict):
+                # Одиночный post — оборачиваем в список
+                posts = [raw_post]
+            elif isinstance(posts, dict):
+                # Одиночный post под ключом posts/content
+                posts = [posts]
             if isinstance(posts, list):
                 for post in posts[:3]:
                     if isinstance(post, dict):

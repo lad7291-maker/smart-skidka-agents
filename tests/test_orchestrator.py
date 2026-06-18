@@ -85,7 +85,7 @@ class TestCycleManagerScheduling:
         mock_agent.agent_name = "seo-agent"
         mock_agent.get_schedule.return_value = {"interval": 3600, "run_once": False}
 
-        last_run = datetime.now() - timedelta(hours=2)
+        last_run = datetime.now(timezone.utc) - timedelta(hours=2)
         with patch.object(cm, "_get_last_run_time", AsyncMock(return_value=last_run)):
             result = await cm._should_run_agent(mock_agent)
         assert result is True
@@ -98,7 +98,7 @@ class TestCycleManagerScheduling:
         mock_agent.agent_name = "seo-agent"
         mock_agent.get_schedule.return_value = {"interval": 3600, "run_once": False}
 
-        last_run = datetime.now() - timedelta(minutes=10)
+        last_run = datetime.now(timezone.utc) - timedelta(minutes=10)
         with patch.object(cm, "_get_last_run_time", AsyncMock(return_value=last_run)):
             result = await cm._should_run_agent(mock_agent)
         assert result is False
@@ -111,7 +111,7 @@ class TestCycleManagerScheduling:
         mock_agent.agent_name = "trend-agent"
         mock_agent.get_schedule.return_value = {"interval": 3600, "run_once": True}
 
-        last_run = datetime.now() - timedelta(days=1)
+        last_run = datetime.now(timezone.utc) - timedelta(days=1)
         with patch.object(cm, "_get_last_run_time", AsyncMock(return_value=last_run)):
             result = await cm._should_run_agent(mock_agent)
         assert result is False

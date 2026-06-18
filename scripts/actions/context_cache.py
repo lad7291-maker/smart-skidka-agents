@@ -98,7 +98,7 @@ class ContextCache:
             return
         try:
             redis = await self.memory._get_redis()
-            await redis.setex(key, ttl, json.dumps(value, ensure_ascii=False, default=str))
+            await redis.set(key, json.dumps(value, ensure_ascii=False, default=str), ex=ttl)
         except Exception as e:
             self.logger.warning("redis_set_failed", key=key, error=str(e))
 

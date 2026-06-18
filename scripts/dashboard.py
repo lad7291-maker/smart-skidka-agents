@@ -425,7 +425,7 @@ async def agent_pause_handler(request: web.Request) -> web.Response:
     agent_name = request.match_info["name"]
     try:
         redis = await _get_redis()
-        await redis.setex(f"agent:pause:{agent_name}", 86400, "1")  # 24h max
+        await redis.set(f"agent:pause:{agent_name}", "1", ex=86400)  # 24h max
         logger.info("agent_paused_via_dashboard", agent=agent_name)
         return web.json_response({"agent": agent_name, "paused": True})
     except Exception as e:
@@ -449,7 +449,7 @@ async def agent_run_now_handler(request: web.Request) -> web.Response:
     agent_name = request.match_info["name"]
     try:
         redis = await _get_redis()
-        await redis.setex(f"agent:run_now:{agent_name}", 300, "1")  # 5min window
+        await redis.set(f"agent:run_now:{agent_name}", "1", ex=300)  # 5min window
         logger.info("agent_run_now_via_dashboard", agent=agent_name)
         return web.json_response({"agent": agent_name, "run_now": True})
     except Exception as e:

@@ -2192,11 +2192,25 @@ class MemoryStore:
             self.logger.info("Инициализация схемы БД")
 
             await conn.execute("""
+                CREATE TABLE IF NOT EXISTS orchestrator_cycles (
+                    id SERIAL PRIMARY KEY,
+                    cycle_id VARCHAR(100) UNIQUE NOT NULL,
+                    started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    completed_at TIMESTAMP WITH TIME ZONE,
+                    status VARCHAR(20) DEFAULT 'running',
+                    agents_count INTEGER DEFAULT 0,
+                    errors_count INTEGER DEFAULT 0,
+                    report JSONB
+                )
+            """)
+
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS agent_results (
                     id SERIAL PRIMARY KEY,
                     agent_name VARCHAR(100) NOT NULL,
                     agent_type VARCHAR(50) NOT NULL,
                     cycle_id VARCHAR(100) NOT NULL,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                     data JSONB NOT NULL,
                     metrics JSONB DEFAULT '{}',
@@ -2225,6 +2239,11 @@ class MemoryStore:
             """)
 
             await conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_agent_results_created
+                ON agent_results(created_at DESC)
+            """)
+
+            await conn.execute("""
                 CREATE TABLE IF NOT EXISTS agent_metrics (
                     id SERIAL PRIMARY KEY,
                     agent_name VARCHAR(100) NOT NULL,
@@ -2234,14 +2253,31 @@ class MemoryStore:
             """)
 
             await conn.execute("""
-                CREATE TABLE IF NOT EXISTS orchestrator_cycles (
+                CREATE TABLE IF NOT EXISTS trend_recommendations (
                     id SERIAL PRIMARY KEY,
-                    cycle_id VARCHAR(100) UNIQUE NOT NULL,
-                    started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    trend_id VARCHAR(100) NOT NULL,
+                    target_agent VARCHAR(50) NOT NULL,
+                    recommendation TEXT NOT NULL,
+                    priority INTEGER DEFAULT 0,
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    applied_at TIMESTAMP WITH TIME ZONE,
+                    UNIQUE(trend_id, target_agent)
+                )
+            """)
+
+            await conn.execute("""
+                CREATE TABLE IF NOT EXISTS agent_tasks (
+                    id SERIAL PRIMARY KEY,
+                    agent_name VARCHAR(50) NOT NULL,
+                    task_name VARCHAR(100) NOT NULL,
+                    task_type VARCHAR(50) NOT NULL,
+                    description TEXT,
+                    priority INTEGER DEFAULT 0,
+                    status VARCHAR(20) DEFAULT 'pending',
+                    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
                     completed_at TIMESTAMP WITH TIME ZONE,
-                    status VARCHAR(20) DEFAULT 'running',
-                    agents_count INTEGER DEFAULT 0,
-                    errors_count INTEGER DEFAULT 0
+                    result JSONB,
+                    UNIQUE(agent_name, task_name)
                 )
             """)
 
@@ -2292,9 +2328,8 @@ class MemoryStore:
 
         # Кэшируем в Redis
         cache_key = f"agent:last_result:{agent_name}"
-        await redis.setex(
+        await redis.set(
             cache_key,
-            3600,  # TTL 1 час
             json.dumps(
                 {
                     "cycle_id": cycle_id,
@@ -2304,6 +2339,7 @@ class MemoryStore:
                 },
                 ensure_ascii=False,
             ),
+            ex=3600,  # TTL 1 час
         )
 
         self.logger.info(
@@ -3290,7 +3326,7 @@ class Orchestrator:
         try:
             redis = await self._cycle.memory._get_redis()
             for name in agent_names:
-                await redis.setex(f"agent:run_now:{name}", 300, "1")
+                await redis.set(f"agent:run_now:{name}", "1", ex=300)
                 self.logger.info("Forced agent run via run_now", agent=name)
         except Exception as e:
             self.logger.warning("Failed to force agent run", error=str(e))

@@ -33,9 +33,9 @@ _CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "1718706291")
 try:
     from ..secrets_manager import get_secret
 
-    BOT_TOKEN = get_secret("TELEGRAM_BOT_TOKEN", allow_env_fallback=True) or _BOT_TOKEN
-    CHANNEL_ID = get_secret("TELEGRAM_CHANNEL_ID", allow_env_fallback=True) or _CHANNEL_ID
-    CHAT_ID = get_secret("TELEGRAM_CHAT_ID", allow_env_fallback=True) or _CHAT_ID
+    BOT_TOKEN = get_secret("TELEGRAM_BOT_TOKEN", role="write", allow_env_fallback=True) or _BOT_TOKEN
+    CHANNEL_ID = get_secret("TELEGRAM_CHANNEL_ID", role="write", allow_env_fallback=True) or _CHANNEL_ID
+    CHAT_ID = get_secret("TELEGRAM_CHAT_ID", role="write", allow_env_fallback=True) or _CHAT_ID
 except Exception:
     BOT_TOKEN = _BOT_TOKEN
     CHANNEL_ID = _CHANNEL_ID

@@ -176,9 +176,9 @@ async def handle_status(chat_id: str, edit_msg_id: int = None):
     try:
         conn = await asyncpg.connect(DB_URL)
         rows = await conn.fetch("""
-            SELECT agent_name, cycle_id, timestamp, validation_score, data
+            SELECT agent_name, cycle_id, created_at, validation_score, data
             FROM agent_results
-            ORDER BY timestamp DESC
+            ORDER BY created_at DESC
             LIMIT 10
             """)
         await conn.close()
@@ -186,7 +186,7 @@ async def handle_status(chat_id: str, edit_msg_id: int = None):
         if rows:
             lines.append("\n🤖 *Последние агенты:*\n")
             for r in rows:
-                ts = r["timestamp"].strftime("%H:%M") if r["timestamp"] else "?"
+                ts = r["created_at"].strftime("%H:%M") if r["created_at"] else "?"
                 score = r["validation_score"] or 0
                 name = r["agent_name"]
                 data = r["data"]
@@ -408,9 +408,9 @@ async def report_poller_task():
             await asyncio.sleep(60)  # проверяем каждую минуту
             conn = await asyncpg.connect(DB_URL)
             row = await conn.fetchrow("""
-                SELECT cycle_id, timestamp, data
+                SELECT cycle_id, started_at, data
                 FROM orchestrator_cycles
-                ORDER BY timestamp DESC
+                ORDER BY started_at DESC
                 LIMIT 1
                 """)
             if not row:
@@ -426,17 +426,17 @@ async def report_poller_task():
             # Получаем результаты агентов за этот цикл
             results = await conn.fetch(
                 """
-                SELECT agent_name, data, metrics, validation_score, timestamp
+                SELECT agent_name, data, metrics, validation_score, created_at
                 FROM agent_results
                 WHERE cycle_id = $1
-                ORDER BY timestamp
+                ORDER BY created_at
                 """,
                 cycle_id,
             )
             await conn.close()
 
             # Формируем отчёт
-            ts = row["timestamp"].strftime("%H:%M") if row["timestamp"] else "?"
+            ts = row["started_at"].strftime("%H:%M") if row["started_at"] else "?"
             lines = [
                 f"🔄 *Сводка по циклу*\n",
                 f"🆔 ID: `{cycle_id}`\n",

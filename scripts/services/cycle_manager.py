@@ -19,7 +19,7 @@ import asyncio
 import os
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest.mock import MagicMock
@@ -105,7 +105,7 @@ class CycleManager:
         if not last_run:
             return True  # Никогда не запускался
 
-        elapsed = (datetime.now() - last_run).total_seconds()
+        elapsed = (datetime.now(timezone.utc) - last_run).total_seconds()
         should_run = elapsed >= interval
 
         if not should_run:
@@ -148,6 +148,9 @@ class CycleManager:
 
     async def load_agents(self) -> List["Any"]:
         """Загружает конфигурации всех агентов."""
+        # P1-1: Ленивый импорт для избежания циклических зависимостей
+        from scripts.orchestrator import AgentConfig, AgentRunner, LLMClient
+
         config_dir = Path(self.config_path)
         if not config_dir.exists():
             self.logger.warning("Директория конфигураций не найдена", path=str(config_dir))
@@ -159,6 +162,9 @@ class CycleManager:
 
         for config_file in sorted(config_dir.glob("*.json")):
             agent_name = config_file.stem
+            # Skip non-agent config files (schema, secrets, backups, etc.)
+            if agent_name in ("agent-config.schema", "secrets.enc") or agent_name.endswith(".bak"):
+                continue
             try:
                 config = AgentConfig(agent_name, str(config_dir))
                 config.load_config()
@@ -454,16 +460,6 @@ class CycleManager:
                 task_count = await task_dispatcher.dispatch_analytics_tasks(result["data"])
                 self.logger.info("analytics_tasks_dispatched", count=task_count)
 
-        # Сохранение
-        if self.memory:
-            await self.memory.save_result(agent_name, result, f"cycle-{datetime.now().strftime('%Y%m%d-%H%M%S')}")
-            if "validation_result" in result:
-                await self.memory.update_validation_status(
-                    agent_name,
-                    f"cycle-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
-                    result["validation_result"],
-                )
-
         # Actions
         if result["success"] and action_executor:
             try:
@@ -498,6 +494,16 @@ class CycleManager:
                         )
             except Exception as e:
                 self.logger.error("Action execution failed", agent=agent_name, error=str(e))
+
+        # Сохранение (после выполнения actions, чтобы actions попали в БД)
+        if self.memory:
+            await self.memory.save_result(agent_name, result, f"cycle-{datetime.now().strftime('%Y%m%d-%H%M%S')}")
+            if "validation_result" in result:
+                await self.memory.update_validation_status(
+                    agent_name,
+                    f"cycle-{datetime.now().strftime('%Y%m%d-%H%M%S')}",
+                    result["validation_result"],
+                )
 
         # Обработка ошибок
         if not result["success"]:

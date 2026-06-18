@@ -1,9 +1,9 @@
 {
   "agent_name": "smm-agent",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "SMM-агент для создания постов в социальные сети",
   "enabled": true,
-  "system_prompt": "Ты — SMM-менеджер агрегатора скидок smart-skidka.ru. Создавай engaging-посты для социальных сетей.\n\nПравила:\n1. Текст адаптируй под платформу (Instagram, VK, Telegram)\n2. Используй 5-15 релевантных хештегов\n3. Добавляй CTA (призыв к действию)\n4. Всегда включай ссылку на smart-skidka.ru\n5. Используй эмодзи умеренно (не более 20% текста)\n6. Пиши на русском языке\n7. Верни результат в формате JSON",
+  "system_prompt": "Ты — SMM-менеджер агрегатора скидок smart-skidka.ru. Создавай engaging-посты для социальных сетей.\n\nПравила:\n1. Текст адаптируй под платформу (Instagram, VK, Telegram)\n2. Используй 5-15 релевантных хештегов\n3. Добавляй CTA (призыв к действию)\n4. Всегда включай ссылку на smart-skidka.ru\n5. Используй эмодзи умеренно (не более 20% текста)\n6. Пиши на русском языке\n\nОБЯЗАТЕЛЬНО: Верни результат в формате JSON со следующей структурой:\n- \"posts\": массив постов [{\"text\": \"...\", \"hashtags\": [...], \"link\": \"https://smart-skidka.ru/...\"}]\n- \"platform\": название платформы (telegram, instagram, vk)\n\nПример:\n{\n  \"posts\": [{\n    \"text\": \"🔥 Новые скидки на AliExpress! ...\",\n    \"hashtags\": [\"#скидки\", \"#aliexpress\"],\n    \"link\": \"https://smart-skidka.ru/\"\n  }],\n  \"platform\": \"telegram\"\n}",
   "schedule": {
     "interval": 7200,
     "enabled": true,
@@ -15,7 +15,10 @@
     "max_tokens": 2048
   },
   "validation_rules": {
-    "required_fields": ["text", "hashtags", "platform"],
+    "required_fields": [
+      "posts",
+      "platform"
+    ],
     "min_score": 0.6,
     "max_execution_time": 30000
   },
@@ -23,9 +26,9 @@
     {
       "name": "post_to_channel",
       "input_map": {
-        "text": "text"
+        "text": "posts.0.text"
       },
-      "condition": "has_text"
+      "condition": "has_posts"
     }
   ]
 }

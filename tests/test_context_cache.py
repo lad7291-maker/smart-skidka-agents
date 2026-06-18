@@ -24,7 +24,7 @@ class MockRedis:
     async def get(self, key):
         return self._store.get(key)
 
-    async def setex(self, key, ttl, value):
+    async def set(self, key, value, ex=None):
         self._store[key] = value
 
     async def delete(self, key):
@@ -183,10 +183,10 @@ class TestContextCache(unittest.TestCase):
             cc = ContextCache(memory_store=memory)
             # Симулируем данные от save_result
             redis = await memory._get_redis()
-            await redis.setex(
+            await redis.set(
                 "agent:last_result:seo-agent",
-                3600,
                 '{"cycle_id": "c1", "timestamp": "2024-01-01T00:00:00", "data": {"title": "Test"}, "elapsed_ms": 100}',
+                ex=3600,
             )
             result = await cc.get_last_results("seo-agent", limit=3)
             self.assertIsNotNone(result)
