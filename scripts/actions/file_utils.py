@@ -29,7 +29,7 @@ ITEMS_DIR = SITE_ROOT / "item"
 def _resolve_within_site_root(path: Path) -> Path:
     """Проверяет, что путь находится внутри SITE_ROOT (защита от path traversal)."""
     resolved = path.resolve()
-    site_root_resolved = _get_site_root().resolve()
+    site_root_resolved = SITE_ROOT.resolve()
     # Приводим к общему виду для сравнения
     try:
         resolved.relative_to(site_root_resolved)
@@ -75,6 +75,12 @@ def safe_write(path: Path, content: str, make_backup: bool = True) -> bool:
         tmp = Path(str(path) + ".tmp")
         tmp.write_text(content, encoding="utf-8")
         tmp.rename(path)
+        # P1-X: Устанавливаем права для nginx
+        try:
+            os.chmod(path, 0o644)
+            shutil.chown(path, user="www-data", group="www-data")
+        except Exception:
+            pass  # Если не root — пропускаем
         return True
     except Exception as e:
         # rollback из сохранённого бэкапа
@@ -172,7 +178,7 @@ def write_products(data: dict, validate: bool = False) -> bool:
         validate: Если True, проверяет разрешённые поля (для агентов)
     """
     # Если data — dict с "products", сохраняем как list для совместимости с app.js
-    products_json = _get_site_root() / "products.json"
+    products_json = SITE_ROOT / "products.json"
     if isinstance(data, dict) and "products" in data:
         return safe_write_json(products_json, data["products"])
     return safe_write_json(products_json, data)

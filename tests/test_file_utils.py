@@ -279,51 +279,62 @@ class TestWriteProducts(unittest.TestCase):
     def setUp(self):
         self.site_root = Path("/tmp/test_site")
         self.site_root.mkdir(parents=True, exist_ok=True)
+        self._orig_project_root = os.environ.get("PROJECT_ROOT")
+        os.environ["PROJECT_ROOT"] = str(self.site_root)
         self.patcher = patch("scripts.actions.file_utils.SITE_ROOT", self.site_root)
-        self.patcher2 = patch("scripts.actions.file_utils.PRODUCTS_JSON", self.site_root / "products.json")
         self.patcher.start()
-        self.patcher2.start()
 
     def tearDown(self):
         self.patcher.stop()
-        self.patcher2.stop()
+        if self._orig_project_root is not None:
+            os.environ["PROJECT_ROOT"] = self._orig_project_root
+        elif "PROJECT_ROOT" in os.environ:
+            del os.environ["PROJECT_ROOT"]
         (self.site_root / "products.json").unlink(missing_ok=True)
 
     def test_write_dict_with_products(self):
         result = write_products({"products": [{"id": 1}]})
         self.assertTrue(result)
 
-        from scripts.actions.file_utils import PRODUCTS_JSON
-
-        data = json.loads(PRODUCTS_JSON.read_text(encoding="utf-8"))
+        data = json.loads((self.site_root / "products.json").read_text(encoding="utf-8"))
         self.assertEqual(data, [{"id": 1}])  # Written as list
 
     def test_write_plain_dict(self):
         result = write_products({"key": "value"})
         self.assertTrue(result)
 
-        from scripts.actions.file_utils import PRODUCTS_JSON
-
-        data = json.loads(PRODUCTS_JSON.read_text(encoding="utf-8"))
+        data = json.loads((self.site_root / "products.json").read_text(encoding="utf-8"))
         self.assertEqual(data, {"key": "value"})
 
 
 class TestListItems(unittest.TestCase):
     """Тесты list_items."""
 
-    @patch("scripts.actions.file_utils.ITEMS_DIR", Path("/tmp/test_site/item"))
+    def setUp(self):
+        self.site_root = Path("/tmp/test_site")
+        self.site_root.mkdir(parents=True, exist_ok=True)
+        self._orig_project_root = os.environ.get("PROJECT_ROOT")
+        os.environ["PROJECT_ROOT"] = str(self.site_root)
+
+    def tearDown(self):
+        if self._orig_project_root is not None:
+            os.environ["PROJECT_ROOT"] = self._orig_project_root
+        elif "PROJECT_ROOT" in os.environ:
+            del os.environ["PROJECT_ROOT"]
+        items_dir = self.site_root / "item"
+        if items_dir.exists():
+            for f in items_dir.glob("*.html"):
+                f.unlink(missing_ok=True)
+
     def test_empty_items_dir(self):
-        site_root = Path("/tmp/test_site")
-        items_dir = site_root / "item"
+        items_dir = self.site_root / "item"
         items_dir.mkdir(parents=True, exist_ok=True)
 
         result = list_items()
         self.assertEqual(result, [])
 
-    @patch("scripts.actions.file_utils.ITEMS_DIR", Path("/tmp/test_site/item"))
     def test_with_items(self):
-        site_root = Path("/tmp/test_site")
-        items_dir = site_root / "item"
+        items_dir = self.site_root / "item"
         items_dir.mkdir(parents=True, exist_ok=True)
 
         (items_dir / "item1.html").write_text("test")
@@ -331,10 +342,6 @@ class TestListItems(unittest.TestCase):
 
         result = list_items()
         self.assertEqual(result, ["item1.html", "item2.html"])
-
-        # Cleanup
-        (items_dir / "item1.html").unlink(missing_ok=True)
-        (items_dir / "item2.html").unlink(missing_ok=True)
 
 
 class TestGitCommitFile(unittest.TestCase):

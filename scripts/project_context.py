@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
@@ -156,6 +157,9 @@ class ProjectContext:
                 with open(real_path, "a", encoding="utf-8") as f:
                     f.write(content)
             else:
+                # P1-X: Auto-inject charset into HTML if missing
+                if rel_path.endswith(".html") and 'charset=' not in content.lower():
+                    content = self._inject_html_charset(content)
                 # CRIT-2: Атомарная запись через временный файл
                 tmp_fd, tmp_path = tempfile.mkstemp(dir=real_path.parent, prefix=f".{real_path.name}.", suffix=".tmp")
                 try:
@@ -163,6 +167,12 @@ class ProjectContext:
                         f.write(content)
                     # Атомарный rename
                     os.replace(tmp_path, real_path)
+                    # P1-X: Устанавливаем права для nginx
+                    try:
+                        os.chmod(real_path, 0o644)
+                        shutil.chown(real_path, user="www-data", group="www-data")
+                    except Exception:
+                        pass  # Если не root — пропускаем
                 except Exception:
                     # При ошибке — удаляем временный файл
                     try:
@@ -203,12 +213,31 @@ class ProjectContext:
             logger.error("write_file_failed: %s - %s", rel_path, str(e))
             return {"success": False, "error": str(e)}
 
+    def _inject_html_charset(self, content: str) -> str:
+        """P1-X: Автоматически добавляет <meta charset=\"UTF-8\"> в HTML если отсутствует."""
+        if '<meta charset=' in content.lower():
+            return content
+        # Ищем <head> и вставляем charset сразу после него
+        head_match = re.search(r'(<head[^>]*>)', content, re.IGNORECASE)
+        if head_match:
+            insert_pos = head_match.end()
+            return content[:insert_pos] + '\n<meta charset="UTF-8">' + content[insert_pos:]
+        # Если нет <head>, ищем <html> и добавляем <head> с charset
+        html_match = re.search(r'(<html[^>]*>)', content, re.IGNORECASE)
+        if html_match:
+            insert_pos = html_match.end()
+            return content[:insert_pos] + '\n<head><meta charset="UTF-8"><title>Smart Skidka</title></head>' + content[insert_pos:]
+        # Fallback: добавляем в начало
+        return '<meta charset="UTF-8">\n' + content
+
     def _validate_html(self, content: str) -> bool:
-        """CRIT-3: Проверяет базовую валидность HTML."""
+        """CRIT-3: Проверяет базовую валидность HTML и наличие charset."""
+        content_lower = content.lower()
         checks = [
-            "</html>" in content.lower() or "</html>" in content,
-            "</body>" in content.lower() or "</body>" in content,
-            "<title>" in content.lower() or "<title>" in content,
+            "</html>" in content_lower,
+            "</body>" in content_lower,
+            "<title>" in content_lower,
+            'charset="utf-8"' in content_lower or "charset='utf-8'" in content_lower or 'charset="utf-8"' in content_lower,
         ]
         return all(checks)
 
