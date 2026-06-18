@@ -158,7 +158,7 @@ class ProjectContext:
                     f.write(content)
             else:
                 # P1-X: Auto-inject charset into HTML if missing
-                if rel_path.endswith(".html") and 'charset=' not in content.lower():
+                if rel_path.endswith(".html") and "charset=" not in content.lower():
                     content = self._inject_html_charset(content)
                 # CRIT-2: Атомарная запись через временный файл
                 tmp_fd, tmp_path = tempfile.mkstemp(dir=real_path.parent, prefix=f".{real_path.name}.", suffix=".tmp")
@@ -215,18 +215,22 @@ class ProjectContext:
 
     def _inject_html_charset(self, content: str) -> str:
         """P1-X: Автоматически добавляет <meta charset=\"UTF-8\"> в HTML если отсутствует."""
-        if '<meta charset=' in content.lower():
+        if "<meta charset=" in content.lower():
             return content
         # Ищем <head> и вставляем charset сразу после него
-        head_match = re.search(r'(<head[^>]*>)', content, re.IGNORECASE)
+        head_match = re.search(r"(<head[^>]*>)", content, re.IGNORECASE)
         if head_match:
             insert_pos = head_match.end()
             return content[:insert_pos] + '\n<meta charset="UTF-8">' + content[insert_pos:]
         # Если нет <head>, ищем <html> и добавляем <head> с charset
-        html_match = re.search(r'(<html[^>]*>)', content, re.IGNORECASE)
+        html_match = re.search(r"(<html[^>]*>)", content, re.IGNORECASE)
         if html_match:
             insert_pos = html_match.end()
-            return content[:insert_pos] + '\n<head><meta charset="UTF-8"><title>Smart Skidka</title></head>' + content[insert_pos:]
+            return (
+                content[:insert_pos]
+                + '\n<head><meta charset="UTF-8"><title>Smart Skidka</title></head>'
+                + content[insert_pos:]
+            )
         # Fallback: добавляем в начало
         return '<meta charset="UTF-8">\n' + content
 
@@ -237,7 +241,9 @@ class ProjectContext:
             "</html>" in content_lower,
             "</body>" in content_lower,
             "<title>" in content_lower,
-            'charset="utf-8"' in content_lower or "charset='utf-8'" in content_lower or 'charset="utf-8"' in content_lower,
+            'charset="utf-8"' in content_lower
+            or "charset='utf-8'" in content_lower
+            or 'charset="utf-8"' in content_lower,
         ]
         return all(checks)
 
