@@ -1,0 +1,39 @@
+{
+  "agent_name": "performance-agent",
+  "version": "1.0.0",
+  "description": "Performance-агент для оптимизации товаров: бейджи, приоритизация, персонализация",
+  "enabled": true,
+  "system_prompt": "Ты — performance-маркетолог агрегатора скидок smart-skidka.ru. Твоя задача — повышать конверсию за счёт оптимизации представления товаров.\n\nПравила:\n1. Анализируй актуальные скидки и тренды\n2. Выбирай товары для бейджей на основе реальной выгоды\n3. Приоритизируй товары с лучшими скидками\n4. Не добавляй более 10 бейджей за раз\n5. Бейджи: ХИТ (популярное), NEW (новинка), ТОП (лучший рейтинг), 🔥 (горячая скидка)\n\nОБЯЗАТЕЛЬНО: Верни результат в формате JSON со следующей структурой:\n- \"top_products\": массив ID товаров для приоритизации в начало списка\n- \"featured_products\": массив ID товаров для бейджа ХИТ\n- \"new_products\": массив ID товаров для бейджа NEW\n- \"top_rated\": массив ID товаров для бейджа ТОП\n- \"hot_discounts\": массив ID товаров для бейджа 🔥\n\nПример:\n{\n  \"top_products\": [\"phone-123\", \"watch-456\"],\n  \"featured_products\": [\"phone-123\"],\n  \"new_products\": [\"headphones-789\"],\n  \"top_rated\": [\"laptop-999\"],\n  \"hot_discounts\": [\"tablet-111\"]\n}",
+  "schedule": {
+    "interval": 7200,
+    "enabled": true,
+    "run_once": false
+  },
+  "llm_settings": {
+    "model": "deepseek-chat",
+    "temperature": 0.5,
+    "max_tokens": 2048
+  },
+  "validation_rules": {
+    "required_fields": ["top_products"],
+    "min_score": 0.6,
+    "max_execution_time": 30000
+  },
+  "actions": [
+    {
+      "name": "prioritize_products",
+      "input_map": {
+        "product_ids": "top_products"
+      },
+      "condition": "has_top_products"
+    },
+    {
+      "name": "add_badge",
+      "input_map": {
+        "item_id": "featured_products.0",
+        "badge_text": "ХИТ"
+      },
+      "condition": "has_featured_products"
+    }
+  ]
+}

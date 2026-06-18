@@ -246,8 +246,8 @@ async def cycles_handler(request: web.Request) -> web.Response:
         db = await _get_db()
         async with db.acquire() as conn:
             rows = await conn.fetch(
-                """SELECT id, started_at, completed_at, status,
-                          agents_total, agents_success, agents_failed
+                """SELECT id, cycle_id, started_at, completed_at, status,
+                          agents_count, errors_count
                    FROM orchestrator_cycles
                    ORDER BY started_at DESC
                    LIMIT $1""",
@@ -259,12 +259,12 @@ async def cycles_handler(request: web.Request) -> web.Response:
             cycles.append(
                 {
                     "id": str(r["id"]),
+                    "cycle_id": r["cycle_id"],
                     "started_at": (r["started_at"].isoformat() if r["started_at"] else None),
                     "completed_at": (r["completed_at"].isoformat() if r["completed_at"] else None),
                     "status": r["status"],
-                    "agents_total": r["agents_total"],
-                    "agents_success": r["agents_success"],
-                    "agents_failed": r["agents_failed"],
+                    "agents_count": r["agents_count"],
+                    "errors_count": r["errors_count"],
                 }
             )
 

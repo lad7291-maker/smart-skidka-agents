@@ -201,6 +201,28 @@ class ActionExecutor:
             for tid in top_items[:3]:
                 ok = add_badge(str(tid), "ТОП")
                 action_log.append(f"badge:top:{tid}:{ok}")
+            hot_items = data.get("hot_discounts", data.get("hot", []))
+            for hid in hot_items[:5]:
+                ok = add_badge(str(hid), "🔥")
+                action_log.append(f"badge:hot:{hid}:{ok}")
+
+        elif agent_type == "analytics":
+            # Analytics agent выдаёт рекомендации; применяем приоритизацию топ-товаров
+            top_ids = data.get("top_products", [])
+            if top_ids:
+                ok = prioritize_products(top_ids)
+                action_log.append(f"analytics_prioritized:{ok}")
+            recommendations = data.get("recommendations", [])
+            for rec in recommendations[:5]:
+                if isinstance(rec, dict):
+                    action_log.append(f"analytics_rec:{rec.get('action')}:{rec.get('category', 'none')}")
+
+        elif agent_type == "email":
+            # Email agent сохраняет HTML через file_ops; дополнительно приоритизирует товары
+            products = data.get("products", [])
+            if products:
+                ok = prioritize_products(products)
+                action_log.append(f"email_prioritized:{ok}")
 
         elif agent_type == "content":
             cat = data.get("category", data.get("page_category", ""))
