@@ -93,6 +93,18 @@ class CycleManager:
             interval = DEFAULT_CYCLE_INTERVAL
         run_once = schedule.get("run_once", False)
 
+        # P1-20: Проверяем run_now (форсированный запуск)
+        if self.memory:
+            try:
+                redis = await self.memory._get_redis()
+                run_now = await redis.get(f"agent:run_now:{agent.agent_name}")
+                if run_now:
+                    await redis.delete(f"agent:run_now:{agent.agent_name}")
+                    self.logger.info("Agent forced by run_now", agent=agent.agent_name)
+                    return True
+            except Exception:
+                pass
+
         # Если run_once и уже запускался — пропускаем
         if run_once:
             last_run = await self._get_last_run_time(agent.agent_name)
@@ -402,16 +414,6 @@ class CycleManager:
                         "data": {"status": "paused_by_user"},
                         "actions": ["paused"],
                     }
-            except Exception:
-                pass
-
-            # Срочный запуск
-            try:
-                redis = await self.memory._get_redis()
-                run_now = await redis.get(f"agent:run_now:{agent_name}")
-                if run_now:
-                    await redis.delete(f"agent:run_now:{agent_name}")
-                    self.logger.info("Срочный запуск агента", agent=agent_name)
             except Exception:
                 pass
 
