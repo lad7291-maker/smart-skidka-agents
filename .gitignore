@@ -14,6 +14,7 @@ __pycache__/
 *.env
 *.log
 *.bak
+*.bak.json
 *.tmp
 
 # Node
