@@ -861,6 +861,154 @@ async def verify_and_track_page(
     }
 
 
+# ─── FEED AGENT ACTIONS ──────────────────────────────────────────
+
+@with_retry(max_retries=2, delay=1.0, backoff=2.0, exceptions=(Exception,))
+@register_action(
+    "update_products",
+    agent_types=["feed"],
+    description="Запускает update_products.py с параметрами от LLM",
+)
+def update_products(min_discount: int = 30, products_per_category: int = 200, include_categories: list = None) -> bool:
+    """
+    Запускает обновление товаров из Admitad feed с заданными параметрами.
+    
+    Args:
+        min_discount: Минимальная скидка (по умолчанию 30)
+        products_per_category: Товаров на категорию (по умолчанию 200)
+        include_categories: Список категорий для включения (None = все из фида)
+    """
+    import subprocess
+    
+    site_root = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp"))
+    script_path = Path("/opt/smart-skidka-agents/scripts/update_products.py")
+    
+    env = os.environ.copy()
+    env["MIN_DISCOUNT_PERCENT"] = str(min_discount)
+    env["PRODUCTS_PER_CATEGORY"] = str(products_per_category)
+    
+    if include_categories and isinstance(include_categories, list):
+        env["TARGET_CATEGORIES"] = ",".join(include_categories)
+    
+    try:
+        result = subprocess.run(
+            ["python3", str(script_path)],
+            cwd=str(site_root),
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=600,
+        )
+        
+        if result.returncode == 0:
+            logger.info("update_products succeeded", 
+                min_discount=min_discount,
+                products_per_category=products_per_category,
+                stdout=result.stdout[-500:] if result.stdout else "")
+            return True
+        else:
+            logger.error("update_products failed",
+                returncode=result.returncode,
+                stderr=result.stderr[-500:] if result.stderr else "")
+            return False
+    except subprocess.TimeoutExpired:
+        logger.error("update_products timed out after 600s")
+        return False
+    except Exception as e:
+        logger.error("update_products error", error=str(e))
+        return False
+
+
+@with_retry(max_retries=2, delay=1.0, backoff=2.0, exceptions=(Exception,))
+@register_action(
+    "rebuild_feeds",
+    agent_types=["feed"],
+    description="Пересобирает фиды через npm run build",
+)
+def rebuild_feeds() -> bool:
+    """
+    Запускает npm run build в v2 и копирует dist в корень.
+    """
+    import subprocess
+    
+    site_root = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp"))
+    v2_dir = site_root / "v2"
+    
+    try:
+        # Build v2
+        result = subprocess.run(
+            ["npm", "run", "build"],
+            cwd=str(v2_dir),
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+        
+        if result.returncode != 0:
+            logger.error("npm run build failed", 
+                returncode=result.returncode,
+                stderr=result.stderr[-500:] if result.stderr else "")
+            return False
+        
+        # Copy dist to root
+        dist_dir = v2_dir / "dist"
+        if dist_dir.exists():
+            import shutil
+            for item in dist_dir.iterdir():
+                dest = site_root / item.name
+                if item.is_dir():
+                    if dest.exists():
+                        shutil.rmtree(dest)
+                    shutil.copytree(item, dest)
+                else:
+                    shutil.copy2(item, dest)
+            logger.info("Feeds rebuilt and copied to root")
+            return True
+        else:
+            logger.error("dist directory not found after build")
+            return False
+            
+    except subprocess.TimeoutExpired:
+        logger.error("npm run build timed out after 300s")
+        return False
+    except Exception as e:
+        logger.error("rebuild_feeds error", error=str(e))
+        return False
+
+
+@with_retry(max_retries=2, delay=0.5, backoff=2.0, exceptions=(Exception,))
+@register_action(
+    "notify_agents",
+    agent_types=["feed"],
+    description="Ставит run_now флаги для других агентов",
+)
+async def notify_agents(actions: list) -> bool:
+    """
+    Ставит Redis флаг run_now для агентов, которые нужно запустить после обновления.
+    
+    Args:
+        actions: Список действий [{"agent": "content-agent", "action": "...", "reason": "..."}]
+    """
+    try:
+        import redis.asyncio as aioredis
+        redis_client = await aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
+        
+        notified = 0
+        for action in actions:
+            agent_name = action.get("agent", "")
+            if agent_name and "agent" in agent_name:
+                await redis_client.set(f"agent:run_now:{agent_name}", "1", ex=300)
+                logger.info("Notified agent", agent=agent_name, reason=action.get("reason", ""))
+                notified += 1
+        
+        await redis_client.close()
+        logger.info(f"Notified {notified} agents")
+        return True
+    except Exception as e:
+        logger.error("notify_agents failed", error=str(e))
+        return False
+
+
 # ─── IMP-6: Content registry helpers (deduplication) ─────────────────────
 
 

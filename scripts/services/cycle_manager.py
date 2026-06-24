@@ -250,99 +250,157 @@ class CycleManager:
                     len(self.agents),
                 )
 
-        # P1-2: Параллельный запуск агентов через asyncio.gather() с Semaphore
-        # Приоритезация: trend → seo/smm/performance → analytics → email → content
+        # P1-2: Dependency-based pipeline — запускаем агентов по готовности
+        # trend → feed → analytics → performance → seo → content → smm → email
+        # Агент запускается только когда все зависимости выполнены
         semaphore = asyncio.Semaphore(int(os.getenv("MAX_PARALLEL_AGENTS", "3")))
 
-        async def _run_with_semaphore(agent_name: str) -> Dict[str, Any]:
+        # Инициализируем dependency graph
+        ready_tasks = await task_dispatcher.initialize_cycle(due_agents, cycle_id)
+        
+        self.logger.info(
+            "dependency_pipeline_initialized",
+            cycle_id=cycle_id,
+            ready_tasks=[t.agent_name for t in ready_tasks],
+            total_due=len(due_agents),
+        )
+
+        # Множество выполняющихся задач (для отслеживания)
+        running_tasks: set = set()
+        all_results: Dict[str, Dict[str, Any]] = {}
+
+        async def _run_single_agent(task: Any) -> Dict[str, Any]:
+            """Запускает одного агента с контекстом от зависимостей."""
+            agent_name = task.agent_name
+            agent_type = task.agent_type
+            
             async with semaphore:
                 agent_start = time.monotonic()
+                
+                # Получаем контекст от предыдущих агентов
+                context = await task_dispatcher.get_task_context(agent_name)
+                if context:
+                    self.logger.info(
+                        "agent_context_loaded",
+                        agent=agent_name,
+                        sources=list(context.keys()),
+                    )
+                
                 try:
                     result = await self._run_agent(
                         agent_name,
                         action_executor,
                         task_dispatcher,
+                        upstream_context=context,
                     )
                     agent_elapsed = (time.monotonic() - agent_start) * 1000
+                    
+                    # Отмечаем задачу выполненной и получаем следующие готовые
+                    next_ready = await task_dispatcher.complete_task(
+                        agent_name, 
+                        result.get("data", {})
+                    )
+                    
                     return {
                         "agent_name": agent_name,
+                        "agent_type": agent_type,
                         "success": result["success"],
                         "elapsed_ms": agent_elapsed,
                         "validation_score": result.get("validation", {}).get("score", 0.0),
                         "actions": result.get("actions", []),
                         "result": result.get("data", {}),
                         "error": result.get("error", ""),
+                        "next_ready": [t.agent_name for t in next_ready],
+                        "context_sources": list(context.keys()),
                     }
                 except Exception as e:
                     agent_elapsed = (time.monotonic() - agent_start) * 1000
                     self.logger.error("Критическая ошибка агента", agent=agent_name, error=str(e))
                     await self.handle_failure(agent_name, str(e), {})
+                    # Отмечаем как failed, но всё равно разблокируем зависимые
+                    await task_dispatcher.complete_task(agent_name, {"error": str(e), "success": False})
                     return {
                         "agent_name": agent_name,
+                        "agent_type": agent_type,
                         "success": False,
                         "elapsed_ms": agent_elapsed,
                         "error": str(e),
+                        "next_ready": [],
+                        "context_sources": list(context.keys()) if 'context' in locals() else [],
                     }
 
-        # Группируем по приоритету
-        priority_order = {
-            "trend": 0,
-            "seo": 1,
-            "smm": 1,
-            "performance": 1,
-            "analytics": 2,
-            "email": 3,
-            "content": 4,
-        }
-        sorted_agents = sorted(
-            self.agents,
-            key=lambda a: priority_order.get(_get_agent_type(a.agent_name), 99),
-        )
+        # Запускаем агентов: сначала все READY, потом по мере готовности
+        pending_futures: List[asyncio.Task] = []
+        
+        # Запускаем первую партию (агенты без зависимостей)
+        for task in ready_tasks:
+            future = asyncio.create_task(_run_single_agent(task))
+            pending_futures.append(future)
+            running_tasks.add(task.agent_name)
+            self.logger.info("agent_started", agent=task.agent_name, type=task.agent_type)
 
-        # P1-20: Per-agent scheduling — фильтруем агентов по interval
-        due_agents = []
-        for agent in sorted_agents:
-            should_run = await self._should_run_agent(agent)
-            if should_run:
-                due_agents.append(agent)
-            else:
-                self.logger.info(
-                    "Agent skipped by schedule",
-                    agent=agent.agent_name,
-                )
-
-        if not due_agents:
-            self.logger.info("No agents due for this cycle")
-            return {
-                "cycle_id": cycle_id,
-                "results": [],
-                "duration_ms": 0,
-                "errors": [],
-                "timestamp": datetime.now().isoformat(),
-                "critic_report": None,
-            }
-
-        # Запускаем только due агентов параллельно (с семафором на N одновременных)
-        agent_tasks = [_run_with_semaphore(a.agent_name) for a in due_agents]
-        results = await asyncio.gather(*agent_tasks, return_exceptions=True)
-
-        # Обрабатываем результаты
-        for r in results:
-            if isinstance(r, Exception):
-                self.logger.error("Agent task raised exception", error=str(r))
-                self.total_errors += 1
-                cycle_errors.append(str(r))
-                continue
-            cycle_results.append(r)
-            if not r["success"]:
-                cycle_errors.append(f"{r['agent_name']}: {r.get('error', '')}")
-                self.total_errors += 1
-            self.logger.info(
-                "Агент завершён",
-                agent=r["agent_name"],
-                success=r["success"],
-                elapsed_ms=round(r["elapsed_ms"], 2),
+        # Основной цикл: ждём завершения → запускаем следующих
+        while pending_futures:
+            # Ждём завершения любой задачи
+            done, pending_futures = await asyncio.wait(
+                pending_futures, 
+                return_when=asyncio.FIRST_COMPLETED
             )
+            
+            for future in done:
+                try:
+                    result = future.result()
+                except Exception as e:
+                    self.logger.error("Future exception", error=str(e))
+                    continue
+                
+                cycle_results.append(result)
+                all_results[result["agent_name"]] = result
+                running_tasks.discard(result["agent_name"])
+                
+                if not result["success"]:
+                    cycle_errors.append(f"{result['agent_name']}: {result.get('error', '')}")
+                    self.total_errors += 1
+                
+                self.logger.info(
+                    "Агент завершён",
+                    agent=result["agent_name"],
+                    success=result["success"],
+                    elapsed_ms=round(result["elapsed_ms"], 2),
+                    next_ready=result.get("next_ready", []),
+                    context_sources=result.get("context_sources", []),
+                )
+                
+                # Получаем новые READY задачи от диспетчера
+                # (они уже добавлены в graph при complete_task)
+                # Нужно найти их и запустить
+                from scripts.services.task_dispatcher import TaskStatus
+                for task in task_dispatcher.current_tasks:
+                    if task.status == TaskStatus.READY and task.agent_name not in running_tasks:
+                        # Проверяем, что агент в due_agents
+                        agent_in_due = any(a.agent_name == task.agent_name for a in due_agents)
+                        if agent_in_due:
+                            future = asyncio.create_task(_run_single_agent(task))
+                            pending_futures.add(future)
+                            running_tasks.add(task.agent_name)
+                            task.status = TaskStatus.RUNNING
+                            self.logger.info(
+                                "agent_started_from_dependency",
+                                agent=task.agent_name,
+                                type=task.agent_type,
+                                unblocked_by=result["agent_name"],
+                            )
+
+        # Проверяем, остались ли незапущенные агенты (циклические зависимости или ошибки)
+        for task in task_dispatcher.current_tasks:
+            if task.status not in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.SKIPPED):
+                self.logger.warning(
+                    "agent_never_started",
+                    agent=task.agent_name,
+                    status=task.status.value,
+                    blocked_by=task.blocked_by,
+                )
+                cycle_errors.append(f"{task.agent_name}: never started (blocked by {task.blocked_by})")
 
         # Итоги цикла
         cycle_duration = (time.monotonic() - cycle_start) * 1000
@@ -400,6 +458,7 @@ class CycleManager:
         agent_name: str,
         action_executor: Any,
         task_dispatcher: Any,
+        upstream_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Запускает одного агента."""
         # Проверка паузы
@@ -417,10 +476,19 @@ class CycleManager:
             except Exception:
                 pass
 
-        # Контекст
+        # Контекст: базовый + upstream от зависимостей + feedback
         context = {}
         if self.memory:
             context = await self.memory.get_context(agent_name)
+
+            # Добавляем данные от предыдущих агентов (dependency pipeline)
+            if upstream_context:
+                context["upstream"] = upstream_context
+                self.logger.info(
+                    "upstream_context_injected",
+                    agent=agent_name,
+                    sources=list(upstream_context.keys()),
+                )
 
             # Feedback loop
             try:
@@ -469,6 +537,7 @@ class CycleManager:
                 self.logger.info("analytics_tasks_dispatched", count=task_count)
 
         # Actions
+        feed_rebuild_needed = False
         if result["success"] and action_executor:
             try:
                 agent_config_obj = next((a for a in self.agents if a.agent_name == agent_name), None)
@@ -482,6 +551,11 @@ class CycleManager:
                 if action_log:
                     result["actions"] = action_log
                     self.logger.info("Agent actions executed", agent=agent_name, actions=action_log)
+                    # Check if any action modified products.json
+                    for action in action_log:
+                        if isinstance(action, str) and ("products.json" in action or "item_desc:" in action or "badge:" in action or "prioritized:" in action):
+                            feed_rebuild_needed = True
+                            break
 
                 # Mark tasks completed
                 # P2-7: Передаём только реально выполненные actions
@@ -502,6 +576,10 @@ class CycleManager:
                         )
             except Exception as e:
                 self.logger.error("Action execution failed", agent=agent_name, error=str(e))
+
+        # Trigger feed rebuild if products were modified
+        if feed_rebuild_needed:
+            await self._trigger_feed_rebuild()
 
         # Сохранение (после выполнения actions, чтобы actions попали в БД)
         if self.memory:
@@ -623,6 +701,47 @@ class CycleManager:
             "action_history": action_history[:5],
             "avg_score": (round(sum(r["validation_score"] for r in runs) / len(runs), 3) if runs else 0.0),
         }
+
+    async def _trigger_feed_rebuild(self) -> None:
+        """Запускает пересборку фидов после изменения товаров агентами."""
+        self.logger.info("Triggering feed rebuild after product changes")
+        try:
+            import subprocess
+            site_root = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp"))
+            v2_dir = site_root / "v2"
+            
+            # Run npm run build in v2 directory
+            result = subprocess.run(
+                ["npm", "run", "build"],
+                cwd=str(v2_dir),
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+            
+            if result.returncode == 0:
+                self.logger.info("Feed rebuild successful", v2_dir=str(v2_dir))
+                # Copy dist to root
+                dist_dir = v2_dir / "dist"
+                if dist_dir.exists():
+                    import shutil
+                    for item in dist_dir.iterdir():
+                        dest = site_root / item.name
+                        if item.is_dir():
+                            if dest.exists():
+                                shutil.rmtree(dest)
+                            shutil.copytree(item, dest)
+                        else:
+                            shutil.copy2(item, dest)
+                    self.logger.info("Copied v2/dist to site root", root=str(site_root))
+            else:
+                self.logger.error("Feed rebuild failed", 
+                    returncode=result.returncode,
+                    stderr=result.stderr[:500] if result.stderr else "")
+        except subprocess.TimeoutExpired:
+            self.logger.error("Feed rebuild timed out after 300s")
+        except Exception as e:
+            self.logger.error("Feed rebuild error", error=str(e))
 
     async def handle_failure(
         self,

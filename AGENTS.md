@@ -47,32 +47,60 @@
 | Telegram Bot | `scripts/telegram_bot.py` | Интерфейс управления через Telegram |
 | SecretsManager | `scripts/secrets_manager.py` | AES-256-GCM шифрование секретов |
 
-### 2.2 Поток данных
+### 2.2 Dependency Pipeline (оркестрация агентов)
+
+Агенты запускаются в строгом порядке зависимостей. Каждый агент получает **контекст** (результаты) от всех предыдущих агентов, от которых зависит.
+
+```
+trend → feed → analytics → performance → seo → content → smm → email
+```
+
+| Агент | Зависит от | Передаёт результат в | Что получает от предшественников |
+|-------|-----------|---------------------|--------------------------------|
+| **trend** | — | feed | Нет зависимостей (первый) |
+| **feed** | trend | analytics | Тренды: какие категории растут, что скачивать |
+| **analytics** | feed | performance, email | Обновлённые товары: категории, скидки, структура |
+| **performance** | analytics | seo | Аналитика: топовые товары, метрики |
+| **seo** | performance | content | Приоритетные товары: что оптимизировать |
+| **content** | seo, trend | smm | SEO-мета + тренды: темы для контента |
+| **smm** | content | email | Контент: что публиковать |
+| **email** | smm, analytics | — | Публикации + аналитика: персонализация рассылки |
+
+Контекст передаётся через `upstream_context` в `_run_agent()` — агент видит `context["upstream"]` с результатами всех выполненных зависимостей.
+
+Параллельность: агенты без пересечения зависимостей могут запускаться параллельно (семафор `MAX_PARALLEL_AGENTS`). Например, после `analytics` параллельно могут пойти `performance` и `email` (если email уже разблокирован по `analytics`), но `email` всё равно ждёт `smm`.
+
+### 2.3 Поток данных в цикле
 
 ```
 Cron Trigger → Orchestrator.run_cycle() → CycleManager
     → load_agents() → AgentConfig + LLMClient
-    → asyncio.gather() + Semaphore → AgentRunner.run()
-        → _build_prompt() → LLM API
-        → _parse_result() → JSON
-        → validate_by_type() → ValidationResult
-        → ActionDispatcher.execute() → ActionResult
+    → TaskDispatcher.initialize_cycle() → DependencyGraph
+        → build_execution_plan() → AgentTask[] (topological sort)
+    → asyncio.wait() + Semaphore → запускаем READY агентов
+        → _run_agent(upstream_context) → AgentRunner.run()
+            → _build_prompt() → LLM API
+            → _parse_result() → JSON
+            → validate_by_type() → ValidationResult
+            → ActionDispatcher.execute() → ActionResult
+        → TaskDispatcher.complete_task() → разблокируем зависимые
     → save_result() → PostgreSQL
     → TelegramReporter.send_report() → Telegram API
     → get_health_status() / get_metrics() → Dashboard
 ```
 
-### 2.3 Типы агентов
+### 2.4 Типы агентов
 
-| Тип | Конфиг | Действия | Валидация |
-|-----|--------|----------|-----------|
-| seo | `configs/seo-agent.json` | update_meta_tags, update_product_field | SEOValidator |
-| smm | `configs/smm-agent.json` | post_to_channel, post_discount | SMMValidator |
-| content | `configs/content-agent.json` | create_category_page, update_item_description | ContentValidator |
-| performance | `configs/performance-agent.json` | add_badge, prioritize_products | PerformanceValidator |
-| email | `configs/email-agent.json` | — | EmailValidator |
-| analytics | `configs/analytics-agent.json` | — | AnalyticsValidator |
-| trend | `configs/trend-agent.json` | gather_trend_data | TrendValidator |
+| Тип | Конфиг | Действия | Валидация | Зависимости |
+|-----|--------|----------|-----------|-------------|
+| trend | `configs/trend-agent.json` | gather_trend_data | TrendValidator | — |
+| feed | `configs/feed-agent.json` | update_products, rebuild_feeds, notify_agents | FeedValidator | trend |
+| seo | `configs/seo-agent.json` | update_meta_tags, update_product_field | SEOValidator | performance |
+| smm | `configs/smm-agent.json` | post_to_channel, post_discount | SMMValidator | content |
+| content | `configs/content-agent.json` | create_category_page, update_item_description | ContentValidator | seo, trend |
+| performance | `configs/performance-agent.json` | add_badge, prioritize_products | PerformanceValidator | analytics |
+| email | `configs/email-agent.json` | — | EmailValidator | smm, analytics |
+| analytics | `configs/analytics-agent.json` | — | AnalyticsValidator | feed |
 
 ---
 
@@ -234,6 +262,13 @@ docker-compose -f assets/docker-compose.yml logs -f orchestrator
 
 ## 7. История изменений (для агентов)
 
+### 2026-06-24 — Dependency Pipeline
+- **TaskDispatcher** переписан: `DependencyGraph`, `AgentTask`, `TaskStatus` — граф зависимостей + топологическая сортировка.
+- **CycleManager.run_cycle()**: агенты запускаются по готовности (когда все зависимости выполнены), не по приоритету.
+- **Upstream context**: каждый агент получает `context["upstream"]` с результатами предшественников.
+- **Порядок**: trend → feed → analytics → performance → seo → content → smm → email.
+- **Feed-agent**: новый тип агента, зависит от trend, обновляет товары, пересобирает фиды.
+
 ### 2026-06-17 — CI/CD стабилизация
 - Все workflow (CI, Deploy, Security, Nightly) проходят успешно.
 - Добавлены недостающие зависимости: `alembic`, `sqlalchemy`, `psycopg2-binary`, `jsonschema`, `defusedxml`, `pytest` + плагины.
@@ -248,4 +283,4 @@ docker-compose -f assets/docker-compose.yml logs -f orchestrator
 
 ---
 
-*Последнее обновление: 2026-06-17*
+*Последнее обновление: 2026-06-24*

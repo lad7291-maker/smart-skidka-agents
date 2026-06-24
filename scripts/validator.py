@@ -1709,6 +1709,59 @@ def validate_trend_result(result: Dict[str, Any]) -> ValidationResult:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Feed Agent Validator
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def validate_feed_result(result: Dict[str, Any]) -> ValidationResult:
+    """
+    Валидирует результат Feed Agent.
+
+    Проверяет корректность анализа фида, решений и рекомендаций.
+    """
+    checks: Dict[str, bool] = {
+        "has_feed_analysis": bool(result.get("feed_analysis")),
+        "has_decisions": bool(result.get("decisions")),
+        "has_actions": len(result.get("actions", [])) > 0,
+        "confidence_valid": 0.0 <= result.get("confidence", 0) <= 1.0,
+        "confidence_threshold": result.get("confidence", 0) >= 0.6,
+        "status_valid": result.get("status") in ["success", "warning", "error"],
+        "min_discount_valid": 10 <= result.get("decisions", {}).get("min_discount", 30) <= 90,
+        "products_per_category_valid": 50 <= result.get("decisions", {}).get("products_per_category", 200) <= 500,
+        "actions_have_agents": all(a.get("agent") in AGENT_NAMES for a in result.get("actions", [])),
+    }
+
+    score = result.get("confidence", 0) * (sum(checks.values()) / len(checks))
+    passed = all(checks.values())
+    errors: List[str] = []
+    warnings: List[str] = []
+
+    if not checks["has_feed_analysis"]:
+        errors.append("Отсутствует анализ фида")
+    if not checks["has_decisions"]:
+        errors.append("Отсутствуют решения")
+    if not checks["confidence_threshold"]:
+        errors.append(f"Недостаточная уверенность: {result.get('confidence', 0):.2f} (мин. 0.6)")
+    if not checks["min_discount_valid"]:
+        errors.append(f"MIN_DISCOUNT вне диапазона 10-90: {result.get('decisions', {}).get('min_discount', 30)}")
+    if not checks["products_per_category_valid"]:
+        errors.append(f"PRODUCTS_PER_CATEGORY вне диапазона 50-500: {result.get('decisions', {}).get('products_per_category', 200)}")
+    if not checks["actions_have_agents"]:
+        actions = result.get("actions", [])
+        unknown = [a.get("agent") for a in actions if a.get("agent") not in AGENT_NAMES]
+        errors.append(f"Неизвестные агенты в рекомендациях: {unknown}")
+
+    status = ValidationStatus.PASSED if passed else ValidationStatus.FAILED
+
+    return ValidationResult(
+        status=status,
+        score=round(score, 3),
+        errors=errors,
+        warnings=warnings,
+        metadata={"checks": checks},
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Универсальный валидатор по типу агента
 # ═══════════════════════════════════════════════════════════════════════════════
 def validate_by_type(result: Dict[str, Any], agent_type: str) -> ValidationResult:
@@ -1723,6 +1776,7 @@ def validate_by_type(result: Dict[str, Any], agent_type: str) -> ValidationResul
         ValidationResult с результатом проверки
     """
     validators = {
+        "feed": validate_feed_result,
         "seo": validate_seo_result,
         "smm": validate_smm_result,
         "performance": validate_performance_result,

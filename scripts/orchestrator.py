@@ -72,6 +72,7 @@ try:
         validate_analytics_result,
         validate_content_result,
         validate_email_result,
+        validate_feed_result,
         validate_performance_result,
         validate_seo_result,
         validate_smm_result,
@@ -136,6 +137,7 @@ logger = structlog.get_logger("orchestrator")
 class AgentType(str, Enum):
     """Типы агентов в системе."""
 
+    FEED = "feed"
     SEO = "seo"
     SMM = "smm"
     PERFORMANCE = "performance"
@@ -255,6 +257,7 @@ GRACEFUL_SHUTDOWN_TIMEOUT: int = int(os.getenv("GRACEFUL_SHUTDOWN_TIMEOUT", "30"
 
 # Список имён агентов в системе
 AGENT_NAMES: List[str] = [
+    "feed_agent",
     "seo_agent",
     "smm_agent",
     "performance_agent",
@@ -1097,6 +1100,7 @@ class ResultValidator:
         # P1-10: Делегируем внешнему валидатору если доступен
         if _EXT_VALIDATOR_AVAILABLE:
             ext_validators = {
+                AgentType.FEED.value: validate_feed_result,
                 AgentType.SEO.value: validate_seo_result,
                 AgentType.SMM.value: validate_smm_result,
                 AgentType.PERFORMANCE.value: validate_performance_result,
