@@ -452,13 +452,15 @@ def main():
     with open(PUBLIC_DIR / "categories.json", "w", encoding="utf-8") as f:
         json.dump(categories, f, ensure_ascii=False, indent=2)
 
-    import shutil
+    # Копируем в v2/public (для сайта) и в корень (для агентов)
     shutil.copy2(PRODUCTS_JSON, PRODUCTS_JSON_PROD)
     shutil.copy2(PUBLIC_DIR / "categories.json", HTML_DIR / "categories.json")
-    # Also update root categories.json for v2 build
+    # Also update root for agents and v2 build
+    root_products = BASE_DIR / "products.json"
     root_categories = BASE_DIR / "categories.json"
+    shutil.copy2(PRODUCTS_JSON, root_products)
     shutil.copy2(PUBLIC_DIR / "categories.json", root_categories)
-    logger.info(f"Скопировано на production: {HTML_DIR} и {root_categories}")
+    logger.info(f"Скопировано: {HTML_DIR}, {root_products}, {root_categories}")
 
     by_cat = {}
     for p in products:
