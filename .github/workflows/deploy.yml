@@ -8,7 +8,7 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: vars.DEPLOY_HOST != ''
+    if: secrets.DEPLOY_HOST != ''
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
