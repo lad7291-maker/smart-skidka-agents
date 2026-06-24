@@ -415,3 +415,4 @@ curl http://localhost:8080/health
   <b>smart-skidka-agents</b> — автономный маркетинг на автопилоте 🤖
 </p>
 # CI trigger
+# Deploy trigger Wed Jun 24 05:01:34 PM UTC 2026
