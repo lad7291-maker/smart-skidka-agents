@@ -63,10 +63,10 @@ class ActionExecutor:
         if agent_config and agent_config.get("actions"):
             plugin_log = await self._execute_plugin_actions(agent_config, data)
             action_log.extend(plugin_log)
-        else:
-            # Legacy fallback
-            legacy_log = await self._execute_legacy_actions(agent_type, data)
-            action_log.extend(legacy_log)
+
+        # Legacy fallback — ВСЕГДА выполняем для badge, description и т.д.
+        legacy_log = await self._execute_legacy_actions(agent_type, data)
+        action_log.extend(legacy_log)
 
         return action_log
 
