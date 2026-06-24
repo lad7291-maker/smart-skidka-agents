@@ -14,7 +14,9 @@ jobs:
 
       - name: Deploy to server via SSH
         uses: appleboy/ssh-action@v1.0.0
-        if: ${{ secrets.DEPLOY_HOST != '' }}
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        if: ${{ env.DEPLOY_HOST != '' }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
