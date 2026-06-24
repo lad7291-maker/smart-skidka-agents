@@ -1712,6 +1712,7 @@ def validate_trend_result(result: Dict[str, Any]) -> ValidationResult:
 # Feed Agent Validator
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
 def validate_feed_result(result: Dict[str, Any]) -> ValidationResult:
     """
     Валидирует результат Feed Agent.
@@ -1744,7 +1745,9 @@ def validate_feed_result(result: Dict[str, Any]) -> ValidationResult:
     if not checks["min_discount_valid"]:
         errors.append(f"MIN_DISCOUNT вне диапазона 10-90: {result.get('decisions', {}).get('min_discount', 30)}")
     if not checks["products_per_category_valid"]:
-        errors.append(f"PRODUCTS_PER_CATEGORY вне диапазона 50-500: {result.get('decisions', {}).get('products_per_category', 200)}")
+        errors.append(
+            f"PRODUCTS_PER_CATEGORY вне диапазона 50-500: {result.get('decisions', {}).get('products_per_category', 200)}"
+        )
     if not checks["actions_have_agents"]:
         actions = result.get("actions", [])
         unknown = [a.get("agent") for a in actions if a.get("agent") not in AGENT_NAMES]

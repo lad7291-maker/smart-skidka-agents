@@ -74,7 +74,8 @@ class TestAuditLog(unittest.TestCase):
     def test_record_and_retrieve(self):
         """Запись и чтение audit entries."""
         import tempfile
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.log', delete=False) as f:
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".log", delete=False) as f:
             audit_file = Path(f.name)
         log = AuditLog(audit_file=audit_file)
         log.record("read", "API_KEY", "admin", True)
@@ -84,6 +85,7 @@ class TestAuditLog(unittest.TestCase):
         self.assertEqual(entries[0]["action"], "read")
         self.assertEqual(entries[1]["action"], "write")
         import os
+
         os.unlink(audit_file)
 
     def test_filter_by_key(self):

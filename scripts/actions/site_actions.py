@@ -866,6 +866,7 @@ async def verify_and_track_page(
 
 # ─── FEED AGENT ACTIONS ──────────────────────────────────────────
 
+
 @with_retry(max_retries=2, delay=1.0, backoff=2.0, exceptions=(Exception,))
 @register_action(
     "update_products",
@@ -875,24 +876,24 @@ async def verify_and_track_page(
 def update_products(min_discount: int = 30, products_per_category: int = 200, include_categories: list = None) -> bool:
     """
     Запускает обновление товаров из Admitad feed с заданными параметрами.
-    
+
     Args:
         min_discount: Минимальная скидка (по умолчанию 30)
         products_per_category: Товаров на категорию (по умолчанию 200)
         include_categories: Список категорий для включения (None = все из фида)
     """
     import subprocess
-    
+
     site_root = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp"))
     script_path = Path("/opt/smart-skidka-agents/scripts/update_products.py")
-    
+
     env = os.environ.copy()
     env["MIN_DISCOUNT_PERCENT"] = str(min_discount)
     env["PRODUCTS_PER_CATEGORY"] = str(products_per_category)
-    
+
     if include_categories and isinstance(include_categories, list):
         env["TARGET_CATEGORIES"] = ",".join(include_categories)
-    
+
     try:
         result = subprocess.run(
             ["python3", str(script_path)],
@@ -902,17 +903,21 @@ def update_products(min_discount: int = 30, products_per_category: int = 200, in
             text=True,
             timeout=600,
         )
-        
+
         if result.returncode == 0:
-            logger.info("update_products succeeded", 
+            logger.info(
+                "update_products succeeded",
                 min_discount=min_discount,
                 products_per_category=products_per_category,
-                stdout=result.stdout[-500:] if result.stdout else "")
+                stdout=result.stdout[-500:] if result.stdout else "",
+            )
             return True
         else:
-            logger.error("update_products failed",
+            logger.error(
+                "update_products failed",
                 returncode=result.returncode,
-                stderr=result.stderr[-500:] if result.stderr else "")
+                stderr=result.stderr[-500:] if result.stderr else "",
+            )
             return False
     except subprocess.TimeoutExpired:
         logger.error("update_products timed out after 600s")
@@ -933,10 +938,10 @@ def rebuild_feeds() -> bool:
     Запускает npm run build в v2 и копирует dist в корень.
     """
     import subprocess
-    
+
     site_root = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp"))
     v2_dir = site_root / "v2"
-    
+
     try:
         # Build v2
         result = subprocess.run(
@@ -946,17 +951,20 @@ def rebuild_feeds() -> bool:
             text=True,
             timeout=300,
         )
-        
+
         if result.returncode != 0:
-            logger.error("npm run build failed", 
+            logger.error(
+                "npm run build failed",
                 returncode=result.returncode,
-                stderr=result.stderr[-500:] if result.stderr else "")
+                stderr=result.stderr[-500:] if result.stderr else "",
+            )
             return False
-        
+
         # Copy dist to root
         dist_dir = v2_dir / "dist"
         if dist_dir.exists():
             import shutil
+
             for item in dist_dir.iterdir():
                 dest = site_root / item.name
                 if item.is_dir():
@@ -970,7 +978,7 @@ def rebuild_feeds() -> bool:
         else:
             logger.error("dist directory not found after build")
             return False
-            
+
     except subprocess.TimeoutExpired:
         logger.error("npm run build timed out after 300s")
         return False
@@ -988,14 +996,15 @@ def rebuild_feeds() -> bool:
 async def notify_agents(actions: list) -> bool:
     """
     Ставит Redis флаг run_now для агентов, которые нужно запустить после обновления.
-    
+
     Args:
         actions: Список действий [{"agent": "content-agent", "action": "...", "reason": "..."}]
     """
     try:
         import redis.asyncio as aioredis
+
         redis_client = await aioredis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379"))
-        
+
         notified = 0
         for action in actions:
             agent_name = action.get("agent", "")
@@ -1003,7 +1012,7 @@ async def notify_agents(actions: list) -> bool:
                 await redis_client.set(f"agent:run_now:{agent_name}", "1", ex=300)
                 logger.info("Notified agent", agent=agent_name, reason=action.get("reason", ""))
                 notified += 1
-        
+
         await redis_client.close()
         logger.info(f"Notified {notified} agents")
         return True

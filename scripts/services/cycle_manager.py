@@ -280,7 +280,7 @@ class CycleManager:
 
         # Инициализируем dependency graph
         ready_tasks = await task_dispatcher.initialize_cycle(due_agents, cycle_id)
-        
+
         self.logger.info(
             "dependency_pipeline_initialized",
             cycle_id=cycle_id,
@@ -296,10 +296,10 @@ class CycleManager:
             """Запускает одного агента с контекстом от зависимостей."""
             agent_name = task.agent_name
             agent_type = task.agent_type
-            
+
             async with semaphore:
                 agent_start = time.monotonic()
-                
+
                 # Получаем контекст от предыдущих агентов
                 context = await task_dispatcher.get_task_context(agent_name)
                 if context:
@@ -308,7 +308,7 @@ class CycleManager:
                         agent=agent_name,
                         sources=list(context.keys()),
                     )
-                
+
                 try:
                     result = await self._run_agent(
                         agent_name,
@@ -317,13 +317,10 @@ class CycleManager:
                         upstream_context=context,
                     )
                     agent_elapsed = (time.monotonic() - agent_start) * 1000
-                    
+
                     # Отмечаем задачу выполненной и получаем следующие готовые
-                    next_ready = await task_dispatcher.complete_task(
-                        agent_name, 
-                        result.get("data", {})
-                    )
-                    
+                    next_ready = await task_dispatcher.complete_task(agent_name, result.get("data", {}))
+
                     return {
                         "agent_name": agent_name,
                         "agent_type": agent_type,
@@ -349,12 +346,12 @@ class CycleManager:
                         "elapsed_ms": agent_elapsed,
                         "error": str(e),
                         "next_ready": [],
-                        "context_sources": list(context.keys()) if 'context' in locals() else [],
+                        "context_sources": list(context.keys()) if "context" in locals() else [],
                     }
 
         # Запускаем агентов: сначала все READY, потом по мере готовности
         pending_futures: List[asyncio.Task] = []
-        
+
         # Запускаем первую партию (агенты без зависимостей)
         for task in ready_tasks:
             future = asyncio.create_task(_run_single_agent(task))
@@ -365,26 +362,23 @@ class CycleManager:
         # Основной цикл: ждём завершения → запускаем следующих
         while pending_futures:
             # Ждём завершения любой задачи
-            done, pending_futures = await asyncio.wait(
-                pending_futures, 
-                return_when=asyncio.FIRST_COMPLETED
-            )
-            
+            done, pending_futures = await asyncio.wait(pending_futures, return_when=asyncio.FIRST_COMPLETED)
+
             for future in done:
                 try:
                     result = future.result()
                 except Exception as e:
                     self.logger.error("Future exception", error=str(e))
                     continue
-                
+
                 cycle_results.append(result)
                 all_results[result["agent_name"]] = result
                 running_tasks.discard(result["agent_name"])
-                
+
                 if not result["success"]:
                     cycle_errors.append(f"{result['agent_name']}: {result.get('error', '')}")
                     self.total_errors += 1
-                
+
                 self.logger.info(
                     "Агент завершён",
                     agent=result["agent_name"],
@@ -393,11 +387,12 @@ class CycleManager:
                     next_ready=result.get("next_ready", []),
                     context_sources=result.get("context_sources", []),
                 )
-                
+
                 # Получаем новые READY задачи от диспетчера
                 # (они уже добавлены в graph при complete_task)
                 # Нужно найти их и запустить
                 from scripts.services.task_dispatcher import TaskStatus
+
                 for task in task_dispatcher.current_tasks:
                     if task.status == TaskStatus.READY and task.agent_name not in running_tasks:
                         # Проверяем, что агент в due_agents
@@ -576,7 +571,12 @@ class CycleManager:
                     self.logger.info("Agent actions executed", agent=agent_name, actions=action_log)
                     # Check if any action modified products.json
                     for action in action_log:
-                        if isinstance(action, str) and ("products.json" in action or "item_desc:" in action or "badge:" in action or "prioritized:" in action):
+                        if isinstance(action, str) and (
+                            "products.json" in action
+                            or "item_desc:" in action
+                            or "badge:" in action
+                            or "prioritized:" in action
+                        ):
                             feed_rebuild_needed = True
                             break
 
@@ -730,9 +730,10 @@ class CycleManager:
         self.logger.info("Triggering feed rebuild after product changes")
         try:
             import subprocess
+
             site_root = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp"))
             v2_dir = site_root / "v2"
-            
+
             # Run npm run build in v2 directory
             result = subprocess.run(
                 ["npm", "run", "build"],
@@ -741,13 +742,14 @@ class CycleManager:
                 text=True,
                 timeout=300,
             )
-            
+
             if result.returncode == 0:
                 self.logger.info("Feed rebuild successful", v2_dir=str(v2_dir))
                 # Copy dist to root
                 dist_dir = v2_dir / "dist"
                 if dist_dir.exists():
                     import shutil
+
                     for item in dist_dir.iterdir():
                         dest = site_root / item.name
                         if item.is_dir():
@@ -758,9 +760,11 @@ class CycleManager:
                             shutil.copy2(item, dest)
                     self.logger.info("Copied v2/dist to site root", root=str(site_root))
             else:
-                self.logger.error("Feed rebuild failed", 
+                self.logger.error(
+                    "Feed rebuild failed",
                     returncode=result.returncode,
-                    stderr=result.stderr[:500] if result.stderr else "")
+                    stderr=result.stderr[:500] if result.stderr else "",
+                )
         except subprocess.TimeoutExpired:
             self.logger.error("Feed rebuild timed out after 300s")
         except Exception as e:

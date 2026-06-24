@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Обновление товаров SmartSkidka.ru — 200 товаров на категорию, все ссылки проверяются, каждые 24ч."""
 
-import json
 import gzip
+import json
 import logging
 import os
 import shutil
@@ -10,7 +10,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 from urllib.parse import unquote
 
 import requests
@@ -46,65 +46,181 @@ logger = logging.getLogger("product_updater")
 # ── CATEGORY MAPPING ────────────────────────────────────────────
 # Маппинг ID категорий фида → внутренние категории сайта
 CATEGORY_MAP = {
-    "2": "home", "3": "clothing", "5": "electronics", "6": "home",
-    "7": "electronics", "13": "home", "15": "home", "18": "sport",
-    "21": "home", "26": "home", "30": "electronics", "34": "auto",
-    "36": "beauty", "39": "home", "44": "electronics", "66": "beauty",
-    "320": "beauty", "322": "shoes", "502": "electronics", "509": "electronics",
-    "200000345": "clothing", "200000343": "clothing", "200000297": "clothing",
-    "200165144": "beauty", "200000532": "clothing", "200574005": "clothing",
-    "201768104": "sport", "201355758": "auto", "1501": "home", "1503": "home",
-    "1511": "beauty", "1524": "home", "1420": "home", "200000920": "home",
+    "2": "home",
+    "3": "clothing",
+    "5": "electronics",
+    "6": "home",
+    "7": "electronics",
+    "13": "home",
+    "15": "home",
+    "18": "sport",
+    "21": "home",
+    "26": "home",
+    "30": "electronics",
+    "34": "auto",
+    "36": "beauty",
+    "39": "home",
+    "44": "electronics",
+    "66": "beauty",
+    "320": "beauty",
+    "322": "shoes",
+    "502": "electronics",
+    "509": "electronics",
+    "200000345": "clothing",
+    "200000343": "clothing",
+    "200000297": "clothing",
+    "200165144": "beauty",
+    "200000532": "clothing",
+    "200574005": "clothing",
+    "201768104": "sport",
+    "201355758": "auto",
+    "1501": "home",
+    "1503": "home",
+    "1511": "beauty",
+    "1524": "home",
+    "1420": "home",
+    "200000920": "home",
     # Additional subcategories for clothing
-    "201303001": "clothing", "201303301": "clothing", "201303603": "clothing",
-    "201303704": "clothing", "201330702": "clothing", "201336907": "clothing",
-    "201352950": "clothing", "201357051": "clothing", "201359147": "clothing",
-    "200001081": "clothing", "200001083": "clothing", "200001147": "clothing",
-    "200001168": "clothing", "200001221": "clothing", "200001288": "clothing",
-    "200001330": "clothing", "200001355": "clothing", "200001562": "clothing",
+    "201303001": "clothing",
+    "201303301": "clothing",
+    "201303603": "clothing",
+    "201303704": "clothing",
+    "201330702": "clothing",
+    "201336907": "clothing",
+    "201352950": "clothing",
+    "201357051": "clothing",
+    "201359147": "clothing",
+    "200001081": "clothing",
+    "200001083": "clothing",
+    "200001147": "clothing",
+    "200001168": "clothing",
+    "200001221": "clothing",
+    "200001288": "clothing",
+    "200001330": "clothing",
+    "200001355": "clothing",
+    "200001562": "clothing",
     # Beauty/Health subcategories
-    "200001077": "beauty", "200001385": "beauty", "200001384": "beauty",
-    "200001387": "beauty", "200001388": "beauty", "200001389": "beauty",
-    "201396505": "beauty", "201376929": "beauty", "201359843": "beauty",
-    "201445239": "beauty", "201515701": "beauty", "201516501": "beauty",
-    "201531101": "beauty", "201531601": "beauty", "201610101": "beauty",
-    "201902301": "beauty", "201902401": "beauty", "201377402": "beauty",
+    "200001077": "beauty",
+    "200001385": "beauty",
+    "200001384": "beauty",
+    "200001387": "beauty",
+    "200001388": "beauty",
+    "200001389": "beauty",
+    "201396505": "beauty",
+    "201376929": "beauty",
+    "201359843": "beauty",
+    "201445239": "beauty",
+    "201515701": "beauty",
+    "201516501": "beauty",
+    "201531101": "beauty",
+    "201531601": "beauty",
+    "201610101": "beauty",
+    "201902301": "beauty",
+    "201902401": "beauty",
+    "201377402": "beauty",
     # Auto subcategories
-    "100005657": "auto", "629": "auto",
+    "100005657": "auto",
+    "629": "auto",
     # Jewelry subcategories
-    "201768001": "jewelry", "201768002": "jewelry", "201768003": "jewelry",
-    "201768004": "jewelry", "201768005": "jewelry", "201768006": "jewelry",
-    "201768007": "jewelry", "201768008": "jewelry", "201768009": "jewelry",
-    "201768010": "jewelry", "201768011": "jewelry", "201768012": "jewelry",
-    "201768013": "jewelry", "201768014": "jewelry", "201768015": "jewelry",
-    "201768016": "jewelry", "201768017": "jewelry", "201768018": "jewelry",
-    "201768019": "jewelry", "201768020": "jewelry", "201768021": "jewelry",
-    "201768022": "jewelry", "201768023": "jewelry", "201768024": "jewelry",
-    "201768025": "jewelry", "201768026": "jewelry", "201768027": "jewelry",
-    "201768028": "jewelry", "201768029": "jewelry", "201768030": "jewelry",
-    "201768031": "jewelry", "201768032": "jewelry", "201768033": "jewelry",
-    "201768034": "jewelry", "201768035": "jewelry", "201768036": "jewelry",
-    "201768037": "jewelry", "201768038": "jewelry", "201768039": "jewelry",
-    "201768040": "jewelry", "201768041": "jewelry", "201768042": "jewelry",
-    "201768043": "jewelry", "201768044": "jewelry", "201768045": "jewelry",
-    "201768046": "jewelry", "201768047": "jewelry", "201768048": "jewelry",
-    "201768049": "jewelry", "201768050": "jewelry", "201768051": "jewelry",
-    "201768052": "jewelry", "201768053": "jewelry", "201768054": "jewelry",
-    "201768055": "jewelry", "201768056": "jewelry", "201768057": "jewelry",
-    "201768058": "jewelry", "201768059": "jewelry", "201768060": "jewelry",
-    "201768061": "jewelry", "201768062": "jewelry", "201768063": "jewelry",
-    "201768064": "jewelry", "201768065": "jewelry", "201768066": "jewelry",
-    "201768067": "jewelry", "201768068": "jewelry", "201768069": "jewelry",
-    "201768070": "jewelry", "201768071": "jewelry", "201768072": "jewelry",
-    "201768073": "jewelry", "201768074": "jewelry", "201768075": "jewelry",
-    "201768076": "jewelry", "201768077": "jewelry", "201768078": "jewelry",
-    "201768079": "jewelry", "201768080": "jewelry", "201768081": "jewelry",
-    "201768082": "jewelry", "201768083": "jewelry", "201768084": "jewelry",
-    "201768085": "jewelry", "201768086": "jewelry", "201768087": "jewelry",
-    "201768088": "jewelry", "201768089": "jewelry", "201768090": "jewelry",
-    "201768091": "jewelry", "201768092": "jewelry", "201768093": "jewelry",
-    "201768094": "jewelry", "201768095": "jewelry", "201768096": "jewelry",
-    "201768097": "jewelry", "201768098": "jewelry", "201768099": "jewelry",
+    "201768001": "jewelry",
+    "201768002": "jewelry",
+    "201768003": "jewelry",
+    "201768004": "jewelry",
+    "201768005": "jewelry",
+    "201768006": "jewelry",
+    "201768007": "jewelry",
+    "201768008": "jewelry",
+    "201768009": "jewelry",
+    "201768010": "jewelry",
+    "201768011": "jewelry",
+    "201768012": "jewelry",
+    "201768013": "jewelry",
+    "201768014": "jewelry",
+    "201768015": "jewelry",
+    "201768016": "jewelry",
+    "201768017": "jewelry",
+    "201768018": "jewelry",
+    "201768019": "jewelry",
+    "201768020": "jewelry",
+    "201768021": "jewelry",
+    "201768022": "jewelry",
+    "201768023": "jewelry",
+    "201768024": "jewelry",
+    "201768025": "jewelry",
+    "201768026": "jewelry",
+    "201768027": "jewelry",
+    "201768028": "jewelry",
+    "201768029": "jewelry",
+    "201768030": "jewelry",
+    "201768031": "jewelry",
+    "201768032": "jewelry",
+    "201768033": "jewelry",
+    "201768034": "jewelry",
+    "201768035": "jewelry",
+    "201768036": "jewelry",
+    "201768037": "jewelry",
+    "201768038": "jewelry",
+    "201768039": "jewelry",
+    "201768040": "jewelry",
+    "201768041": "jewelry",
+    "201768042": "jewelry",
+    "201768043": "jewelry",
+    "201768044": "jewelry",
+    "201768045": "jewelry",
+    "201768046": "jewelry",
+    "201768047": "jewelry",
+    "201768048": "jewelry",
+    "201768049": "jewelry",
+    "201768050": "jewelry",
+    "201768051": "jewelry",
+    "201768052": "jewelry",
+    "201768053": "jewelry",
+    "201768054": "jewelry",
+    "201768055": "jewelry",
+    "201768056": "jewelry",
+    "201768057": "jewelry",
+    "201768058": "jewelry",
+    "201768059": "jewelry",
+    "201768060": "jewelry",
+    "201768061": "jewelry",
+    "201768062": "jewelry",
+    "201768063": "jewelry",
+    "201768064": "jewelry",
+    "201768065": "jewelry",
+    "201768066": "jewelry",
+    "201768067": "jewelry",
+    "201768068": "jewelry",
+    "201768069": "jewelry",
+    "201768070": "jewelry",
+    "201768071": "jewelry",
+    "201768072": "jewelry",
+    "201768073": "jewelry",
+    "201768074": "jewelry",
+    "201768075": "jewelry",
+    "201768076": "jewelry",
+    "201768077": "jewelry",
+    "201768078": "jewelry",
+    "201768079": "jewelry",
+    "201768080": "jewelry",
+    "201768081": "jewelry",
+    "201768082": "jewelry",
+    "201768083": "jewelry",
+    "201768084": "jewelry",
+    "201768085": "jewelry",
+    "201768086": "jewelry",
+    "201768087": "jewelry",
+    "201768088": "jewelry",
+    "201768089": "jewelry",
+    "201768090": "jewelry",
+    "201768091": "jewelry",
+    "201768092": "jewelry",
+    "201768093": "jewelry",
+    "201768094": "jewelry",
+    "201768095": "jewelry",
+    "201768096": "jewelry",
+    "201768097": "jewelry",
+    "201768098": "jewelry",
+    "201768099": "jewelry",
     "201768100": "jewelry",
 }
 
@@ -120,6 +236,7 @@ CATEGORY_META = {
     "sport": {"name": "Спорт", "icon": "Dumbbell"},
     "jewelry": {"name": "Украшения", "icon": "Gem"},
 }
+
 
 # ── MODELS ──────────────────────────────────────────────────────
 class Product:
@@ -145,6 +262,7 @@ class Product:
         if "rzekl.com" in self.aliLink and "ulp=" in self.aliLink:
             try:
                 from urllib.parse import unquote
+
                 decoded = unquote(self.aliLink)
                 if "ulp=" in decoded:
                     parts = decoded.split("ulp=")
@@ -156,28 +274,42 @@ class Product:
             except Exception:
                 pass
         return {
-            "id": self.id, "itemId": self.itemId, "title": self.title,
-            "category": self.category, "price": self.price, "oldPrice": self.oldPrice,
-            "discount": self.discount, "rating": self.rating, "orders": self.orders,
+            "id": self.id,
+            "itemId": self.itemId,
+            "title": self.title,
+            "category": self.category,
+            "price": self.price,
+            "oldPrice": self.oldPrice,
+            "discount": self.discount,
+            "rating": self.rating,
+            "orders": self.orders,
             "viewers": max(1, int(self.orders * 0.2)) + 5,
             "timer": f"еще {max(1, self.discount % 48 + 1)} часов",
-            "image": self.image, "tags": self.tags[:4] if self.tags else [],
-            "badges": self._generate_badges(), "features": self._specs_to_features(),
-            "affiliateLink": affiliate_link, "aliLink": self.aliLink,
+            "image": self.image,
+            "tags": self.tags[:4] if self.tags else [],
+            "badges": self._generate_badges(),
+            "features": self._specs_to_features(),
+            "affiliateLink": affiliate_link,
+            "aliLink": self.aliLink,
             "shipping": "Доставка по условиям AliExpress",
             "shopName": self.shopName,
         }
 
     def _generate_badges(self) -> List[str]:
         badges = []
-        if self.discount >= 80: badges.append("flash")
-        if self.rating >= 4.7 and self.orders > 100: badges.append("topRated")
-        if self.orders > 500: badges.append("bestseller")
-        if self.discount >= 50: badges.append("bestPrice")
+        if self.discount >= 80:
+            badges.append("flash")
+        if self.rating >= 4.7 and self.orders > 100:
+            badges.append("topRated")
+        if self.orders > 500:
+            badges.append("bestseller")
+        if self.discount >= 50:
+            badges.append("bestPrice")
         return badges
 
     def _specs_to_features(self) -> List[str]:
-        if not self.specs: return []
+        if not self.specs:
+            return []
         return [f"{k}: {v}" for k, v in list(self.specs.items())[:5] if k != "Комиссия"]
 
 
@@ -215,7 +347,7 @@ class FeedParser:
     def _open_feed(self):
         with open(FEED_RAW, "rb") as f:
             magic = f.read(2)
-        if magic[:2] == bytes([0x1f, 0x8b]):
+        if magic[:2] == bytes([0x1F, 0x8B]):
             logger.info("Фид gzip")
             return gzip.open(FEED_RAW, "rb")
         else:
@@ -312,13 +444,23 @@ class FeedParser:
         if discount < MIN_DISCOUNT:
             return None
 
-        return Product({
-            "id": offer.get("id", item_id or str(hash(url))),
-            "itemId": item_id, "title": name[:120], "category": category,
-            "price": price, "oldPrice": old_price, "discount": discount,
-            "rating": 4.5, "orders": 100, "image": image, "aliLink": url,
-            "tags": [], "specs": {},
-        })
+        return Product(
+            {
+                "id": offer.get("id", item_id or str(hash(url))),
+                "itemId": item_id,
+                "title": name[:120],
+                "category": category,
+                "price": price,
+                "oldPrice": old_price,
+                "discount": discount,
+                "rating": 4.5,
+                "orders": 100,
+                "image": image,
+                "aliLink": url,
+                "tags": [],
+                "specs": {},
+            }
+        )
 
 
 # ── ALIVE CHECKER ───────────────────────────────────────────────
@@ -328,7 +470,10 @@ def check_product_alive(product: Product) -> tuple:
     try:
         resp = requests.head(
             product.aliLink,
-            headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", "Accept": "text/html"},
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept": "text/html",
+            },
             timeout=CHECK_TIMEOUT,
             allow_redirects=True,
         )
@@ -379,12 +524,12 @@ def generate_v2_json(products: List[Product]) -> dict:
 def generate_categories_json(products: List[Product]) -> list:
     # Динамически определяем категории из реальных товаров
     present_cats = sorted(set(p.category for p in products))
-    
+
     result = [{"id": "all", "name": "Все", "icon": "LayoutGrid"}]
     for cat_id in present_cats:
         meta = CATEGORY_META.get(cat_id, {"name": cat_id.capitalize(), "icon": "Package"})
         result.append({"id": cat_id, "name": meta["name"], "icon": meta["icon"]})
-    
+
     logger.info(f"Сгенерировано {len(result)} категорий: {[c['id'] for c in result]}")
     return result
 
