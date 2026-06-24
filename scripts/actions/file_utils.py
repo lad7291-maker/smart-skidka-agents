@@ -30,7 +30,7 @@ ITEMS_DIR = SITE_ROOT / "item"
 def _resolve_within_site_root(path: Path) -> Path:
     """Проверяет, что путь находится внутри SITE_ROOT (защита от path traversal)."""
     resolved = path.resolve()
-    site_root_resolved = SITE_ROOT.resolve()
+    site_root_resolved = _get_site_root().resolve()
     # Приводим к общему виду для сравнения
     try:
         resolved.relative_to(site_root_resolved)
@@ -202,7 +202,7 @@ def write_products(data: dict, validate: bool = False) -> bool:
         validate: Если True, проверяет разрешённые поля (для агентов)
     """
     # Если data — dict с "products", сохраняем как list для совместимости с app.js
-    products_json = SITE_ROOT / "products.json"
+    products_json = _get_site_root() / "products.json"
     if isinstance(data, dict) and "products" in data:
         return safe_write_json(products_json, data["products"])
     return safe_write_json(products_json, data)
