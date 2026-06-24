@@ -15,9 +15,13 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import aiohttp
+import structlog
 
 from . import with_retry
 from .action_registry import register_action
+
+logger = structlog.get_logger("site_actions")
+
 from .file_utils import (
     read_products,
     read_site_html,

@@ -250,6 +250,29 @@ class CycleManager:
                     len(self.agents),
                 )
 
+        # P1-20: Per-agent scheduling — фильтруем агентов по interval
+        due_agents = []
+        for agent in self.agents:
+            should_run = await self._should_run_agent(agent)
+            if should_run:
+                due_agents.append(agent)
+            else:
+                self.logger.info(
+                    "Agent skipped by schedule",
+                    agent=agent.agent_name,
+                )
+
+        if not due_agents:
+            self.logger.info("No agents due for this cycle")
+            return {
+                "cycle_id": cycle_id,
+                "results": [],
+                "duration_ms": 0,
+                "errors": [],
+                "timestamp": datetime.now().isoformat(),
+                "critic_report": None,
+            }
+
         # P1-2: Dependency-based pipeline — запускаем агентов по готовности
         # trend → feed → analytics → performance → seo → content → smm → email
         # Агент запускается только когда все зависимости выполнены
