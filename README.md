@@ -414,3 +414,4 @@ curl http://localhost:8080/health
 <p align="center">
   <b>smart-skidka-agents</b> — автономный маркетинг на автопилоте 🤖
 </p>
+# CI trigger
