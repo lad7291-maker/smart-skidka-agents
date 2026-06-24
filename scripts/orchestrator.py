@@ -1444,19 +1444,24 @@ class ResultValidator:
         warnings: List[str] = []
         score: float = 1.0
 
-        # Проверка наличия метрик
+        # Проверка наличия метрик или product analytics
         metrics = result.get("metrics", {})
-        if not metrics:
-            errors.append("Отсутствуют метрики")
+        top_categories = result.get("top_categories", [])
+        top_products = result.get("top_products", [])
+        insights = result.get("insights", [])
+        has_product_analytics = bool(top_categories or top_products or insights)
+
+        if not metrics and not has_product_analytics:
+            errors.append("Отсутствуют метрики или данные product analytics")
             score -= 0.4
 
-        # Проверка даты отчёта
-        if "report_date" not in result:
+        # Проверка даты отчёта (только для web analytics)
+        if "report_date" not in result and not has_product_analytics:
             warnings.append("Отсутствует дата отчёта")
             score -= 0.1
 
         # Проверка источника данных
-        if "data_source" not in result:
+        if "data_source" not in result and not has_product_analytics:
             warnings.append("Не указан источник данных")
             score -= 0.05
 

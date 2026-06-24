@@ -783,6 +783,59 @@ class TestValidateAnalytics(unittest.TestCase):
         v = validate_analytics_result(result)
         self.assertTrue(any("сегментации" in w for w in v.warnings))
 
+    def test_product_analytics_perfect(self):
+        """Product analytics формат (analytics-agent.json) должен проходить."""
+        result = {
+            "top_categories": [{"name": "электроника", "avg_discount": 45, "product_count": 120}],
+            "top_products": ["phone-123", "watch-456"],
+            "insights": ["Смартфоны имеют среднюю скидку 45%"],
+            "recommendations": [{"action": "create_category_page", "category": "электроника", "priority": "high"}],
+        }
+        v = validate_analytics_result(result)
+        self.assertEqual(v.status, ValidationStatus.PASSED)
+        self.assertEqual(v.score, 1.0)
+        self.assertTrue(v.is_valid)
+        self.assertTrue(v.metadata.get("product_analytics"))
+        self.assertEqual(v.metadata["top_categories_count"], 1)
+        self.assertEqual(v.metadata["top_products_count"], 2)
+        self.assertEqual(v.metadata["insights_count"], 1)
+
+    def test_product_analytics_missing_recommendations(self):
+        """Product analytics без рекомендаций — warning."""
+        result = {
+            "top_categories": [{"name": "электроника", "avg_discount": 45, "product_count": 120}],
+            "top_products": ["phone-123"],
+            "insights": ["Скидки растут"],
+            "recommendations": [],
+        }
+        v = validate_analytics_result(result)
+        self.assertEqual(v.status, ValidationStatus.WARNING)
+        self.assertTrue(any("рекомендации" in w for w in v.warnings))
+
+    def test_product_analytics_missing_top_products(self):
+        """Product analytics без top_products — warning."""
+        result = {
+            "top_categories": [{"name": "электроника", "avg_discount": 45, "product_count": 120}],
+            "top_products": [],
+            "insights": ["Скидки растут"],
+            "recommendations": [{"action": "test"}],
+        }
+        v = validate_analytics_result(result)
+        self.assertEqual(v.status, ValidationStatus.WARNING)
+        self.assertTrue(any("топ-товары" in w for w in v.warnings))
+
+    def test_product_analytics_missing_insights(self):
+        """Product analytics без insights — warning."""
+        result = {
+            "top_categories": [{"name": "электроника", "avg_discount": 45, "product_count": 120}],
+            "top_products": ["phone-123"],
+            "insights": [],
+            "recommendations": [{"action": "test"}],
+        }
+        v = validate_analytics_result(result)
+        self.assertEqual(v.status, ValidationStatus.WARNING)
+        self.assertTrue(any("инсайты" in w for w in v.warnings))
+
 
 class TestValidateContent(unittest.TestCase):
     """Тесты validate_content_result."""

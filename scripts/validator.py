@@ -1202,9 +1202,16 @@ def validate_analytics_result(result: Dict[str, Any]) -> ValidationResult:
 
     logger.info("Начало валидации Analytics-результата")
 
+    # ─── Предварительная проверка: web analytics или product analytics ──────────
+    metrics = result.get("metrics", {})
+    top_categories = result.get("top_categories", [])
+    top_products = result.get("top_products", [])
+    insights = result.get("insights", [])
+    has_product_analytics = bool(top_categories or top_products or insights)
+
     # ─── Проверка даты отчёта ─────────────────────────────────────────────────
     report_date = result.get("report_date", "")
-    if not report_date:
+    if not report_date and not has_product_analytics:
         warnings.append("Отсутствует дата отчёта")
         score -= 0.1
 
@@ -1213,62 +1220,81 @@ def validate_analytics_result(result: Dict[str, Any]) -> ValidationResult:
     if isinstance(date_range, dict):
         start_date = date_range.get("start", "")
         end_date = date_range.get("end", "")
-        if not start_date or not end_date:
+        if (not start_date or not end_date) and not has_product_analytics:
             warnings.append("Неполный диапазон дат")
             score -= 0.1
     else:
-        warnings.append("date_range должен быть словарём с start и end")
-        score -= 0.1
+        if not has_product_analytics:
+            warnings.append("date_range должен быть словарём с start и end")
+            score -= 0.1
 
-    # ─── Проверка метрик ──────────────────────────────────────────────────────
-    metrics = result.get("metrics", {})
-    if not metrics:
-        errors.append("Отсутствуют метрики")
+    # ─── Проверка метрик (или product analytics) ──────────────────────────────
+    if not metrics and not has_product_analytics:
+        errors.append("Отсутствуют метрики или данные product analytics")
         score -= 0.4
-    elif not isinstance(metrics, dict):
+    elif metrics and not isinstance(metrics, dict):
         errors.append("Metrics должен быть словарём")
         score -= 0.3
     else:
-        metadata["metrics_count"] = len(metrics)
+        if metrics:
+            metadata["metrics_count"] = len(metrics)
 
-        # Проверяем ключевые метрики
-        key_metrics = ["visits", "pageviews", "users", "bounce_rate"]
-        found_key = [m for m in key_metrics if m in metrics]
-        metadata["key_metrics_found"] = found_key
+            # Проверяем ключевые метрики
+            key_metrics = ["visits", "pageviews", "users", "bounce_rate"]
+            found_key = [m for m in key_metrics if m in metrics]
+            metadata["key_metrics_found"] = found_key
 
-        if len(found_key) < 2:
-            warnings.append(f"Мало ключевых метрик ({len(found_key)}/{len(key_metrics)})")
-            score -= 0.1
-
-        # Проверка на отрицательные значения
-        negative_metrics = []
-        for key, value in metrics.items():
-            if isinstance(value, (int, float)) and value < 0:
-                negative_metrics.append(key)
-        if negative_metrics:
-            errors.append(f"Отрицательные значения метрик: {negative_metrics}")
-            score -= 0.15 * len(negative_metrics)
-
-        # Проверка конверсии (должна быть 0-100%)
-        conversion = metrics.get("conversion_rate")
-        if conversion is not None:
-            if conversion < 0 or conversion > 100:
-                errors.append(f"Некорректное значение conversion_rate: {conversion}")
-                score -= 0.15
-            metadata["conversion_rate"] = conversion
-
-        # Проверка bounce_rate (0-100%)
-        bounce = metrics.get("bounce_rate")
-        if bounce is not None:
-            if bounce < 0 or bounce > 100:
-                errors.append(f"Некорректное значение bounce_rate: {bounce}")
+            if len(found_key) < 2:
+                warnings.append(f"Мало ключевых метрик ({len(found_key)}/{len(key_metrics)})")
                 score -= 0.1
+
+            # Проверка на отрицательные значения
+            negative_metrics = []
+            for key, value in metrics.items():
+                if isinstance(value, (int, float)) and value < 0:
+                    negative_metrics.append(key)
+            if negative_metrics:
+                errors.append(f"Отрицательные значения метрик: {negative_metrics}")
+                score -= 0.15 * len(negative_metrics)
+
+            # Проверка конверсии (должна быть 0-100%)
+            conversion = metrics.get("conversion_rate")
+            if conversion is not None:
+                if conversion < 0 or conversion > 100:
+                    errors.append(f"Некорректное значение conversion_rate: {conversion}")
+                    score -= 0.15
+                metadata["conversion_rate"] = conversion
+
+            # Проверка bounce_rate (0-100%)
+            bounce = metrics.get("bounce_rate")
+            if bounce is not None:
+                if bounce < 0 or bounce > 100:
+                    errors.append(f"Некорректное значение bounce_rate: {bounce}")
+                    score -= 0.1
+
+        if has_product_analytics:
+            metadata["product_analytics"] = True
+            metadata["top_categories_count"] = len(top_categories) if isinstance(top_categories, list) else 0
+            metadata["top_products_count"] = len(top_products) if isinstance(top_products, list) else 0
+            metadata["insights_count"] = len(insights) if isinstance(insights, list) else 0
+
+            if isinstance(top_categories, list) and len(top_categories) == 0:
+                warnings.append("Отсутствуют топ-категории")
+                score -= 0.05
+            if isinstance(top_products, list) and len(top_products) == 0:
+                warnings.append("Отсутствуют топ-товары")
+                score -= 0.05
+            if isinstance(insights, list) and len(insights) == 0:
+                warnings.append("Отсутствуют инсайты")
+                score -= 0.05
 
     # ─── Проверка источника данных ────────────────────────────────────────────
     data_source = result.get("data_source", "")
     if not data_source:
-        warnings.append("Не указан источник данных")
-        score -= 0.1
+        # Для product analytics источник может быть неявным (products.json)
+        if not has_product_analytics:
+            warnings.append("Не указан источник данных")
+            score -= 0.1
     else:
         metadata["data_source"] = data_source
 
@@ -1286,7 +1312,7 @@ def validate_analytics_result(result: Dict[str, Any]) -> ValidationResult:
 
     # ─── Проверка сегментации ─────────────────────────────────────────────────
     segments = result.get("segments", {})
-    if not segments:
+    if not segments and not has_product_analytics:
         warnings.append("Нет сегментации данных — рекомендуется добавить")
         score -= 0.05
 

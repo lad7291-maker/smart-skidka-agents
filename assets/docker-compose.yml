@@ -70,6 +70,7 @@ services:
       # Telegram
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      TELEGRAM_CHANNEL_ID: ${TELEGRAM_CHANNEL_ID}
       
       # Расписание
       CYCLE_INTERVAL: ${CYCLE_INTERVAL:-21600}
@@ -102,6 +103,7 @@ services:
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      TELEGRAM_CHANNEL_ID: ${TELEGRAM_CHANNEL_ID}
       DATABASE_URL: postgresql://${POSTGRES_USER:-agents}:${POSTGRES_PASSWORD:-changeme_strong_password}@postgres:5432/skidka_agents
       REDIS_URL: redis://:${REDIS_PASSWORD:-changeme_redis_pass}@redis:6379/0
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
