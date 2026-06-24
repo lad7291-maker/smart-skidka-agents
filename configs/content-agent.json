@@ -30,14 +30,6 @@
         "items": "items"
       },
       "condition": "has_category"
-    },
-    {
-      "name": "update_item_description",
-      "input_map": {
-        "item_id": "items.0.id",
-        "new_description": "items.0.description"
-      },
-      "condition": "has_items"
     }
   ]
 }

@@ -28,14 +28,6 @@
         "product_ids": "top_products"
       },
       "condition": "has_top_products"
-    },
-    {
-      "name": "add_badge",
-      "input_map": {
-        "item_id": "featured_products.0",
-        "badge_text": "ХИТ"
-      },
-      "condition": "has_featured_products"
     }
   ]
 }
