@@ -8,13 +8,13 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    if: secrets.DEPLOY_HOST != ''
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Deploy to server via SSH
         uses: appleboy/ssh-action@v1.0.0
+        if: ${{ secrets.DEPLOY_HOST != '' }}
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
