@@ -189,20 +189,21 @@ class ActionExecutor:
             if top_ids:
                 ok = prioritize_products(top_ids)
                 action_log.append(f"prioritized:{ok}")
+            # Add badges for featured products
             featured = data.get("featured_products", [])
-            for fid in featured[:5]:
+            for fid in featured[:10]:
                 ok = add_badge(str(fid), "ХИТ")
                 action_log.append(f"badge:{fid}:{ok}")
             new_items = data.get("new_products", [])
-            for nid in new_items[:3]:
+            for nid in new_items[:5]:
                 ok = add_badge(str(nid), "NEW")
                 action_log.append(f"badge:new:{nid}:{ok}")
             top_items = data.get("top_rated", [])
-            for tid in top_items[:3]:
+            for tid in top_items[:5]:
                 ok = add_badge(str(tid), "ТОП")
                 action_log.append(f"badge:top:{tid}:{ok}")
             hot_items = data.get("hot_discounts", data.get("hot", []))
-            for hid in hot_items[:5]:
+            for hid in hot_items[:10]:
                 ok = add_badge(str(hid), "🔥")
                 action_log.append(f"badge:hot:{hid}:{ok}")
 
@@ -231,12 +232,13 @@ class ActionExecutor:
                 ok = create_category_page(cat, html)
                 action_log.append(f"category_page:{cat}:{ok}")
             items = data.get("items", data.get("product_descriptions", []))
-            for item in items[:3]:
-                if isinstance(item, dict):
-                    iid = item.get("id", item.get("itemId", ""))
-                    desc = item.get("description", "")
-                    if iid and desc:
-                        ok = update_item_description(str(iid), desc)
-                        action_log.append(f"item_desc:{iid}:{ok}")
+            if isinstance(items, list):
+                for item in items[:10]:  # обновляем до 10 товаров
+                    if isinstance(item, dict):
+                        iid = item.get("id", item.get("itemId", ""))
+                        desc = item.get("description", "")
+                        if iid and desc:
+                            ok = update_item_description(str(iid), desc)
+                            action_log.append(f"item_desc:{iid}:{ok}")
 
         return action_log
