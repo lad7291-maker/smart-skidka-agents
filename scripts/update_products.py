@@ -293,6 +293,12 @@ class Product:
             "aliLink": self.aliLink,
             "shipping": "Доставка по условиям AliExpress",
             "shopName": self.shopName,
+            # Поля для агентов (изначально пустые)
+            "description": "",
+            "badge": "",
+            "priority": 0,
+            "promo_code": "",
+            "expires_at": "",
         }
 
     def _generate_badges(self) -> List[str]:
