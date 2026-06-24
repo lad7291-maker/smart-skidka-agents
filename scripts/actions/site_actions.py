@@ -19,9 +19,6 @@ import structlog
 
 from . import with_retry
 from .action_registry import register_action
-
-logger = structlog.get_logger("site_actions")
-
 from .file_utils import (
     read_products,
     read_site_html,
@@ -30,6 +27,8 @@ from .file_utils import (
     write_products,
     write_site_html,
 )
+
+logger = structlog.get_logger("site_actions")
 
 
 def _h(value: str) -> str:
