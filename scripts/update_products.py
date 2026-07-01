@@ -262,10 +262,10 @@ class Product:
 
     def to_v2_dict(self) -> dict:
         # Admitad WW monetization via rzekl.com deeplink
-        # Format: https://rzekl.com/c/{code}/?ulp=https://aliexpress.ru/item/{itemId}.html
+        # Format: https://rzekl.com/c/{code}/?ulp=https://aliexpress.com/item/{itemId}.html
         from urllib.parse import quote
         RZEKL_BASE = "https://rzekl.com/c/1e8d114494fb6bf3968616525dc3e8/?ulp="
-        direct_url = f"https://aliexpress.ru/item/{self.itemId}.html"
+        direct_url = f"https://aliexpress.com/item/{self.itemId}.html"
         affiliate_link = RZEKL_BASE + quote(direct_url, safe="/")
         
         # Generate realistic-looking but varied data
