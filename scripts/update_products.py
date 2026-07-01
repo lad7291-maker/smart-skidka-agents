@@ -261,27 +261,12 @@ class Product:
         self.shopName = data.get("shopName", "AliExpress")
 
     def to_v2_dict(self) -> dict:
-        # CPC format: s.click.aliexpress.com deeplink (Admitad WW)
-        # Preserves aliexpress.ru domain + adds tracking
-        affiliate_link = self.aliLink
-        if "s.click.aliexpress.com" in self.aliLink:
-            # Already the correct deeplink format
-            affiliate_link = self.aliLink
-        elif "ali.click" in self.aliLink:
-            # Legacy RU&CIS format
-            affiliate_link = self.aliLink
-        elif "rzekl.com" in self.aliLink and "ulp=" in self.aliLink:
-            try:
-                from urllib.parse import unquote
-                decoded = unquote(self.aliLink)
-                if "ulp=" in decoded:
-                    parts = decoded.split("ulp=")
-                    if len(parts) > 1:
-                        direct_url = parts[1]
-                        if "aliexpress.com" in direct_url or "s.click.aliexpress.com" in direct_url:
-                            affiliate_link = direct_url
-            except Exception:
-                pass
+        # Admitad WW monetization via rzekl.com deeplink
+        # Format: https://rzekl.com/c/{code}/?ulp=https://aliexpress.ru/item/{itemId}.html
+        from urllib.parse import quote
+        RZEKL_BASE = "https://rzekl.com/c/1e8d114494fb6bf3968616525dc3e8/?ulp="
+        direct_url = f"https://aliexpress.ru/item/{self.itemId}.html"
+        affiliate_link = RZEKL_BASE + quote(direct_url, safe="/")
         
         # Generate realistic-looking but varied data
         # Seed from title hash for consistency
