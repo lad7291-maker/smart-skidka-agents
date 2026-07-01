@@ -9,6 +9,8 @@ import asyncio
 import html as html_module
 import json
 import os
+
+from dotenv import load_dotenv
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -225,6 +227,9 @@ def create_category_page(category_name: str, items: list) -> bool:
 
     cards = ""
     for item in items:
+        # Skip non-dict items (LLM may return strings instead of dicts)
+        if not isinstance(item, dict):
+            continue
         cards += f"""
         <div class="product-card">
             <img src="{_h(item.get('image', ''))}" alt="{_h(item.get('title', ''))}" loading="lazy">
@@ -883,6 +888,8 @@ def update_products(min_discount: int = 30, products_per_category: int = 200, in
         include_categories: Список категорий для включения (None = все из фида)
     """
     import subprocess
+    # Ensure env is loaded (orchestrator may not have restarted after .env change)
+    load_dotenv("/opt/smart-skidka-agents/.env")
 
     site_root = Path(os.getenv("PROJECT_ROOT", "/var/www/dealshub-miniapp"))
     script_path = Path("/opt/smart-skidka-agents/scripts/update_products.py")
