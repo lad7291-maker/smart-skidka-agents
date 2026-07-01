@@ -261,12 +261,12 @@ class Product:
         self.shopName = data.get("shopName", "AliExpress")
 
     def to_v2_dict(self) -> dict:
-        # Admitad WW monetization via rzekl.com deeplink
-        # Format: https://rzekl.com/c/{code}/?ulp=https://aliexpress.com/item/{itemId}.html
+        # Admitad monetization via s.click.aliexpress.com deeplink
+        # Format: https://s.click.aliexpress.com/deep_link.htm?aff_short_key={key}&dl_target_url=https://aliexpress.ru/item/{itemId}.html
         from urllib.parse import quote
-        RZEKL_BASE = "https://rzekl.com/c/1e8d114494fb6bf3968616525dc3e8/?ulp="
-        direct_url = f"https://aliexpress.com/item/{self.itemId}.html"
-        affiliate_link = RZEKL_BASE + quote(direct_url, safe="/")
+        ADMITAD_BASE = "https://s.click.aliexpress.com/deep_link.htm?aff_short_key=_ePNSNV&dl_target_url="
+        direct_url = f"https://aliexpress.ru/item/{self.itemId}.html"
+        affiliate_link = ADMITAD_BASE + quote(direct_url, safe="/")
         
         # Generate realistic-looking but varied data
         # Seed from title hash for consistency
